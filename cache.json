@@ -1,101 +1,209 @@
 {
   "bill_parsers": {
+    "H2391": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:37:57Z"
+      },
+      "votes": {
+        "module": "parsers.votes_hearing_committee",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:39:04Z"
+      }
+    },
+    "H2424": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:39:23Z"
+      },
+      "votes": {
+        "module": "parsers.votes_hearing_committee",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:40:25Z"
+      }
+    },
+    "H2465": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:40:44Z"
+      },
+      "votes": {
+        "module": "parsers.votes_hearing_committee",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:41:19Z"
+      }
+    },
+    "H2475": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:41:31Z"
+      }
+    },
+    "H2505": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:41:51Z"
+      },
+      "votes": {
+        "module": "parsers.votes_hearing_committee",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:43:20Z"
+      }
+    },
+    "H2556": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:43:34Z"
+      },
+      "votes": {
+        "module": "parsers.votes_hearing_committee",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:44:38Z"
+      }
+    },
+    "S1486": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:45:03Z"
+      }
+    },
+    "S1489": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:45:41Z"
+      },
+      "votes": {
+        "module": "parsers.votes_bill_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:46:44Z"
+      }
+    },
+    "S1533": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:47:07Z"
+      },
+      "votes": {
+        "module": "parsers.votes_bill_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:48:14Z"
+      }
+    },
+    "S1541": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:48:32Z"
+      },
+      "votes": {
+        "module": "parsers.votes_bill_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T17:52:39Z"
+      }
+    },
     "H103": {
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
-        "updated_at": "2025-09-11T01:50:41Z"
+        "updated_at": "2025-09-11T18:08:27Z"
       }
     },
     "H104": {
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
-        "updated_at": "2025-09-11T01:50:52Z"
+        "updated_at": "2025-09-11T18:08:53Z"
       }
     },
     "H73": {
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
-        "updated_at": "2025-09-11T01:51:01Z"
+        "updated_at": "2025-09-11T18:09:21Z"
       }
     },
     "H78": {
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
-        "updated_at": "2025-09-11T13:40:40Z"
+        "updated_at": "2025-09-11T18:09:42Z"
       }
     },
     "H80": {
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
-        "updated_at": "2025-09-11T13:40:46Z"
+        "updated_at": "2025-09-11T18:10:04Z"
       }
     },
     "H86": {
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
-        "updated_at": "2025-09-11T13:40:52Z"
+        "updated_at": "2025-09-11T18:10:26Z"
       }
     },
     "H93": {
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
-        "updated_at": "2025-09-11T13:40:57Z"
+        "updated_at": "2025-09-11T18:10:49Z"
       }
     },
     "H96": {
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
-        "updated_at": "2025-09-11T13:41:05Z"
+        "updated_at": "2025-09-11T18:11:10Z"
       }
     },
     "H98": {
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
-        "updated_at": "2025-09-11T13:41:12Z"
+        "updated_at": "2025-09-11T18:11:43Z"
       }
     },
     "H99": {
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
-        "updated_at": "2025-09-11T13:41:18Z"
+        "updated_at": "2025-09-11T18:12:03Z"
       }
     },
     "S197": {
       "summary": {
         "module": "parsers.summary_bill_tab_text",
         "confirmed": true,
-        "updated_at": "2025-09-11T13:45:50Z"
+        "updated_at": "2025-09-11T18:12:32Z"
+      },
+      "votes": {
+        "module": "parsers.votes_bill_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-11T18:13:28Z"
       }
     },
     "S29": {
       "summary": {
         "module": "parsers.summary_bill_tab_text",
         "confirmed": true,
-        "updated_at": "2025-09-11T13:46:12Z"
+        "updated_at": "2025-09-11T18:13:51Z"
       }
     },
     "S33": {
       "summary": {
         "module": "parsers.summary_bill_tab_text",
         "confirmed": true,
-        "updated_at": "2025-09-11T13:46:36Z"
-      }
-    },
-    "S36": {
-      "summary": {
-        "module": "parsers.summary_bill_tab_text",
-        "confirmed": true,
-        "updated_at": "2025-09-11T13:51:34Z"
+        "updated_at": "2025-09-11T18:14:18Z"
       }
     }
   }

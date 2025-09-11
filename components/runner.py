@@ -8,6 +8,7 @@ from components.compliance import classify
 from components.report import write_basic_html
 from collectors.bills_from_hearing import get_bills_for_committee
 from collectors.bill_status_basic import build_status_row
+from collectors.committee_contact_info import get_committee_contact
 from components.pipeline import (
     resolve_summary_for_bill,
     resolve_votes_for_bill,
@@ -42,6 +43,10 @@ def run_basic_compliance(
         f"Running basic compliance for {committee.name} "
         f"[{committee.id}]..."
     )
+
+    # 1.5) get committee contact info
+    print("Collecting committee contact information...")
+    contact = get_committee_contact(base_url, committee)
 
     # 2) bill rows from first N hearings
     rows = get_bills_for_committee(
@@ -97,7 +102,7 @@ def run_basic_compliance(
         json_path = outdir / f"basic_{committee.id}.json"
         html_path = outdir / f"basic_{committee.id}.html"
         json_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
-        write_basic_html(committee.name, committee.id, results, html_path)
+        write_basic_html(committee.name, committee.id, committee.url, contact, results, html_path)
         print(f"Wrote {json_path}")
         print(f"Wrote {html_path}")
 

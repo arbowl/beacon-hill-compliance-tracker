@@ -2,8 +2,8 @@ base_url: "https://malegislature.gov"
 filters:
   include_chambers: ["House", "Joint"]
 runner:
-  committee_ids: ["J33"]  # list of committee IDs, or ["all"] for all committees
-  limit_hearings: 1       # keep small for fast tests; increase later
+  committee_ids: ["J16"]  # list of committee IDs, or ["all"] for all committees
+  limit_hearings: 2       # keep small for fast tests; increase later
 parsers:
   summary:
     - module: "parsers.summary_hearing_docs_pdf"
@@ -20,7 +20,7 @@ parsers:
     - module: "parsers.votes_bill_embedded"   # fastest/happiest path
       cost: 1
     - module: "parsers.votes_hearing_committee"  # committee vote documents on hearing page
-      cost: 2
+      cost: 1.5
     - module: "parsers.votes_committee_documents"  # committee Documents tab PDFs
       cost: 2
     - module: "parsers.votes_docx"            # DOCX vote documents
@@ -29,25 +29,26 @@ parsers:
       cost: 3
 review_mode: "on"
 llm:
-  enabled: false
-  host: "192.168.0.170"
+  enabled: true
+  host: "172.17.70.223"
   port: 11434
-  model: "mistral:7b-instruct"
+  model: "qwen3:4b"
   prompt: |
     bill_id: {bill_id}
     doc_type: {doc_type}
     content: """{content}"""
 
     Answer one word (yes/no/unsure) using these rules:
-    - Bill id must appear (H or S + number, with/without dot/space).
-    - summary → must have bill id AND either:
-        • "Summary" near it, OR
+    - Bill id massively increases confidence if present (H or S + number, with/without dot/space)
+    - Wrong bill id is a strong negative indicator
+    - summary → must have:
+        • "Summary" near it (case insensitive), OR
         • a malegislature.gov link whose filename/title has bill id + "Summary", OR
         • policy/topic-style prose (not navigation, login, or site boilerplate).
-    - vote record → needs bill id AND ("vote"|"yea"|"nay"|"favorable"|"recommendation"|"committee") AND either named member positions or an explicit committee recommendation.
+    - vote record → look for ("vote"|"yea"|"nay"|"favorable"|"recommendation"|"committee")
     - Ignore boilerplate.
     Output exactly: yes|no|unsure.
-  timeout: 30
+  timeout: 120
   audit_log:
     enabled: true
     file: "out/llm_audit.log"

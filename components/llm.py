@@ -96,18 +96,18 @@ class LLMParser:
         """
         # Always log the attempt, even if LLM is disabled or unavailable
         if not self.config.enabled:
-            self._log_audit_entry(content, doc_type, bill_id, None, "disabled")
+            limited_content = self._truncate_content(content)
+            self._log_audit_entry(content, doc_type, bill_id, None, "disabled", limited_content)
             return None
         
         if not self.is_available():
-            self._log_audit_entry(content, doc_type, bill_id, None, "unavailable")
+            limited_content = self._truncate_content(content)
+            self._log_audit_entry(content, doc_type, bill_id, None, "unavailable", limited_content)
             return None
         
-        # Limit content to first 20 words to reduce token usage
-        content_words = content.split()
-        limited_content = ' '.join(content_words[:20])
-        if len(content_words) > 20:
-            limited_content += "..."
+        # Limit content to reduce token usage and prevent timeouts
+        # Strategy: Try sentence-based truncation first, then word-based, then character-based
+        limited_content = self._truncate_content(content)
         
         # Format the prompt with the provided variables
         formatted_prompt = self.config.prompt.format(
@@ -137,27 +137,117 @@ class LLMParser:
                 raw_response = response_text
                 
                 # Parse the response to extract yes/no/unsure
-                response_lower = response_text.lower()
-                if "yes" in response_lower and "no" not in response_lower and "unsure" not in response_lower:
+                # Look for the final decision at the end of the response, after any reasoning
+                response_lower = response_text.lower().strip()
+                
+                # Split by lines and look for the final decision
+                lines = response_text.strip().split('\n')
+                final_line = lines[-1].strip().lower() if lines else ""
+                
+                # Check the final line for a clear decision
+                if final_line == "yes":
                     decision = "yes"
-                elif "no" in response_lower and "yes" not in response_lower and "unsure" not in response_lower:
+                elif final_line == "no":
                     decision = "no"
-                elif "unsure" in response_lower:
+                elif final_line == "unsure":
                     decision = "unsure"
                 else:
-                    # If we can't parse the response clearly, return unsure
-                    decision = "unsure"
+                    # Fallback: look for the decision anywhere in the response
+                    # but prioritize the last occurrence
+                    if "yes" in response_lower:
+                        # Check if "yes" appears after any "no" or "unsure"
+                        yes_pos = response_lower.rfind("yes")
+                        no_pos = response_lower.rfind("no")
+                        unsure_pos = response_lower.rfind("unsure")
+                        
+                        if yes_pos > no_pos and yes_pos > unsure_pos:
+                            decision = "yes"
+                        else:
+                            decision = "unsure"
+                    elif "no" in response_lower:
+                        decision = "no"
+                    elif "unsure" in response_lower:
+                        decision = "unsure"
+                    else:
+                        decision = "unsure"
                 
                 # Log the audit entry
                 self._log_audit_entry(content, doc_type, bill_id, decision, raw_response, limited_content)
                 return decision
             else:
-                self._log_audit_entry(content, doc_type, bill_id, None, f"http_error_{response.status_code}")
+                self._log_audit_entry(content, doc_type, bill_id, None, f"http_error_{response.status_code}", limited_content)
                 return None
                 
         except Exception as e:
-            self._log_audit_entry(content, doc_type, bill_id, None, f"exception_{str(e)}")
+            self._log_audit_entry(content, doc_type, bill_id, None, f"exception_{str(e)}", limited_content)
             return None
+    
+    def _truncate_content(self, content: str) -> str:
+        """
+        Aggressively truncate content to prevent LLM timeouts.
+        
+        Strategy:
+        1. Try to keep first 1-2 sentences (most important info is usually at the start)
+        2. If that's still too long, fall back to first 15 words
+        3. If still too long, use strict character limit as final fallback
+        
+        Args:
+            content: The content string to truncate
+            
+        Returns:
+            Truncated content string
+        """
+        if not content or len(content.strip()) == 0:
+            return content
+            
+        # Remove excessive whitespace
+        content = ' '.join(content.split())
+        
+        # Special handling for boilerplate content (detect common patterns)
+        boilerplate_indicators = [
+            "The information contained in this website is for general information purposes only",
+            "Update Testimony Either add testimony in the text field",
+            "Register for MyLegislature",
+            "Sign in to MyLegislature",
+            "Copyright © 2025 The General Court of the Commonwealth of Massachusetts"
+        ]
+        
+        # If content contains boilerplate, try to extract just the meaningful part
+        for indicator in boilerplate_indicators:
+            if indicator in content:
+                # Find the position of the boilerplate and truncate before it
+                boilerplate_pos = content.find(indicator)
+                if boilerplate_pos > 0 and boilerplate_pos < len(content) // 2:
+                    content = content[:boilerplate_pos].strip()
+                    break
+        
+        # Strategy 1: Try sentence-based truncation (first 1-2 sentences)
+        sentences = content.split('. ')
+        if len(sentences) > 1:
+            # Take first 1-2 sentences, but ensure we don't exceed strict length
+            limited_sentences = sentences[:2]
+            sentence_content = '. '.join(limited_sentences)
+            
+            # If we cut off mid-sentence, add the period back
+            if not sentence_content.endswith('.'):
+                sentence_content += '.'
+                
+            # If sentence-based truncation is reasonable length, use it
+            if len(sentence_content) <= 200:  # Much more aggressive: 200 chars max
+                return sentence_content
+        
+        # Strategy 2: Fall back to word-based truncation (first 15 words)
+        words = content.split()
+        if len(words) > 15:  # Reduced from 20 to 15 words
+            word_content = ' '.join(words[:15])
+            if len(word_content) <= 200:  # Much more aggressive: 200 chars max
+                return word_content + "..."
+        
+        # Strategy 3: Character-based truncation as final fallback
+        if len(content) > 200:  # Much more aggressive: 200 chars max
+            return content[:200] + "..."
+        
+        return content
     
     def _log_audit_entry(self, content: str, doc_type: str, bill_id: str, 
                         decision: Optional[str], raw_response: str, limited_content: Optional[str] = None):

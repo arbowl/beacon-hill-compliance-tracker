@@ -12,7 +12,7 @@ Massachusetts House and Joint committees are required to take action on bills wi
 
 1. **Clone and install dependencies:**
    ```bash
-   git clone https://github.com/arbowl/beacon-hill-compliance-tracker
+   git clone <repository-url>
    cd ma-rules
    python -m venv venv
    venv\Scripts\activate  # Windows
@@ -32,6 +32,33 @@ Massachusetts House and Joint committees are required to take action on bills wi
 
 ```bash
 python app.py
+```
+
+### Building Standalone Executable
+
+To create a standalone executable that can run without Python installed:
+
+**Option 1: Python script (cross-platform)**
+```bash
+python build.py
+```
+
+**Option 2: Windows batch file**
+```batch
+build.bat
+```
+
+The build process will:
+- Create a standalone executable using PyInstaller
+- Copy necessary config files (`config.yaml`, `requirements.txt`, `cache.json`)
+- Create an `out/` directory for generated reports
+- Package everything in a `release/` folder
+- Clean up temporary build files
+
+After building, run the executable with:
+```bash
+release/app.exe  # Windows
+release/app      # Linux/Mac
 ```
 
 This will:
@@ -359,4 +386,3 @@ python tests/votes_pipeline.py
 5. Submit a pull request
 
 The codebase is designed to be easily understood and extended by students, hobbyists, and grassroots organizations tracking legislative compliance.
-

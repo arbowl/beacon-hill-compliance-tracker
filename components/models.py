@@ -96,6 +96,11 @@ class CommitteeContact:
     name: str
     chamber: str
     url: str
-    room: Optional[str]   # e.g., "Room 274"
-    address: Optional[str]  # "24 Beacon St. Room 274 Boston, MA 02133"
-    phone: Optional[str]  # "(617) 722-2676"
+    # House contact details
+    house_room: Optional[str] = None   # e.g., "Room 130"
+    house_address: Optional[str] = None  # "24 Beacon St. Room 130 Boston, MA 02133"
+    house_phone: Optional[str] = None  # "(617) 722-2130"
+    # Senate contact details
+    senate_room: Optional[str] = None   # e.g., "Room 507"
+    senate_address: Optional[str] = None  # "24 Beacon St. Room 507 Boston, MA 02133"
+    senate_phone: Optional[str] = None  # "(617) 722-1643"
