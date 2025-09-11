@@ -12,7 +12,7 @@ Massachusetts House and Joint committees are required to take action on bills wi
 
 1. **Clone and install dependencies:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/arbowl/beacon-hill-compliance-tracker
    cd ma-rules
    python -m venv venv
    venv\Scripts\activate  # Windows
@@ -359,3 +359,4 @@ python tests/votes_pipeline.py
 5. Submit a pull request
 
 The codebase is designed to be easily understood and extended by students, hobbyists, and grassroots organizations tracking legislative compliance.
+
