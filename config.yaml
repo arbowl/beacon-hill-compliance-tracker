@@ -1,0 +1,55 @@
+base_url: "https://malegislature.gov"
+filters:
+  include_chambers: ["House", "Joint"]
+runner:
+  committee_ids: ["J33"]  # list of committee IDs, or ["all"] for all committees
+  limit_hearings: 1       # keep small for fast tests; increase later
+parsers:
+  summary:
+    - module: "parsers.summary_hearing_docs_pdf"
+      cost: 1
+    - module: "parsers.summary_committee_docx"    # Committee Summary DOCX files
+      cost: 2
+    - module: "parsers.summary_committee_pdf"     # Committee Summary PDF files
+      cost: 2
+    - module: "parsers.summary_bill_tab_text"     # NEW, plaintext fallback
+      cost: 3
+    - module: "parsers.summary_hearing_pdf"       # still useful as generic backup
+      cost: 4
+  votes:
+    - module: "parsers.votes_bill_embedded"   # fastest/happiest path
+      cost: 1
+    - module: "parsers.votes_hearing_committee"  # committee vote documents on hearing page
+      cost: 2
+    - module: "parsers.votes_committee_documents"  # committee Documents tab PDFs
+      cost: 2
+    - module: "parsers.votes_docx"            # DOCX vote documents
+      cost: 2
+    - module: "parsers.votes_bill_pdf"        # common fallback
+      cost: 3
+review_mode: "on"
+llm:
+  enabled: false
+  host: "192.168.0.170"
+  port: 11434
+  model: "mistral:7b-instruct"
+  prompt: |
+    bill_id: {bill_id}
+    doc_type: {doc_type}
+    content: """{content}"""
+
+    Answer one word (yes/no/unsure) using these rules:
+    - Bill id must appear (H or S + number, with/without dot/space).
+    - summary → must have bill id AND either:
+        • "Summary" near it, OR
+        • a malegislature.gov link whose filename/title has bill id + "Summary", OR
+        • policy/topic-style prose (not navigation, login, or site boilerplate).
+    - vote record → needs bill id AND ("vote"|"yea"|"nay"|"favorable"|"recommendation"|"committee") AND either named member positions or an explicit committee recommendation.
+    - Ignore boilerplate.
+    Output exactly: yes|no|unsure.
+  timeout: 30
+  audit_log:
+    enabled: true
+    file: "out/llm_audit.log"
+    include_timestamps: true
+    include_model_info: true
