@@ -59,10 +59,10 @@ def _reported_out_from_bill_page(
     return True, last_date
 
 
-def build_status_row(_base_url: str, row: BillAtHearing) -> BillStatus:
+def build_status_row(
+    _base_url: str, row: BillAtHearing, extension_until=None
+) -> BillStatus:
     """Build the status row."""
-    # Extension discovery is not implemented yet (later step).
-    extension_until = None
     d60, d90, effective = compute_deadlines(row.hearing_date, extension_until)
     with requests.Session() as s:
         reported, rdate = _reported_out_from_bill_page(s, row.bill_url)

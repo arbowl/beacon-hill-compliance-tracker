@@ -2,7 +2,7 @@
 """
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 
@@ -90,7 +90,21 @@ class VoteInfo:  # pylint: disable=too-many-instance-attributes
 
 
 @dataclass(frozen=True)
-class CommitteeContact:
+class ExtensionOrder:
+    """An extension order for a bill in the Massachusetts Legislature."""
+
+    bill_id: str
+    committee_id: str
+    extension_date: date
+    extension_order_url: str
+    order_type: str  # "Extension Order", "Committee Extension Order", etc.
+    discovered_at: datetime
+    is_fallback: bool = False  # True if created as fallback when regex failed
+    is_date_fallback: bool = False  # True if extension date is a fallback
+
+
+@dataclass(frozen=True)
+class CommitteeContact:  # pylint: disable=too-many-instance-attributes
     """A committee contact in the Massachusetts Legislature."""
     committee_id: str
     name: str
@@ -98,9 +112,9 @@ class CommitteeContact:
     url: str
     # House contact details
     house_room: Optional[str] = None   # e.g., "Room 130"
-    house_address: Optional[str] = None  # "24 Beacon St. Room 130 Boston, MA 02133"
+    house_address: Optional[str] = None  # Address format example
     house_phone: Optional[str] = None  # "(617) 722-2130"
     # Senate contact details
     senate_room: Optional[str] = None   # e.g., "Room 507"
-    senate_address: Optional[str] = None  # "24 Beacon St. Room 507 Boston, MA 02133"
+    senate_address: Optional[str] = None  # Address format example
     senate_phone: Optional[str] = None  # "(617) 722-1643"

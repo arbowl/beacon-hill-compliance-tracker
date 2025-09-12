@@ -4,6 +4,7 @@
 from enum import Enum
 from components.utils import load_config
 from components.runner import run_basic_compliance
+from components.committees import get_committees
 
 
 class Cfg(str, Enum):
@@ -28,7 +29,6 @@ def main():
 
     # Handle "all" case or unexpected values by processing all committees
     if not isinstance(committee_ids, list) or "all" in committee_ids:
-        from components.committees import get_committees
         all_committees = get_committees(base_url, include_chambers)
         committee_ids = [c.id for c in all_committees]
         print(f"Processing all {len(committee_ids)} committees: "

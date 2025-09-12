@@ -1,7 +1,7 @@
 """ Pipeline for resolving the summary for a bill. """
 
 import importlib
-from typing import Any
+from typing import Any, Optional
 
 from components.utils import Cache
 from components.models import BillAtHearing, SummaryInfo, VoteInfo
@@ -18,16 +18,18 @@ def _load_parsers(config: dict[str, Any]) -> list[dict[str, Any]]:
     return sorted(parsers, key=lambda p: p.get("cost", 999))
 
 
-def resolve_summary_for_bill(base_url, cfg, cache, row):
-    review_mode = (cfg.get("review_mode", "on").lower() == "on")
-
+def resolve_summary_for_bill(
+    base_url: str, cfg: dict, cache: Cache, row: BillAtHearing
+) -> SummaryInfo:
+    """Resolve the summary for a bill."""
+    review_mode: bool = cfg.get("review_mode", "on").lower() == "on"
     # 1) If we have a confirmed parser, run it silently and return.
-    cached = cache.get_parser(row.bill_id, "summary")
+    cached: Optional[str] = cache.get_parser(row.bill_id, "summary")
     if cached and cache.is_confirmed(row.bill_id, "summary"):
         mod = importlib.import_module(cached)
-        candidate = mod.discover(base_url, row)
+        candidate: Optional[dict] = mod.discover(base_url, row)
         if candidate:
-            parsed = mod.parse(base_url, candidate)
+            parsed: dict = mod.parse(base_url, candidate)
             return SummaryInfo(
                 present=True,
                 location="hearing_pdf",  # or infer from module if you want
@@ -36,26 +38,23 @@ def resolve_summary_for_bill(base_url, cfg, cache, row):
                 needs_review=False,
             )
         # If the source vanished, fall through to normal sequence.
-
     # 2) Otherwise, try cached first (unconfirmed), then others by cost
-    parser_sequence = _load_parsers(cfg)
+    parser_sequence: list[dict] = _load_parsers(cfg)
     if cached:
         parser_sequence = (
             [{"module": cached, "cost": 0}] +
             [p for p in parser_sequence if p["module"] != cached]
         )
-
     for p in parser_sequence:
         modname = p["module"]
         try:
             mod = importlib.import_module(modname)
+        # pylint: disable=broad-exception-caught
         except Exception:
             continue
-
         candidate = mod.discover(base_url, row)
         if not candidate:
             continue
-
         # If we’re here via an unconfirmed cache OR a new parser:
         accepted = True
         needs_review = False
@@ -89,23 +88,35 @@ def resolve_summary_for_bill(base_url, cfg, cache, row):
         if accepted:
             parsed = mod.parse(base_url, candidate)
             # mark confirmed if we actually asked; otherwise keep unconfirmed
-            cache.set_parser(row.bill_id, "summary", modname, confirmed=(review_mode and not needs_review))
+            cache.set_parser(row.bill_id, "summary", modname, confirmed=(
+                review_mode and not needs_review
+            ))
             return SummaryInfo(
                 present=True,
-                location=("hearing_pdf" if "hearing" in modname else "bill_tab"),
+                location=(
+                    "hearing_pdf" if "hearing" in modname else "bill_tab"
+                ),
                 source_url=parsed.get("source_url"),
                 parser_module=modname,
                 needs_review=needs_review,
             )
+    return SummaryInfo(
+        present=False,
+        location="unknown",
+        source_url=None,
+        parser_module=None,
+        needs_review=False
+    )
 
-    return SummaryInfo(present=False, location="unknown", source_url=None, parser_module=None, needs_review=False)
 
-
-def _load_votes_parsers(config):
+def _load_votes_parsers(config: dict) -> list[dict]:
+    """Load the votes parsers from the config."""
     parsers = (config.get("parsers", {}) or {}).get("votes", [])
     return sorted(parsers, key=lambda p: p.get("cost", 999))
 
+
 def _infer_location_from_module(modname: str) -> str:
+    """Infer the location from the module name."""
     if "embedded" in modname:
         return "bill_embedded"
     if "bill_pdf" in modname:
@@ -116,7 +127,10 @@ def _infer_location_from_module(modname: str) -> str:
         return "committee_docs"
     return "unknown"
 
-def resolve_votes_for_bill(base_url: str, cfg: dict, cache: Cache, row: BillAtHearing) -> VoteInfo:
+
+def resolve_votes_for_bill(
+    base_url: str, cfg: dict, cache: Cache, row: BillAtHearing
+) -> VoteInfo:
     """
     Votes pipeline with confirmed-cache short-circuit:
     - If a cached parser is marked confirmed, run it silently (no dialog).
@@ -124,12 +138,11 @@ def resolve_votes_for_bill(base_url: str, cfg: dict, cache: Cache, row: BillAtHe
       * If not, treat cache as stale and fall through to normal sequence.
     - Otherwise try cached (unconfirmed) first, then others by cost.
       * Only show a dialog when review_mode == 'on'.
-      * Mark confirmed=True when a user explicitly accepts; False for headless auto-accept.
+      * Mark confirmed=True when a user explicitly accepts; False for headless
+      auto-accept.
     """
-    review_mode = (cfg.get("review_mode", "on").lower() == "on")
-
+    review_mode = cfg.get("review_mode", "on").lower() == "on"
     cached_mod = cache.get_parser(row.bill_id, "votes")
-
     # 1) Confirmed-cache fast path (silent)
     if cached_mod and cache.is_confirmed(row.bill_id, "votes"):
         try:
@@ -139,16 +152,19 @@ def resolve_votes_for_bill(base_url: str, cfg: dict, cache: Cache, row: BillAtHe
                 parsed = mod.parse(base_url, candidate)
                 return VoteInfo(
                     present=True,
-                    location=parsed.get("location") or _infer_location_from_module(cached_mod),
+                    location=(
+                        parsed.get("location")
+                        or _infer_location_from_module(cached_mod)
+                    ),
                     source_url=parsed.get("source_url"),
                     parser_module=cached_mod,
                     needs_review=False,
                 )
             # stale: fall through to normal flow
+        # pylint: disable=broad-exception-caught
         except Exception:
             # module import or runtime issue -> fall through
             pass
-
     # 2) Build sequence: cached (if any) first, then by cost
     parser_sequence = _load_votes_parsers(cfg)
     if cached_mod:
@@ -156,19 +172,17 @@ def resolve_votes_for_bill(base_url: str, cfg: dict, cache: Cache, row: BillAtHe
             [{"module": cached_mod, "cost": 0}] +
             [p for p in parser_sequence if p["module"] != cached_mod]
         )
-
     # 3) Try parsers
     for p in parser_sequence:
         modname = p["module"]
         try:
             mod = importlib.import_module(modname)
+        # pylint: disable=broad-exception-caught
         except Exception:
             continue
-
         candidate = mod.discover(base_url, row)
         if not candidate:
             continue
-
         # Decide whether to prompt
         accepted = True
         needs_review = False
@@ -196,8 +210,8 @@ def resolve_votes_for_bill(base_url: str, cfg: dict, cache: Cache, row: BillAtHe
                     config=cfg
                 )
         else:
-            needs_review = True  # auto-accept in headless mode; not "confirmed"
-
+            # auto-accept in headless mode; not "confirmed"
+            needs_review = True
         if not accepted:
             continue
 
@@ -205,7 +219,8 @@ def resolve_votes_for_bill(base_url: str, cfg: dict, cache: Cache, row: BillAtHe
 
         # Mark confirmation status:
         # - review_mode ON -> confirmed True (user explicitly accepted)
-        # - review_mode OFF -> confirmed False (auto-accepted; will ask once in a future interactive run)
+        # - review_mode OFF -> confirmed False (auto-accepted; will ask once
+        # in a future interactive run)
         cache.set_parser(
             row.bill_id, "votes", modname,
             confirmed=review_mode and not needs_review

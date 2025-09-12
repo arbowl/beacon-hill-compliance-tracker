@@ -11,6 +11,7 @@ import webbrowser
 import yaml  # type: ignore
 
 from components.llm import create_llm_parser
+from collectors.extension_orders import collect_all_extension_orders
 
 DEFAULT_CONFIG = {
     "base_url": "https://malegislature.gov",
@@ -75,6 +76,56 @@ class Cache:
         return self._data.setdefault(
             "bill_parsers", {}
         ).setdefault(bill_id, {})
+
+    def get_extension(self, bill_id: str) -> Optional[dict]:
+        """Return cached extension data for a bill (or None)."""
+        entry = self._slot(bill_id).get("extensions")
+        if isinstance(entry, dict):
+            return entry
+        return None
+
+    def set_extension(
+        self, bill_id: str, extension_date: str, extension_url: str
+    ) -> None:
+        """Set extension data for a bill."""
+        slot = self._slot(bill_id)
+        slot["extensions"] = {
+            "extension_date": extension_date,
+            "extension_url": extension_url,
+            "updated_at": datetime.utcnow().isoformat(
+                timespec="seconds"
+            ) + "Z",
+        }
+        self.save()
+
+    def add_bill_with_extensions(self, bill_id: str) -> None:
+        """Add a bill to cache with extensions field for fallback cases."""
+        slot = self._slot(bill_id)
+        slot["extensions"] = {
+            "is_fallback": True,
+            "updated_at": datetime.utcnow().isoformat(
+                timespec="seconds"
+            ) + "Z",
+        }
+        self.save()
+
+    def get_committee_contact(self, committee_id: str) -> Optional[dict]:
+        """Return cached committee contact info (or None)."""
+        return self._data.get("committee_contacts", {}).get(committee_id)
+
+    def set_committee_contact(
+        self, committee_id: str, contact_data: dict
+    ) -> None:
+        """Set committee contact data in cache."""
+        if "committee_contacts" not in self._data:
+            self._data["committee_contacts"] = {}
+        self._data["committee_contacts"][committee_id] = {
+            **contact_data,
+            "updated_at": datetime.utcnow().isoformat(
+                timespec="seconds"
+            ) + "Z",
+        }
+        self.save()
 
     @staticmethod
     def _wrap_mod(module_name: str) -> dict[str, Any]:
@@ -305,16 +356,102 @@ def ask_yes_no_with_preview(
             text="No",
             width=10,
             command=lambda: (res.update(ok=False),
-            root.destroy())  # type: ignore
+                             root.destroy())  # type: ignore
         ).pack(side="right", padx=6)
         tk.Button(
             btns,
             text="Yes",
             width=10,
             command=lambda: (res.update(ok=True),
-            root.destroy())  # type: ignore
+                             root.destroy())  # type: ignore
         ).pack(side="right")
         root.mainloop()
         return res["ok"]
     except Exception:  # pylint: disable=broad-exception-caught
         return True
+
+
+# Extension Order Functions (with caching)
+
+
+def get_extension_orders_for_bill(
+    bill_id: str, cache: Optional[Cache] = None
+) -> list[dict]:
+    """Get extension orders for a specific bill, using cache if available."""
+    # Check cache first if provided
+    if cache:
+        cached_extension = cache.get_extension(bill_id)
+        if cached_extension:
+            return [{
+                "bill_id": bill_id,
+                "extension_date": cached_extension["extension_date"],
+                "extension_order_url": cached_extension["extension_url"],
+                "cached": True
+            }]
+
+    # Scrape all extension orders and find ones for this bill
+    extension_orders = collect_all_extension_orders(
+        "https://malegislature.gov", cache
+    )
+
+    # Filter for this specific bill
+    bill_extensions = []
+    for eo in extension_orders:
+        if eo.bill_id == bill_id:
+            bill_extensions.append({
+                "bill_id": eo.bill_id,
+                "committee_id": eo.committee_id,
+                "extension_date": eo.extension_date.isoformat(),
+                "extension_order_url": eo.extension_order_url,
+                "order_type": eo.order_type,
+                "discovered_at": eo.discovered_at.isoformat()
+            })
+
+    # Extensions are now cached immediately during collection,
+    # so no need to cache here
+
+    return bill_extensions
+
+
+def get_latest_extension_date(
+    bill_id: str, cache: Optional[Cache] = None
+) -> Optional[date]:
+    """Get the latest extension date for a specific bill."""
+    extensions = get_extension_orders_for_bill(bill_id, cache)
+    if not extensions:
+        return None
+
+    # Find the latest extension date
+    latest_date = None
+    for ext in extensions:
+        try:
+            ext_date = datetime.fromisoformat(ext["extension_date"]).date()
+            if latest_date is None or ext_date > latest_date:
+                latest_date = ext_date
+        except (ValueError, KeyError):
+            continue
+
+    return latest_date
+
+
+def get_extension_order_url(
+    bill_id: str, cache: Optional[Cache] = None
+) -> Optional[str]:
+    """Get the URL of the latest extension order for a specific bill."""
+    extensions = get_extension_orders_for_bill(bill_id, cache)
+    if not extensions:
+        return None
+
+    # Find the latest extension order URL
+    latest_date = None
+    latest_url = None
+    for ext in extensions:
+        try:
+            ext_date = datetime.fromisoformat(ext["extension_date"]).date()
+            if latest_date is None or ext_date > latest_date:
+                latest_date = ext_date
+                latest_url = ext.get("extension_order_url")
+        except (ValueError, KeyError):
+            continue
+
+    return latest_url

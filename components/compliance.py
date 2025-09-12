@@ -1,4 +1,5 @@
-# compliance.py
+"""Compliance module for the Massachusetts Legislature."""
+
 from dataclasses import dataclass
 from typing import Literal, Optional
 from datetime import date
@@ -9,7 +10,7 @@ ComplianceState = Literal["compliant", "non-compliant", "unknown"]
 
 
 @dataclass(frozen=True)
-class BillCompliance:
+class BillCompliance:  # pylint: disable=too-many-instance-attributes
     """A bill compliance in the Massachusetts Legislature."""
 
     bill_id: str
@@ -31,7 +32,8 @@ def classify(
 ) -> BillCompliance:
     """
     Business rule (simple, adjustable):
-    - If reported_out == True → compliant (summary+votes presence still helpful but not required)
+    - If reported_out == True → compliant (summary+votes presence still
+        helpful but not required)
     - Else if today > effective_deadline:
         - If summary.present and votes.present → compliant
         - If summary.present XOR votes.present → unknown (partial)
@@ -46,9 +48,11 @@ def classify(
         if summary.present and votes.present:
             state, reason = "compliant", "Summary + votes present by deadline"
         elif summary.present or votes.present:
-            state, reason = "unknown", "Partial: one of summary/votes missing after deadline"
+            state, reason = "unknown", "Partial: one of summary/votes missing"\
+                " after deadline"
         else:
-            state, reason = "non-compliant", "No summary or votes after deadline"
+            state, reason = "non-compliant", "No summary or votes after "\
+                "deadline"
     else:
         state, reason = "unknown", "Before deadline"
 
@@ -59,6 +63,6 @@ def classify(
         summary=summary,
         votes=votes,
         status=status,
-        state=state,
+        state=state,  # type: ignore
         reason=reason,
     )
