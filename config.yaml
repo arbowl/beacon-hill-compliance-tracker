@@ -2,8 +2,8 @@ base_url: "https://malegislature.gov"
 filters:
   include_chambers: ["House", "Joint"]
 runner:
-  committee_ids: ["J21"]  # list of committee IDs, or ["all"] for all committees
-  limit_hearings: 5       # keep small for fast tests; increase later
+  committee_ids: ["J10"]  # list of committee IDs, or ["all"] for all committees
+  limit_hearings: 999       # keep small for fast tests; increase later
   check_extensions: false  # whether to check for bill extensions (time-consuming)
 parsers:
   summary:
@@ -31,7 +31,7 @@ parsers:
 review_mode: "on"
 llm:
   enabled: true
-  host: "192.168.0.123"
+  host: "172.17.70.223"
   port: 11434
   model: "qwen3:4b"
   prompt: |

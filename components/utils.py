@@ -230,7 +230,7 @@ def ask_yes_no_with_llm_fallback(
     Ask for yes/no confirmation with LLM fallback.
 
     First tries to use LLM if enabled and available.
-    If LLM returns "unsure" or is unavailable, falls back to human dialog.
+    If LLM returns "unsure", "no", or is unavailable (None), falls back to human dialog.  # noqa: E501
 
     Args:
         prompt: The prompt text to show
@@ -249,6 +249,11 @@ def ask_yes_no_with_llm_fallback(
             return True
         if llm_decision == "no":
             return False
+        # For "unsure", or None (unavailable), fall back to manual review
+        if llm_decision in ["unsure", None]:
+            if llm_decision is None:
+                print(f"LLM unavailable for {doc_type} {bill_id}, falling back to manual review")
+            return ask_yes_no(prompt, url, doc_type, bill_id)
     return ask_yes_no(prompt, url, doc_type, bill_id)
 
 
@@ -266,7 +271,7 @@ def ask_yes_no_with_preview_and_llm_fallback(
     Ask for yes/no confirmation with preview and LLM fallback.
 
     First tries to use LLM if enabled and available.
-    If LLM returns "unsure" or is unavailable, falls back to human dialog.
+    If LLM returns "unsure", "no", or is unavailable (None), falls back to human dialog.  # noqa: E501
 
     Args:
         title: Dialog title
@@ -289,6 +294,13 @@ def ask_yes_no_with_preview_and_llm_fallback(
             return True
         if llm_decision == "no":
             return False
+        # For "unsure", or None (unavailable), fall back to manual review
+        if llm_decision in ["unsure", None]:
+            if llm_decision is None:
+                print(f"LLM unavailable for {doc_type} {bill_id}, falling back to manual review")
+            return ask_yes_no_with_preview(
+                title, heading, preview_text, url, doc_type, bill_id
+            )
     return ask_yes_no_with_preview(
         title, heading, preview_text, url, doc_type, bill_id
     )

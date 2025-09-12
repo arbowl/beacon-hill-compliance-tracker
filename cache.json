@@ -7745,6 +7745,119 @@
         "extension_url": "https://malegislature.gov/Bills/193/S2925/Senate/Order/Text",
         "updated_at": "2025-09-12T14:14:32Z"
       }
+    },
+    "H2244": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:42:36Z"
+      }
+    },
+    "H2250": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:43:09Z"
+      }
+    },
+    "H2251": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:50:25Z"
+      }
+    },
+    "H2258": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:50:54Z"
+      }
+    },
+    "H2259": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:51:56Z"
+      }
+    },
+    "H2262": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:52:14Z"
+      }
+    },
+    "H2268": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:53:00Z"
+      }
+    },
+    "H2269": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:53:18Z"
+      }
+    },
+    "H2270": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:53:44Z"
+      }
+    },
+    "H2273": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:54:05Z"
+      }
+    },
+    "H2275": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:54:57Z"
+      }
+    },
+    "H2310": {
+      "summary": {
+        "module": "parsers.summary_hearing_docs_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:55:15Z"
+      }
+    },
+    "H2313": {},
+    "H2314": {},
+    "H2320": {},
+    "H2321": {},
+    "H2335": {},
+    "H2341": {},
+    "H2349": {},
+    "H2351": {},
+    "H2357": {},
+    "H3898": {},
+    "H3911": {},
+    "H3912": {},
+    "H3913": {},
+    "H3952": {},
+    "H3953": {},
+    "H3977": {},
+    "H4030": {},
+    "S1425": {
+      "summary": {
+        "module": "parsers.summary_bill_tab_text",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:29:28Z"
+      },
+      "votes": {
+        "module": "parsers.votes_bill_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-12T15:29:38Z"
+      }
     }
   },
   "committee_contacts": {
@@ -7760,6 +7873,19 @@
       "senate_address": "24 Beacon St. Room 215 Boston, MA 02133",
       "senate_phone": "(617) 722-1555",
       "updated_at": "2025-09-12T14:36:40Z"
+    },
+    "J10": {
+      "committee_id": "J10",
+      "name": "Joint Committee on Municipalities and Regional Government",
+      "chamber": "Joint",
+      "url": "https://malegislature.gov/Committees/Detail/J10",
+      "house_room": "Room 448",
+      "house_address": "24 Beacon St. Room 448 Boston, MA 02133",
+      "house_phone": "(617) 722-2582",
+      "senate_room": "Room 215",
+      "senate_address": "24 Beacon St. Room 215 Boston, MA 02133",
+      "senate_phone": "(617) 722-1555",
+      "updated_at": "2025-09-12T15:23:16Z"
     }
   }
 }

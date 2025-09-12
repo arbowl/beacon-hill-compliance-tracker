@@ -1,9 +1,11 @@
 """A parser for when the summary is on the hearing's Documents tab."""
 
+import io
 import re
 from typing import Optional
 from urllib.parse import urljoin, urlparse, parse_qs, unquote
 
+import PyPDF2  # type: ignore
 import requests  # type: ignore
 from bs4 import BeautifulSoup
 
@@ -39,25 +41,84 @@ def _title_from_href(href: str) -> str:
         return ""
 
 
-def _looks_like_summary_for_bill(link_text: str, title_param: str, bill_id: str) -> bool:
+def _looks_like_summary_for_bill(link_text: str, title_param: str,
+                                 bill_id: str) -> bool:
     """Check if the link text looks like a summary for the bill."""
     # We accept if:
-    #   - "summary" appears AND
+    #   - "summary" appears (with flexible word boundaries) AND
     #   - bill_id ("H96") appears in either the link text or the Title= param
     has_summary = bool(
-        re.search(
-            r"\bsummary\b", link_text, re.I
-        ) or re.search(r"\bsummary\b", title_param, re.I)
+        re.search(r"\bsummary\b", link_text, re.I) or
+        re.search(r"\bsummary\b", title_param, re.I) or
+        re.search(r"summary[_\-\s]", link_text, re.I) or
+        re.search(r"summary[_\-\s]", title_param, re.I)
     )
     has_bill = (
-        bill_id in _norm_bill_id(link_text)
-    ) or (bill_id in _norm_bill_id(title_param))
+        bill_id in _norm_bill_id(link_text) or
+        bill_id in _norm_bill_id(title_param)
+    )
     return has_summary and has_bill
+
+
+def _extract_pdf_text(pdf_url: str) -> Optional[str]:
+    """Extract text content from a PDF URL."""
+    try:
+        with requests.Session() as s:
+            response = s.get(
+                pdf_url,
+                timeout=30,
+                headers={"User-Agent": "legis-scraper/0.1"}
+            )
+            response.raise_for_status()
+
+            # Read PDF from memory
+            pdf_file = io.BytesIO(response.content)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+
+            # Extract text from all pages
+            text_content = []
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_content.append(page_text)
+
+            if text_content:
+                full_text = "\n".join(text_content)
+                return full_text
+
+    except Exception as e:
+        print(f"Warning: Could not extract text from PDF {pdf_url}: {e}")
+        return None
+
+    return None
+
+
+def _find_bill_summary_in_pdf_text(pdf_text: str, bill_id: str) -> Optional[str]:
+    """Find a bill summary in PDF text content using the format from the user's example."""  # noqa: E501
+    # Look for lines that match the pattern: H.XXXX Summary_Description
+    # This handles the specific format shown in the user's example
+    lines = pdf_text.split('\n')
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+
+        # Check if this line contains the bill ID and "Summary"
+        normalized_line = _norm_bill_id(line)
+        normalized_bill_id = _norm_bill_id(bill_id)
+
+        # Look for the pattern: bill_id + "Summary" (case insensitive)
+        if (normalized_bill_id in normalized_line and
+                re.search(r'\bsummary\b', line, re.I)):
+            return line
+
+    return None
 
 
 def discover(base_url: str, bill: BillAtHearing) -> Optional[dict]:
     """
-    Probe the hearing 'Documents' tab for a Summary PDF that matches this bill (e.g., H96 Summary).
+    Probe the hearing 'Documents' tab for a Summary PDF that matches this bill.
     Returns {"preview","source_url","confidence"} or None.
     """
     # We rely on hearing_url (added in step 2 tweak)
@@ -65,9 +126,14 @@ def discover(base_url: str, bill: BillAtHearing) -> Optional[dict]:
     with requests.Session() as s:
         soup = _soup(s, hearing_docs_url)
 
-        # Look for any link like /Events/DownloadDocument?...fileExtension=.pdf
+        # First pass: Look for any link like /Events/DownloadDocument?...fileExtension=.pdf  # noqa: E501
+        # This is the original logic that checks link text and title parameters
         for a in soup.find_all("a", href=True):
-            href = a["href"]
+            if not hasattr(a, 'get'):
+                continue
+            href = a.get("href", "")
+            if not isinstance(href, str):
+                continue
             if not DL_PATH_RX.search(href):
                 continue
             if not PDF_RX.search(href):
@@ -77,19 +143,80 @@ def discover(base_url: str, bill: BillAtHearing) -> Optional[dict]:
             title_param = _title_from_href(href)
 
             bill_id = _norm_bill_id(bill.bill_id)  # "H96"
+            
+            # Debug logging for troubleshooting (only for specific bill patterns)
+            if text and "summary" in text.lower() and bill.bill_id in ["H.2244", "H.2250", "H.2251"]:
+                print(f"DEBUG: Found potential summary link for {bill.bill_id}:")
+                print(f"  Link text: '{text}'")
+                print(f"  Title param: '{title_param}'")
+                print(f"  Normalized bill ID: '{bill_id}'")
+                print(f"  Normalized link text: '{_norm_bill_id(text)}'")
+                print(f"  Normalized title: '{_norm_bill_id(title_param)}'")
+                print(f"  Matches: {_looks_like_summary_for_bill(text, title_param, bill_id)}")
+                print()
+            
             if _looks_like_summary_for_bill(text, title_param, bill_id):
                 pdf_url = urljoin(base_url, href)
-                preview = f"Found '{title_param or text}' in hearing Documents "\
-                    f"for {bill.bill_id}"
+                preview = (f"Found '{title_param or text}' in hearing "
+                           f"Documents for {bill.bill_id}")
                 return {
                     "preview": preview,
                     "source_url": pdf_url,
                     "confidence": 0.95
                 }
+
+        # Second pass: Fallback - Download and parse PDF content
+        # This handles cases where the link text doesn't match but the PDF content does  # noqa: E501
+        for a in soup.find_all("a", href=True):
+            if not hasattr(a, 'get'):
+                continue
+            href = a.get("href", "")
+            if not isinstance(href, str):
+                continue
+            if not DL_PATH_RX.search(href):
+                continue
+            if not PDF_RX.search(href):
+                continue
+
+            # Check if this looks like it could be a summary document
+            text = " ".join(a.get_text(strip=True).split())
+            title_param = _title_from_href(href)
+
+            # Look for any PDF that might contain summaries (less strict criteria)
+            if (re.search(r"\bsummary\b", text, re.I) or
+                    re.search(r"\bsummary\b", title_param, re.I) or
+                    re.search(r"\breport\b", text, re.I) or
+                    re.search(r"\breport\b", title_param, re.I)):
+
+                if bill.bill_id in ["H.2244", "H.2250", "H.2251"]:
+                    print(f"DEBUG: Second pass - Found potential summary PDF for {bill.bill_id}:")
+                    print(f"  Link text: '{text}'")
+                    print(f"  Title param: '{title_param}'")
+                    print(f"  Attempting to download and parse PDF content...")
+
+                pdf_url = urljoin(base_url, href)
+
+                # Download and parse the PDF content
+                pdf_text = _extract_pdf_text(pdf_url)
+                if pdf_text:
+                    # Look for our specific bill in the PDF content
+                    bill_summary_line = _find_bill_summary_in_pdf_text(
+                        pdf_text, bill.bill_id)
+                    if bill_summary_line:
+                        preview = (f"Found summary in PDF content: "
+                                   f"'{bill_summary_line[:100]}...' "
+                                   f"for {bill.bill_id}")
+                        return {
+                            "preview": preview,
+                            "source_url": pdf_url,
+                            "confidence": 0.85,  # Slightly lower confidence
+                            "full_text": pdf_text  # Include full text for review  # noqa: E501
+                        }
+
     return None
 
 
-def parse(base_url: str, candidate: dict) -> dict:
+def parse(_base_url: str, candidate: dict) -> dict:
     """Parse the summary."""
     # Nothing heavy yet; just return the stable link for the report/cache
     return {"source_url": candidate["source_url"]}
