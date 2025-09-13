@@ -4,7 +4,12 @@
 from enum import Enum
 from components.utils import load_config
 from components.runner import run_basic_compliance
-from components.committees import get_committees
+from components.options import (
+    get_committee_selection,
+    get_hearing_limit,
+    get_extension_check_preference,
+    print_options_summary
+)
 
 
 class Cfg(str, Enum):
@@ -16,6 +21,7 @@ class Cfg(str, Enum):
     RUNNER = "runner"
     COMMITTEE_IDS = "committee_ids"
     LIMIT_HEARINGS = "limit_hearings"
+    CHECK_EXTENSIONS = "check_extensions"
 
 
 def main():
@@ -23,16 +29,27 @@ def main():
     cfg = load_config()
     base_url = cfg[Cfg.BASE_URL]
     include_chambers = cfg[Cfg.FITLTERS][Cfg.INCLUDE_CHAMBERS]
-    runner = cfg[Cfg.RUNNER]
-    committee_ids = runner[Cfg.COMMITTEE_IDS]
-    limit_hearings = runner[Cfg.LIMIT_HEARINGS]
-
-    # Handle "all" case or unexpected values by processing all committees
-    if not isinstance(committee_ids, list) or "all" in committee_ids:
-        all_committees = get_committees(base_url, include_chambers)
-        committee_ids = [c.id for c in all_committees]
-        print(f"Processing all {len(committee_ids)} committees: "
-              f"{', '.join(committee_ids)}")
+    
+    # Get interactive inputs
+    committee_ids = get_committee_selection(base_url, include_chambers)
+    limit_hearings = get_hearing_limit()
+    check_extensions = get_extension_check_preference()
+    print_options_summary(
+        committee_ids,
+        limit_hearings,
+        check_extensions
+    )
+    confirm = input("\nProceed with these settings? (y/n): ").strip().lower()
+    if confirm not in ['y', 'yes']:
+        print("Aborted.")
+        return
+    
+    # Update config with user choices
+    cfg[Cfg.RUNNER] = {
+        Cfg.COMMITTEE_IDS: committee_ids,
+        Cfg.LIMIT_HEARINGS: limit_hearings,
+        Cfg.CHECK_EXTENSIONS: check_extensions
+    }
 
     # Process each committee
     for committee_id in committee_ids:
@@ -47,6 +64,7 @@ def main():
             cfg=cfg,
             write_json=True
         )
+    input("Collection complete! Press Enter to exit.")
 
 
 if __name__ == "__main__":
