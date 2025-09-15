@@ -63,7 +63,7 @@ def main():
     # Check if app.spec exists, otherwise use app.py
     if os.path.exists("app.spec"):
         print("📋 Found app.spec file, using it for PyInstaller")
-        pyinstaller_cmd = "pyinstaller app.spec -F"
+        pyinstaller_cmd = "pyinstaller app.spec"
     else:
         print("📋 No app.spec found, using app.py directly")
         pyinstaller_cmd = "pyinstaller app.py -F"
