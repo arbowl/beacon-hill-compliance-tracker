@@ -137,13 +137,6 @@ class Cache:
             ) + "Z",
         }
 
-    def search_for_keyword(self, keyword: str) -> bool:
-        """Check if a keyword appears anywhere in the cache file."""
-        if not self.path.exists():
-            return False
-        content = self.path.read_text(encoding="utf-8")
-        return keyword.lower() in content.lower()
-
 
 def load_config() -> dict:
     """ Load the configuration from the config.yaml file. """
