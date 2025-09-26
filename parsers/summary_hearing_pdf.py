@@ -20,7 +20,7 @@ SUMMARY_HINTS = [
 
 def _soup(session: requests.Session, url: str) -> BeautifulSoup:
     """ Get the soup of the page. """
-    r = session.get(url, timeout=20, headers={
+    r = session.get(url, timeout=30, headers={
         "User-Agent": "legis-scraper/0.1"
     })
     r.raise_for_status()
