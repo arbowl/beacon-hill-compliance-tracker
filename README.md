@@ -4,7 +4,12 @@ A Python tool for tracking compliance of Massachusetts legislative committees wi
 
 ## Purpose
 
-Massachusetts House and Joint committees are required to take action on bills within 60 days of a hearing, with at most one 30-day extension (capped at 90 days). Committees must also post summaries and vote records. This project automates the collection of that information and classifies each bill as **compliant**, **non-compliant**, or **unknown**.
+Massachusetts House and Joint committees are required to:
+1. **Announce hearings at least 10 days in advance**
+2. **Take action on bills within 60 days of a hearing**, with at most one 30-day extension (capped at 90 days)
+3. **Post summaries and vote records** of their decisions
+
+This project automates the collection of that information and classifies each bill as **compliant**, **non-compliant**, **incomplete**, or **unknown**.
 
 ## Quick Start
 
@@ -72,9 +77,16 @@ This will:
 The tool generates two types of reports:
 
 ### HTML Report (`out/basic_J33.html`)
-A human-readable table showing:
+A human-readable report containing:
+
+**Committee Contact Information:**
+- Senate and House contact details (address, phone)
+- Chair and Vice-Chair names and email addresses
+
+**Compliance Table:**
 - Bill ID and hearing date
 - 60-day and effective deadlines
+- **Notice gap** (days between announcement and hearing)
 - Whether the bill was "reported out"
 - Summary and vote availability
 - Compliance status and reason
@@ -82,6 +94,7 @@ A human-readable table showing:
 ### JSON Data (`out/basic_J33.json`)
 Machine-readable data for each bill including:
 - All compliance information
+- **Notice gap data** (announcement date, hearing date, gap days, status)
 - Source URLs for summaries and votes
 - Parser modules used
 - Timestamps and metadata
@@ -223,6 +236,8 @@ The tool uses a JSON-based cache (`cache.json`) to remember which parsers worked
 
 ### Cache Structure
 
+The cache stores bill parser information, hearing announcements, and committee contact details:
+
 ```json
 {
   "bill_parsers": {
@@ -231,11 +246,71 @@ The tool uses a JSON-based cache (`cache.json`) to remember which parsers worked
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
         "updated_at": "2025-01-10T17:34:29Z"
+      },
+      "hearing_announcement": {
+        "announcement_date": "2025-04-07",
+        "scheduled_hearing_date": "2025-04-14",
+        "updated_at": "2025-09-28T21:15:00Z"
       }
+    }
+  },
+  "committee_contacts": {
+    "J33": {
+      "committee_id": "J33",
+      "name": "Joint Committee on Advanced Information Technology, the Internet and Cybersecurity",
+      "chamber": "Joint",
+      "url": "https://malegislature.gov/Committees/Detail/J33",
+      "house_room": "Room 274",
+      "house_address": "24 Beacon St. Room 274 Boston, MA 02133",
+      "house_phone": "(617) 722-2676",
+      "senate_room": "Room 109-B",
+      "senate_address": "24 Beacon St. Room 109-B Boston, MA 02133",
+      "senate_phone": "(617) 722-1485",
+      "senate_chair_name": "Michael O. Moore",
+      "senate_chair_email": "Michael.Moore@masenate.gov",
+      "senate_vice_chair_name": "Pavel M. Payano",
+      "senate_vice_chair_email": "Pavel.Payano@masenate.gov",
+      "house_chair_name": "Tricia Farley-Bouvier",
+      "house_chair_email": "Tricia.Farley-Bouvier@mahouse.gov",
+      "house_vice_chair_name": "James K. Hawkins",
+      "house_vice_chair_email": "James.Hawkins@mahouse.gov",
+      "updated_at": "2025-09-28T20:38:46Z"
     }
   }
 }
 ```
+
+#### Committee Contact Fields
+
+Each committee entry includes:
+
+**Basic Information:**
+- `committee_id`: Committee identifier (e.g., "J33")
+- `name`: Full committee name
+- `chamber`: "Joint", "House", or "Senate"
+- `url`: Link to committee detail page
+
+**Contact Information:**
+- `house_room`, `house_address`, `house_phone`: House contact details
+- `senate_room`, `senate_address`, `senate_phone`: Senate contact details
+
+**Chair and Vice-Chair Information (New):**
+- `senate_chair_name`, `senate_chair_email`: Senate Chair details
+- `senate_vice_chair_name`, `senate_vice_chair_email`: Senate Vice Chair details
+- `house_chair_name`, `house_chair_email`: House Chair details
+- `house_vice_chair_name`, `house_vice_chair_email`: House Vice Chair details
+
+All chair/vice-chair fields default to empty strings if not found or not applicable.
+
+#### Hearing Announcement Cache Fields (New)
+
+Each bill entry can include cached hearing announcement data:
+
+- `hearing_announcement.announcement_date`: Date when the hearing was announced (YYYY-MM-DD format)
+- `hearing_announcement.scheduled_hearing_date`: Date when the hearing was scheduled (YYYY-MM-DD format)  
+- `hearing_announcement.updated_at`: Timestamp when this data was cached
+
+This cache improves performance by avoiding re-scraping bill pages for hearing notice data and preserves historical announcement information even if the source pages change.
 
 ## LLM Integration
 
@@ -340,6 +415,8 @@ filters:
 runner:
   committee_id: "J33"                   # Target committee
   limit_hearings: 1                     # Number of hearings to process
+compliance:
+  min_notice_days: 10                   # Minimum hearing notice days (default: 10)
 parsers:
   summary:                              # Summary parsers (cost-ordered)
     - module: "parsers.summary_hearing_docs_pdf"

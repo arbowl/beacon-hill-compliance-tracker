@@ -7,12 +7,17 @@
 
 ## What does it check?
 
-Massachusetts law says that when a committee holds a hearing on a bill, they have **60 days** to decide what to do with it. They can ask for one 30-day extension (making it 90 days total), but that's it. 
+Massachusetts law says that committees must follow several rules when handling bills:
+
+1. **Give proper notice**: Hearings must be announced at least **10 days** in advance
+2. **Make decisions on time**: After a hearing, they have **60 days** to decide what to do with the bill (they can ask for one 30-day extension, making it 90 days total)
+3. **Be transparent**: They must post summaries of what they decided and vote records showing how each member voted
 
 The tool checks if committees are:
-1. **Making decisions on time** (within 60-90 days)
-2. **Posting summaries** of what they decided
-3. **Posting vote records** showing how each committee member voted
+1. **Announcing hearings with adequate notice** (at least 10 days in advance)
+2. **Making decisions on time** (within 60-90 days)
+3. **Posting summaries** of what they decided
+4. **Posting vote records** showing how each committee member voted
 
 ## What you'll get
 
@@ -23,6 +28,7 @@ This looks like a simple table with columns showing:
 - **Bill**: The bill number (like H103 or S29)
 - **Hearing**: When the committee heard the bill
 - **D60**: The 60-day deadline
+- **Notice Gap**: How many days notice was given (or "Missing" if not found)
 - **Reported?**: Whether the committee made a decision
 - **Summary**: Whether they posted a summary
 - **Votes**: Whether they posted vote records
@@ -30,9 +36,9 @@ This looks like a simple table with columns showing:
 - **Reason**: Why it's compliant or not
 
 **Color coding:**
-- 🟢 **Green** = Everything is good (compliant)
-- 🟡 **Yellow** = Partially good (unknown)
-- 🔴 **Red** = Not following rules (non-compliant)
+- 🟢 **Green** = Everything is good (compliant, adequate notice)
+- 🟡 **Yellow** = Partially good (unknown, missing notice data)
+- 🔴 **Red** = Not following rules (non-compliant, insufficient notice)
 
 ### 2. Data File (JSON Report)
 This is the same information but in a format that computers can easily read. You probably won't need this unless you're doing advanced analysis.
@@ -67,6 +73,11 @@ _(Note: The person who distributed the files to you should ideally set `config.y
 **D60**: The 60-day deadline. Committees must decide by this date.
 
 **Eff. Deadline**: The effective deadline (usually the same as D60, unless there was an extension).
+
+**Notice Gap**: How many days advance notice was given for the hearing:
+- **Green numbers** (like "15 days") = Adequate notice (10+ days)
+- **Red numbers** (like "5 days") = Insufficient notice (less than 10 days) 
+- **Yellow "Missing"** = No announcement found
 
 **Reported?**: 
 - **Yes** = The committee made a decision and moved the bill forward

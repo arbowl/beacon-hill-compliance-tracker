@@ -22,7 +22,8 @@ def write_basic_html(
       bill_id, hearing_date, deadline_60, effective_deadline,
       extension_order_url, reported_out, summary_present,
       votes_present, state, reason, bill_url,
-      summary_url, votes_url
+      summary_url, votes_url, notice_status, notice_gap_days,
+      announcement_date, scheduled_hearing_date
     """
     css = """
     body { font-family: system-ui, sans-serif; margin: 24px; }
@@ -74,6 +75,21 @@ def write_basic_html(
             if contact.senate_phone:
                 contact_html += f'<p><strong>Phone:</strong> '\
                     f'{contact.senate_phone}</p>'
+            # Add Senate Chair and Vice Chair information
+            if contact.senate_chair_name:
+                chair_info = (f'<p><strong>Chair:</strong> '
+                              f'{contact.senate_chair_name}')
+                if contact.senate_chair_email:
+                    chair_info += f' ({contact.senate_chair_email})'
+                chair_info += '</p>'
+                contact_html += chair_info
+            if contact.senate_vice_chair_name:
+                vice_chair_info = (f'<p><strong>Vice Chair:</strong> '
+                                   f'{contact.senate_vice_chair_name}')
+                if contact.senate_vice_chair_email:
+                    vice_chair_info += f' ({contact.senate_vice_chair_email})'
+                vice_chair_info += '</p>'
+                contact_html += vice_chair_info
             contact_html += '</div>'
         # House contact section
         if contact.house_phone or contact.house_room:
@@ -89,6 +105,21 @@ def write_basic_html(
             if contact.house_phone:
                 contact_html += f'<p><strong>Phone:</strong> '\
                     f'{contact.house_phone}</p>'
+            # Add House Chair and Vice Chair information
+            if contact.house_chair_name:
+                chair_info = (f'<p><strong>Chair:</strong> '
+                              f'{contact.house_chair_name}')
+                if contact.house_chair_email:
+                    chair_info += f' ({contact.house_chair_email})'
+                chair_info += '</p>'
+                contact_html += chair_info
+            if contact.house_vice_chair_name:
+                vice_chair_info = (f'<p><strong>Vice Chair:</strong> '
+                                   f'{contact.house_vice_chair_name}')
+                if contact.house_vice_chair_email:
+                    vice_chair_info += f' ({contact.house_vice_chair_email})'
+                vice_chair_info += '</p>'
+                contact_html += vice_chair_info
             contact_html += '</div>'
         contact_html += '</div>'
     lines = [
@@ -99,9 +130,14 @@ def write_basic_html(
         f"<p>Generated {now}</p>",
         contact_html,
         "<table>",
-        "<tr><th>Bill</th><th>Hearing</th><th>D60</th><th>Eff. Deadline</th>"
-        "<th>Reported?</th><th>Summary</th><th>Votes</th><th>State</th><th>"
-        "Reason</th></tr>"
+        (
+            "<tr>"
+            "<th>Bill</th><th>Title</th><th>Hearing</th>"
+            "<th>D60</th><th>Eff. Deadline</th><th>Notice Gap</th>"
+            "<th>Reported?</th><th>Summary</th><th>Votes</th>"
+            "<th>State</th><th>Reason</th>"
+            "</tr>"
+        )
     ]
     for r in rows:
         sum_link = (
@@ -122,13 +158,32 @@ def write_basic_html(
                 f"{r['effective_deadline']}</a>"
             )
         rep = "Yes" if r['reported_out'] else "No"
+        
+        # Format notice gap information
+        notice_gap = "—"
+        notice_class = ""
+        if r.get('notice_gap_days') is not None:
+            gap_days = r['notice_gap_days']
+            notice_status = r.get('notice_status', 'missing')
+            if notice_status == 'in_range':
+                notice_gap = f"{gap_days} days"
+                notice_class = "ok"
+            elif notice_status == 'out_of_range':
+                notice_gap = f"{gap_days} days"
+                notice_class = "bad"
+        elif r.get('notice_status') == 'missing':
+            notice_gap = "Missing"
+            notice_class = "warn"
+        
         lines.append(
             f"<tr>"
             f"<td><a href='{r['bill_url']}' target='_blank'>{r['bill_id']}</a>"
             f"</td>"
+            f"<td>{r.get('bill_title','—')}</td>"
             f"<td>{r['hearing_date']}</td>"
             f"<td>{r['deadline_60']}</td>"
             f"<td>{effective_deadline}</td>"
+            f"<td class='{notice_class}'>{notice_gap}</td>"
             f"<td>{rep}</td>"
             f"<td>{sum_link}</td>"
             f"<td>{vote_link}</td>"

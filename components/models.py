@@ -54,6 +54,8 @@ class BillStatus:  # pylint: disable=too-many-instance-attributes
     reported_date: Optional[date]  # when we can parse it
     extension_until: Optional[date]  # None for now; we’ll fill later
     effective_deadline: date  # min(90, extension_until or 60)
+    announcement_date: Optional[date] = None  # when hearing was announced
+    scheduled_hearing_date: Optional[date] = None  # hearing date from announce
 
 
 @dataclass(frozen=True)
@@ -118,3 +120,12 @@ class CommitteeContact:  # pylint: disable=too-many-instance-attributes
     senate_room: Optional[str] = None   # e.g., "Room 507"
     senate_address: Optional[str] = None  # Address format example
     senate_phone: Optional[str] = None  # "(617) 722-1643"
+    # Chair and Vice-Chair information
+    senate_chair_name: str = ""
+    senate_chair_email: str = ""
+    senate_vice_chair_name: str = ""
+    senate_vice_chair_email: str = ""
+    house_chair_name: str = ""
+    house_chair_email: str = ""
+    house_vice_chair_name: str = ""
+    house_vice_chair_email: str = ""

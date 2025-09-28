@@ -98,6 +98,37 @@ class Cache:
         }
         self.save()
 
+    def get_hearing_announcement(self, bill_id: str) -> Optional[dict]:
+        """Return cached hearing announcement data for a bill (or None)."""
+        entry = self._slot(bill_id).get("hearing_announcement")
+        if isinstance(entry, dict):
+            return entry
+        return None
+
+    def set_hearing_announcement(
+        self, 
+        bill_id: str, 
+        announcement_date: Optional[str], 
+        scheduled_hearing_date: Optional[str]
+    ) -> None:
+        """Set hearing announcement data for a bill."""
+        slot = self._slot(bill_id)
+        slot["hearing_announcement"] = {
+            "announcement_date": announcement_date,
+            "scheduled_hearing_date": scheduled_hearing_date,
+            "updated_at": datetime.utcnow().isoformat(
+                timespec="seconds"
+            ) + "Z",
+        }
+        self.save()
+
+    def clear_hearing_announcement(self, bill_id: str) -> None:
+        """Clear cached hearing announcement data for a bill."""
+        slot = self._slot(bill_id)
+        if "hearing_announcement" in slot:
+            del slot["hearing_announcement"]
+            self.save()
+
     def add_bill_with_extensions(self, bill_id: str) -> None:
         """Add a bill to cache with extensions field for fallback cases."""
         slot = self._slot(bill_id)
@@ -124,6 +155,30 @@ class Cache:
             "updated_at": datetime.utcnow().isoformat(
                 timespec="seconds"
             ) + "Z",
+        }
+        self.save()
+
+    # ---------------------------------------------------------------------
+    # Bill title helpers
+    # ---------------------------------------------------------------------
+
+    def get_title(self, bill_id: str) -> Optional[str]:
+        """Return cached bill title (or None)."""
+        entry = self._slot(bill_id).get("title")
+        if isinstance(entry, str):
+            return entry
+        if isinstance(entry, dict):
+            return entry.get("value")
+        return None
+
+    def set_title(self, bill_id: str, title: str) -> None:
+        """Cache the given title for a bill."""
+        slot = self._slot(bill_id)
+        slot["title"] = {
+            "value": title,
+            "updated_at": (
+                datetime.utcnow().isoformat(timespec="seconds") + "Z"
+            ),
         }
         self.save()
 
@@ -259,7 +314,9 @@ def ask_yes_no_with_llm_fallback(
         # For "unsure", or None (unavailable), fall back to manual review
         if llm_decision in ["unsure", None]:
             if llm_decision is None:
-                print(f"LLM unavailable for {doc_type} {bill_id}, falling back to manual review")
+                print(
+                    f"LLM unavailable for {doc_type} {bill_id}, falling back to manual review"
+                )
             return ask_yes_no(prompt, url, doc_type, bill_id)
     return ask_yes_no(prompt, url, doc_type, bill_id)
 
@@ -304,7 +361,9 @@ def ask_yes_no_with_preview_and_llm_fallback(
         # For "unsure", or None (unavailable), fall back to manual review
         if llm_decision in ["unsure", None]:
             if llm_decision is None:
-                print(f"LLM unavailable for {doc_type} {bill_id}, falling back to manual review")
+                print(
+                    f"LLM unavailable for {doc_type} {bill_id}, falling back to manual review"
+                )
             return ask_yes_no_with_preview(
                 title, heading, preview_text, url, doc_type, bill_id
             )

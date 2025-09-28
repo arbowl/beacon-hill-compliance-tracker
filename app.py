@@ -22,6 +22,7 @@ class Cfg(str, Enum):
     COMMITTEE_IDS = "committee_ids"
     LIMIT_HEARINGS = "limit_hearings"
     CHECK_EXTENSIONS = "check_extensions"
+    COLLECT_INPUT = "collect_input"
 
 
 def main():
@@ -30,26 +31,35 @@ def main():
     base_url = cfg[Cfg.BASE_URL]
     include_chambers = cfg[Cfg.FITLTERS][Cfg.INCLUDE_CHAMBERS]
     
-    # Get interactive inputs
-    committee_ids = get_committee_selection(base_url, include_chambers)
-    limit_hearings = get_hearing_limit()
-    check_extensions = get_extension_check_preference()
-    print_options_summary(
-        committee_ids,
-        limit_hearings,
-        check_extensions
-    )
-    confirm = input("\nProceed with these settings? (y/n): ").strip().lower()
-    if confirm not in ['y', 'yes']:
-        print("Aborted.")
-        return
-    
-    # Update config with user choices
-    cfg[Cfg.RUNNER] = {
-        Cfg.COMMITTEE_IDS: committee_ids,
-        Cfg.LIMIT_HEARINGS: limit_hearings,
-        Cfg.CHECK_EXTENSIONS: check_extensions
-    }
+    if cfg[Cfg.COLLECT_INPUT]:
+        # Get interactive inputs
+        committee_ids = get_committee_selection(base_url, include_chambers)
+        limit_hearings = get_hearing_limit()
+        check_extensions = get_extension_check_preference()
+        print_options_summary(
+            committee_ids,
+            limit_hearings,
+            check_extensions
+        )
+        confirm = input("\nProceed with these settings? (y/n): ").strip().lower()
+        if confirm not in ['y', 'yes']:
+            print("Aborted.")
+            return
+        cfg[Cfg.RUNNER] = {
+            Cfg.COMMITTEE_IDS: committee_ids,
+            Cfg.LIMIT_HEARINGS: limit_hearings,
+            Cfg.CHECK_EXTENSIONS: check_extensions
+        }
+    else:
+        # Load from config
+        committee_ids = cfg[Cfg.RUNNER][Cfg.COMMITTEE_IDS]
+        limit_hearings = cfg[Cfg.RUNNER][Cfg.LIMIT_HEARINGS]
+        check_extensions = cfg[Cfg.RUNNER][Cfg.CHECK_EXTENSIONS]
+        print_options_summary(
+            committee_ids,
+            limit_hearings,
+            check_extensions
+        )
 
     # Process each committee
     for committee_id in committee_ids:

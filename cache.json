@@ -3119,6 +3119,10 @@
         "extension_date": "2018-02-08",
         "extension_url": "https://malegislature.gov/Bills/190/H4202/House/Order/Text",
         "updated_at": "2025-09-15T23:24:41Z"
+      },
+      "title": {
+        "value": "An Act relative to vehicle recalls",
+        "updated_at": "2025-09-28T19:51:45Z"
       }
     },
     "S323": {
@@ -3582,6 +3586,10 @@
         "extension_date": "2018-02-14",
         "extension_url": "https://malegislature.gov/Bills/190/H4201/House/Order/Text",
         "updated_at": "2025-09-15T23:25:22Z"
+      },
+      "title": {
+        "value": "An Act promoting access to professional development programming in Massachusetts",
+        "updated_at": "2025-09-28T19:57:02Z"
       }
     },
     "S248": {
@@ -3812,6 +3820,10 @@
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T01:02:10Z"
+      },
+      "title": {
+        "value": "An Act relative to the cancellation of gym memberships",
+        "updated_at": "2025-09-28T19:57:11Z"
       }
     },
     "S269": {
@@ -5261,6 +5273,10 @@
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:32:41Z"
+      },
+      "title": {
+        "value": "An Act relative to wheelchair repair requirements and consumer protection",
+        "updated_at": "2025-09-28T19:51:57Z"
       }
     },
     "H1287": {
@@ -11166,14 +11182,18 @@
     },
     "H4257": {
       "summary": {
-        "module": "parsers.summary_hearing_docs_pdf",
+        "module": "parsers.summary_committee_pdf",
         "confirmed": true,
-        "updated_at": "2025-09-15T13:01:17Z"
+        "updated_at": "2025-09-28T19:19:09Z"
       },
       "votes": {
         "module": "parsers.votes_hearing_committee",
         "confirmed": true,
         "updated_at": "2025-09-15T13:01:20Z"
+      },
+      "title": {
+        "value": "An Act financing long-term improvements to municipal roads and bridges",
+        "updated_at": "2025-09-28T19:30:53Z"
       }
     },
     "H148": {},
@@ -11657,6 +11677,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:10:05Z"
+      },
+      "title": {
+        "value": "An Act relative to sales at retail",
+        "updated_at": "2025-09-28T19:43:44Z"
       }
     },
     "H334": {
@@ -11669,6 +11693,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:10:40Z"
+      },
+      "title": {
+        "value": "An Act investigating the economic impact of certain Massachusetts laws",
+        "updated_at": "2025-09-28T19:43:49Z"
       }
     },
     "H337": {
@@ -11681,6 +11709,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:11:36Z"
+      },
+      "title": {
+        "value": "An Act relative to the registration of veterinarians",
+        "updated_at": "2025-09-28T19:43:53Z"
       }
     },
     "H338": {
@@ -11693,6 +11725,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:12:13Z"
+      },
+      "title": {
+        "value": "An Act relative to genetic counselors",
+        "updated_at": "2025-09-28T19:43:58Z"
       }
     },
     "H340": {
@@ -11705,6 +11741,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:13:13Z"
+      },
+      "title": {
+        "value": "An Act relative to clarifying the self-storage law for consumers",
+        "updated_at": "2025-09-28T19:44:03Z"
       }
     },
     "H343": {
@@ -11717,6 +11757,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:14:03Z"
+      },
+      "title": {
+        "value": "An Act requiring fair housing education for all real estate licensees",
+        "updated_at": "2025-09-28T19:44:07Z"
       }
     },
     "H346": {
@@ -11729,6 +11773,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:14:59Z"
+      },
+      "title": {
+        "value": "An Act relative to posting information about the National Human Trafficking Resource Center hotline",
+        "updated_at": "2025-09-28T19:44:13Z"
       }
     },
     "H347": {
@@ -11741,6 +11789,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:15:53Z"
+      },
+      "title": {
+        "value": "An Act further regulating thoroughbred breeding",
+        "updated_at": "2025-09-28T19:44:18Z"
       }
     },
     "H348": {
@@ -11753,6 +11805,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:16:54Z"
+      },
+      "title": {
+        "value": "An Act relative to the licensure of behavior analysts",
+        "updated_at": "2025-09-28T19:44:23Z"
       }
     },
     "H362": {
@@ -11765,6 +11821,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:17:31Z"
+      },
+      "title": {
+        "value": "An Act relative to partial payment",
+        "updated_at": "2025-09-28T19:44:28Z"
       }
     },
     "H390": {
@@ -11777,6 +11837,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:18:34Z"
+      },
+      "title": {
+        "value": "An Act relative to license suspensions",
+        "updated_at": "2025-09-28T19:44:33Z"
       }
     },
     "H391": {
@@ -11789,6 +11853,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:19:00Z"
+      },
+      "title": {
+        "value": "An Act relative to regulating the septic industry",
+        "updated_at": "2025-09-28T19:44:39Z"
       }
     },
     "H400": {
@@ -11801,6 +11869,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:19:53Z"
+      },
+      "title": {
+        "value": "An Act creating a maximum allowable check- cashing rate",
+        "updated_at": "2025-09-28T19:44:44Z"
       }
     },
     "H401": {
@@ -11813,6 +11885,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:20:23Z"
+      },
+      "title": {
+        "value": "An Act to protect innovation and entrepreneurship in the Commonwealth",
+        "updated_at": "2025-09-28T19:44:49Z"
       }
     },
     "H404": {
@@ -11825,6 +11901,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:21:34Z"
+      },
+      "title": {
+        "value": "An Act relative to the Board of Registration of Cosmetology and Barbering exams",
+        "updated_at": "2025-09-28T19:44:55Z"
       }
     },
     "H405": {
@@ -11837,6 +11917,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:22:35Z"
+      },
+      "title": {
+        "value": "An Act updating real estate appraiser record retention requirements",
+        "updated_at": "2025-09-28T19:45:00Z"
       }
     },
     "H407": {
@@ -11849,6 +11933,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:23:35Z"
+      },
+      "title": {
+        "value": "An Act regulating the practice and licensure of veterinary technicians",
+        "updated_at": "2025-09-28T19:45:06Z"
       }
     },
     "H436": {
@@ -11861,6 +11949,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:24:03Z"
+      },
+      "title": {
+        "value": "An Act relative to continuing education requirements for any person holding a license as a real estate broker or salesman",
+        "updated_at": "2025-09-28T19:45:11Z"
       }
     },
     "H438": {
@@ -11873,6 +11965,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:24:51Z"
+      },
+      "title": {
+        "value": "An Act relative to telemarketer disclosures",
+        "updated_at": "2025-09-28T19:45:16Z"
       }
     },
     "H474": {
@@ -11885,6 +11981,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:25:44Z"
+      },
+      "title": {
+        "value": "An Act relative to vehicle recalls",
+        "updated_at": "2025-09-28T19:45:22Z"
       }
     },
     "H475": {
@@ -11897,6 +11997,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:26:21Z"
+      },
+      "title": {
+        "value": "An Act eliminating the residency requirement for fortune tellers",
+        "updated_at": "2025-09-28T19:45:27Z"
       }
     },
     "S208": {
@@ -11904,6 +12008,10 @@
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:26:55Z"
+      },
+      "title": {
+        "value": "An Act relative to genetic counselors",
+        "updated_at": "2025-09-28T19:50:09Z"
       }
     },
     "S220": {
@@ -11911,6 +12019,10 @@
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:27:33Z"
+      },
+      "title": {
+        "value": "An Act relative to the licensure of behavior analysts",
+        "updated_at": "2025-09-28T19:50:18Z"
       }
     },
     "S229": {
@@ -11918,6 +12030,10 @@
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:28:10Z"
+      },
+      "title": {
+        "value": "An Act further regulating thoroughbred breeding",
+        "updated_at": "2025-09-28T19:50:27Z"
       }
     },
     "S231": {
@@ -11925,6 +12041,10 @@
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:29:09Z"
+      },
+      "title": {
+        "value": "An Act further regulating the continuing education requirements for real estate brokers and salespersons",
+        "updated_at": "2025-09-28T19:50:36Z"
       }
     },
     "S232": {
@@ -11932,14 +12052,27 @@
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:29:50Z"
+      },
+      "title": {
+        "value": "An Act requiring fair housing education for all real estate licensees",
+        "updated_at": "2025-09-28T19:50:47Z"
       }
     },
-    "S236": {},
+    "S236": {
+      "title": {
+        "value": "An Act relative to clarifying the self-storage law for consumers",
+        "updated_at": "2025-09-28T19:51:14Z"
+      }
+    },
     "S277": {
       "summary": {
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:31:42Z"
+      },
+      "title": {
+        "value": "An Act regulating the practice and licensure of veterinary technicians",
+        "updated_at": "2025-09-28T19:51:24Z"
       }
     },
     "H317": {
@@ -11952,6 +12085,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:33:28Z"
+      },
+      "title": {
+        "value": "An Act relative to professional licensure",
+        "updated_at": "2025-09-28T19:52:02Z"
       }
     },
     "H326": {
@@ -11964,6 +12101,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:34:25Z"
+      },
+      "title": {
+        "value": "An Act relative to pipefitting licensure",
+        "updated_at": "2025-09-28T19:52:08Z"
       }
     },
     "H382": {
@@ -11971,6 +12112,10 @@
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:34:34Z"
+      },
+      "title": {
+        "value": "An Act exempting public school stadiums from certain state regulations",
+        "updated_at": "2025-09-28T19:52:17Z"
       }
     },
     "H384": {
@@ -11978,6 +12123,10 @@
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:34:53Z"
+      },
+      "title": {
+        "value": "An Act relative to toxic free kids",
+        "updated_at": "2025-09-28T19:52:26Z"
       }
     },
     "H388": {
@@ -11990,6 +12139,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:36:00Z"
+      },
+      "title": {
+        "value": "An Act relative to the cancellation of gym memberships",
+        "updated_at": "2025-09-28T19:52:32Z"
       }
     },
     "H410": {
@@ -12002,6 +12155,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:37:06Z"
+      },
+      "title": {
+        "value": "An Act relative to fees at health clubs",
+        "updated_at": "2025-09-28T19:52:37Z"
       }
     },
     "H413": {
@@ -12014,6 +12171,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:38:05Z"
+      },
+      "title": {
+        "value": "An Act relative to transparency in health club cancellation policies",
+        "updated_at": "2025-09-28T19:52:42Z"
       }
     },
     "H418": {
@@ -12021,6 +12182,15 @@
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:38:14Z"
+      },
+      "votes": {
+        "module": "parsers.votes_committee_documents",
+        "confirmed": true,
+        "updated_at": "2025-09-28T19:53:12Z"
+      },
+      "title": {
+        "value": "An Act relative to the adjudicative process for the Board of State Examiners of Electricians",
+        "updated_at": "2025-09-28T19:53:13Z"
       }
     },
     "H420": {
@@ -12033,6 +12203,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:39:49Z"
+      },
+      "title": {
+        "value": "An Act relative to increasing professional licensure opportunities",
+        "updated_at": "2025-09-28T19:53:19Z"
       }
     },
     "H421": {
@@ -12045,6 +12219,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:40:44Z"
+      },
+      "title": {
+        "value": "An Act relative to streamlining licensure, compliance, and contracting opportunities",
+        "updated_at": "2025-09-28T19:53:24Z"
       }
     },
     "H423": {
@@ -12057,6 +12235,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:41:17Z"
+      },
+      "title": {
+        "value": "An Act relative to increasing language offerings for asbestos removal licensure exams",
+        "updated_at": "2025-09-28T19:53:30Z"
       }
     },
     "H429": {
@@ -12069,6 +12251,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:41:55Z"
+      },
+      "title": {
+        "value": "An Act regarding requirements for continuing education for electricians",
+        "updated_at": "2025-09-28T19:53:35Z"
       }
     },
     "H451": {
@@ -12076,6 +12262,10 @@
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:42:04Z"
+      },
+      "title": {
+        "value": "An Act relative to professional licensure and citizenship",
+        "updated_at": "2025-09-28T19:53:44Z"
       }
     },
     "H460": {
@@ -12083,6 +12273,10 @@
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:42:17Z"
+      },
+      "title": {
+        "value": "An Act relative to updating construction safety standards",
+        "updated_at": "2025-09-28T19:53:54Z"
       }
     },
     "H464": {
@@ -12090,6 +12284,10 @@
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:42:30Z"
+      },
+      "title": {
+        "value": "An Act warning consumers of the health risks of gas stoves",
+        "updated_at": "2025-09-28T19:54:03Z"
       }
     },
     "H471": {
@@ -12102,6 +12300,10 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:43:41Z"
+      },
+      "title": {
+        "value": "An Act relative to the profession of fire-resistant material applicators",
+        "updated_at": "2025-09-28T19:54:08Z"
       }
     },
     "H473": {
@@ -12114,23 +12316,60 @@
         "module": "parsers.votes_committee_documents",
         "confirmed": true,
         "updated_at": "2025-09-16T00:44:35Z"
+      },
+      "title": {
+        "value": "An Act relative to the registration of irrigation contractors",
+        "updated_at": "2025-09-28T19:54:13Z"
       }
     },
-    "S188": {},
+    "S188": {
+      "title": {
+        "value": "An Act allowing the board of state examiners of plumbers and gas fitters to vary regulations to advance reductions in greenhouse gas emissions",
+        "updated_at": "2025-09-28T19:54:42Z"
+      }
+    },
     "S190": {
       "summary": {
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:46:05Z"
+      },
+      "title": {
+        "value": "An Act regarding professional licensure",
+        "updated_at": "2025-09-28T19:54:52Z"
       }
     },
-    "S192": {},
-    "S195": {},
+    "S192": {
+      "title": {
+        "value": "An Act relative to refrigeration and pipefitting licensure",
+        "updated_at": "2025-09-28T19:55:15Z"
+      },
+      "summary": {
+        "module": "parsers.summary_hearing_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-28T23:40:50Z"
+      }
+    },
+    "S195": {
+      "title": {
+        "value": "An Act relative to toxic-free kids",
+        "updated_at": "2025-09-28T19:55:39Z"
+      },
+      "summary": {
+        "module": "parsers.summary_hearing_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-28T23:41:55Z"
+      }
+    },
     "S198": {
       "summary": {
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:48:17Z"
+      },
+      "title": {
+        "value": "An Act relative to increasing opportunities for employment in professional licensure",
+        "updated_at": "2025-09-28T19:55:49Z"
       }
     },
     "S199": {
@@ -12138,14 +12377,32 @@
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T00:59:29Z"
+      },
+      "title": {
+        "value": "An Act warning consumers of the health risks of gas stoves",
+        "updated_at": "2025-09-28T19:56:00Z"
       }
     },
-    "S210": {},
+    "S210": {
+      "title": {
+        "value": "An Act expanding wheelchair warranty protections for consumers with disabilities",
+        "updated_at": "2025-09-28T19:56:21Z"
+      },
+      "summary": {
+        "module": "parsers.summary_hearing_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-28T23:43:18Z"
+      }
+    },
     "S233": {
       "summary": {
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T01:00:53Z"
+      },
+      "title": {
+        "value": "An Act expanding hoisting examination opportunities for Spanish language speakers",
+        "updated_at": "2025-09-28T19:56:31Z"
       }
     },
     "S275": {
@@ -12153,9 +12410,23 @@
         "module": "parsers.summary_hearing_pdf",
         "confirmed": true,
         "updated_at": "2025-09-16T01:03:20Z"
+      },
+      "title": {
+        "value": "An Act relative to the automatic renewal of professional licenses",
+        "updated_at": "2025-09-28T19:57:21Z"
       }
     },
-    "S290": {},
+    "S290": {
+      "title": {
+        "value": "An Act relative to the apprentice ratio for licensed electricians",
+        "updated_at": "2025-09-28T19:57:48Z"
+      },
+      "summary": {
+        "module": "parsers.summary_hearing_pdf",
+        "confirmed": true,
+        "updated_at": "2025-09-28T23:45:52Z"
+      }
+    },
     "H328": {
       "summary": {
         "module": "parsers.summary_committee_pdf",
@@ -22321,253 +22592,6 @@
     }
   },
   "committee_contacts": {
-    "J21": {
-      "committee_id": "J21",
-      "name": "Joint Committee on Environment and Natural Resources",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J21",
-      "house_room": "Room 167",
-      "house_address": "24 Beacon St. Room 167 Boston, MA 02133",
-      "house_phone": "(617) 722-2230",
-      "senate_room": "Room 215",
-      "senate_address": "24 Beacon St. Room 215 Boston, MA 02133",
-      "senate_phone": "(617) 722-1555",
-      "updated_at": "2025-09-12T14:36:40Z"
-    },
-    "J10": {
-      "committee_id": "J10",
-      "name": "Joint Committee on Municipalities and Regional Government",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J10",
-      "house_room": "Room 448",
-      "house_address": "24 Beacon St. Room 448 Boston, MA 02133",
-      "house_phone": "(617) 722-2582",
-      "senate_room": "Room 215",
-      "senate_address": "24 Beacon St. Room 215 Boston, MA 02133",
-      "senate_phone": "(617) 722-1555",
-      "updated_at": "2025-09-12T15:23:16Z"
-    },
-    "J33": {
-      "committee_id": "J33",
-      "name": "Joint Committee on Advanced Information Technology, the Internet and Cybersecurity",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J33",
-      "house_room": "Room 274",
-      "house_address": "24 Beacon St. Room 274 Boston, MA 02133",
-      "house_phone": "(617) 722-2676",
-      "senate_room": "Room 109-B",
-      "senate_address": "24 Beacon St. Room 109-B Boston, MA 02133",
-      "senate_phone": "(617) 722-1485",
-      "updated_at": "2025-09-13T02:01:58Z"
-    },
-    "H36": {
-      "committee_id": "H36",
-      "name": "House Committee on Bills in the Third Reading",
-      "chamber": "House",
-      "url": "https://malegislature.gov/Committees/Detail/H36",
-      "house_room": "Room 20",
-      "house_address": "24 Beacon St. Room 20 Boston, MA 02133",
-      "house_phone": "(617) 722-2410",
-      "senate_room": null,
-      "senate_address": null,
-      "senate_phone": null,
-      "updated_at": "2025-09-15T02:26:52Z"
-    },
-    "H51": {
-      "committee_id": "H51",
-      "name": "House Committee on Climate Action and Sustainability",
-      "chamber": "House",
-      "url": "https://malegislature.gov/Committees/Detail/H51",
-      "house_room": "Room 36",
-      "house_address": "24 Beacon St. Room 36 Boston, MA 02133",
-      "house_phone": "(617) 722-2370",
-      "senate_room": null,
-      "senate_address": null,
-      "senate_phone": null,
-      "updated_at": "2025-09-15T02:26:54Z"
-    },
-    "H38": {
-      "committee_id": "H38",
-      "name": "House Committee on Ethics",
-      "chamber": "House",
-      "url": "https://malegislature.gov/Committees/Detail/H38",
-      "house_room": "Room 185",
-      "house_address": "24 Beacon St. Room 185 Boston, MA 02133",
-      "house_phone": "(617) 722-2960",
-      "senate_room": null,
-      "senate_address": null,
-      "senate_phone": null,
-      "updated_at": "2025-09-15T02:26:55Z"
-    },
-    "H54": {
-      "committee_id": "H54",
-      "name": "House Committee on Federal Funding, Policy and Accountability",
-      "chamber": "House",
-      "url": "https://malegislature.gov/Committees/Detail/H54",
-      "house_room": null,
-      "house_address": null,
-      "house_phone": null,
-      "senate_room": null,
-      "senate_address": null,
-      "senate_phone": null,
-      "updated_at": "2025-09-15T02:26:57Z"
-    },
-    "H45": {
-      "committee_id": "H45",
-      "name": "House Committee on Human Resources and Employee Engagement",
-      "chamber": "House",
-      "url": "https://malegislature.gov/Committees/Detail/H45",
-      "house_room": "Room 238",
-      "house_address": "24 Beacon St. Room 238 Boston, MA 02133",
-      "house_phone": "(617) 722-2380",
-      "senate_room": null,
-      "senate_address": null,
-      "senate_phone": null,
-      "updated_at": "2025-09-15T02:26:59Z"
-    },
-    "H53": {
-      "committee_id": "H53",
-      "name": "House Committee on Operations, Facilities and Security",
-      "chamber": "House",
-      "url": "https://malegislature.gov/Committees/Detail/H53",
-      "house_room": "Room 277",
-      "house_address": "24 Beacon St. Room 277 Boston, MA 02133",
-      "house_phone": "(617) 722-2012",
-      "senate_room": null,
-      "senate_address": null,
-      "senate_phone": null,
-      "updated_at": "2025-09-15T02:27:01Z"
-    },
-    "H46": {
-      "committee_id": "H46",
-      "name": "House Committee on Post Audit and Oversight",
-      "chamber": "House",
-      "url": "https://malegislature.gov/Committees/Detail/H46",
-      "house_room": "Room 146",
-      "house_address": "24 Beacon St. Room 146 Boston, MA 02133",
-      "house_phone": "(617) 722-2575",
-      "senate_room": null,
-      "senate_address": null,
-      "senate_phone": null,
-      "updated_at": "2025-09-15T02:27:03Z"
-    },
-    "H33": {
-      "committee_id": "H33",
-      "name": "House Committee on Rules",
-      "chamber": "House",
-      "url": "https://malegislature.gov/Committees/Detail/H33",
-      "house_room": "Room 166",
-      "house_address": "24 Beacon St. Room 166 Boston, MA 02133",
-      "house_phone": "(617) 722-2692",
-      "senate_room": null,
-      "senate_address": null,
-      "senate_phone": null,
-      "updated_at": "2025-09-15T02:27:05Z"
-    },
-    "H52": {
-      "committee_id": "H52",
-      "name": "House Committee on Steering, Policy and Scheduling",
-      "chamber": "House",
-      "url": "https://malegislature.gov/Committees/Detail/H52",
-      "house_room": "Room 38",
-      "house_address": "24 Beacon St. Room 38 Boston, MA 02133",
-      "house_phone": "(617) 722-2470",
-      "senate_room": null,
-      "senate_address": null,
-      "senate_phone": null,
-      "updated_at": "2025-09-15T02:27:07Z"
-    },
-    "H34": {
-      "committee_id": "H34",
-      "name": "House Committee on Ways and Means",
-      "chamber": "House",
-      "url": "https://malegislature.gov/Committees/Detail/H34",
-      "house_room": "Room 243",
-      "house_address": "24 Beacon St. Room 243 Boston, MA 02133",
-      "house_phone": "(617) 722-2990",
-      "senate_room": null,
-      "senate_address": null,
-      "senate_phone": null,
-      "updated_at": "2025-09-15T02:27:08Z"
-    },
-    "J46": {
-      "committee_id": "J46",
-      "name": "Joint Committee on Aging and Independence",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J46",
-      "house_room": "Room 167",
-      "house_address": "24 Beacon St. Room 167 Boston, MA 02133",
-      "house_phone": "(617) 722-2810",
-      "senate_room": "Room 424",
-      "senate_address": "24 Beacon St. Room 424 Boston, MA 02133",
-      "senate_phone": "(617) 722-1578",
-      "updated_at": "2025-09-15T12:12:51Z"
-    },
-    "J45": {
-      "committee_id": "J45",
-      "name": "Joint Committee on Agriculture and Fisheries",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J45",
-      "house_room": "Room 473",
-      "house_address": "24 Beacon St. Room 473 Boston, MA 02133",
-      "house_phone": "(617) 722-2210",
-      "senate_room": "Room 519",
-      "senate_address": "24 Beacon St. Room 519 Boston, MA 02133",
-      "senate_phone": "(617) 722-1330",
-      "updated_at": "2025-09-15T12:23:19Z"
-    },
-    "J32": {
-      "committee_id": "J32",
-      "name": "Joint Committee on Bonding, Capital Expenditures and State Assets",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J32",
-      "house_room": "Room 39",
-      "house_address": "24 Beacon St. Room 39 Boston, MA 02133",
-      "house_phone": "(617) 722-2014",
-      "senate_room": "Room 109-E",
-      "senate_address": "24 Beacon St. Room 109-E Boston, MA 02133",
-      "senate_phone": "(617) 722-1630",
-      "updated_at": "2025-09-15T13:01:11Z"
-    },
-    "J50": {
-      "committee_id": "J50",
-      "name": "Joint Committee on Cannabis Policy",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J50",
-      "house_room": "Room 544",
-      "house_address": "24 Beacon St. Room 544 Boston, MA 02133",
-      "house_phone": "(617) 722-2637",
-      "senate_room": "Room 312-E",
-      "senate_address": "24 Beacon St. Room 312-E Boston, MA 02133",
-      "senate_phone": "(617) 722-1660",
-      "updated_at": "2025-09-15T13:01:21Z"
-    },
-    "J13": {
-      "committee_id": "J13",
-      "name": "Joint Committee on Children, Families and Persons with Disabilities",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J13",
-      "house_room": "Room 146",
-      "house_address": "24 Beacon St. Room 146 Boston, MA 02133",
-      "house_phone": "(617) 722-2011",
-      "senate_room": "Room 312-D",
-      "senate_address": "24 Beacon St. Room 312-D Boston, MA 02133",
-      "senate_phone": "(617) 722-1544",
-      "updated_at": "2025-09-15T13:13:42Z"
-    },
-    "J47": {
-      "committee_id": "J47",
-      "name": "Joint Committee on Community Development and Small Businesses",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J47",
-      "house_room": "Room 26",
-      "house_address": "24 Beacon St. Room 26 Boston, MA 02133",
-      "house_phone": "(617) 722-2080",
-      "senate_room": "Room 312-E",
-      "senate_address": "24 Beacon St. Room 312-E Boston, MA 02133",
-      "senate_phone": "(617) 722-1660",
-      "updated_at": "2025-09-16T00:03:11Z"
-    },
     "J17": {
       "committee_id": "J17",
       "name": "Joint Committee on Consumer Protection and Professional Licensure",
@@ -22579,306 +22603,15 @@
       "senate_room": "Room 413-B",
       "senate_address": "24 Beacon St. Room 413-B Boston, MA 02133",
       "senate_phone": "(617) 722-1604",
-      "updated_at": "2025-09-16T00:09:15Z"
-    },
-    "J12": {
-      "committee_id": "J12",
-      "name": "Joint Committee on Economic Development and Emerging Technologies",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J12",
-      "house_room": "Room 236",
-      "house_address": "24 Beacon St. Room 236 Boston, MA 02133",
-      "house_phone": "(617) 722-2430",
-      "senate_room": "Room 109-D",
-      "senate_address": "24 Beacon St. Room 109-D Boston, MA 02133",
-      "senate_phone": "(617) 722-1612",
-      "updated_at": "2025-09-16T02:06:43Z"
-    },
-    "J14": {
-      "committee_id": "J14",
-      "name": "Joint Committee on Education",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J14",
-      "house_room": "Room 473G",
-      "house_address": "24 Beacon St. Room 473G Boston, MA 02133",
-      "house_phone": "(617) 722-2070",
-      "senate_room": "Room 511-B",
-      "senate_address": "24 Beacon St. Room 511-B Boston, MA 02133",
-      "senate_phone": "(617) 722-1206",
-      "updated_at": "2025-09-16T02:16:24Z"
-    },
-    "J15": {
-      "committee_id": "J15",
-      "name": "Joint Committee on Election Laws",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J15",
-      "house_room": "Room 443",
-      "house_address": "24 Beacon St. Room 443 Boston, MA 02133",
-      "house_phone": "(617) 722-2460",
-      "senate_room": "Room 413-F",
-      "senate_address": "24 Beacon St. Room 413-F Boston, MA 02133",
-      "senate_phone": "(617) 722-1494",
-      "updated_at": "2025-09-16T11:26:30Z"
-    },
-    "J52": {
-      "committee_id": "J52",
-      "name": "Joint Committee on Emergency Preparedness and Management",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J52",
-      "house_room": null,
-      "house_address": null,
-      "house_phone": null,
-      "senate_room": "Room 218",
-      "senate_address": "24 Beacon St. Room 218 Boston, MA 02133",
-      "senate_phone": "(617) 722-1230",
-      "updated_at": "2025-09-16T12:16:27Z"
-    },
-    "J11": {
-      "committee_id": "J11",
-      "name": "Joint Committee on Financial Services",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J11",
-      "house_room": "Room 254",
-      "house_address": "24 Beacon St. Room 254 Boston, MA 02133",
-      "house_phone": "(617) 722-2220",
-      "senate_room": "Room 112",
-      "senate_address": "24 Beacon St. Room 112 Boston, MA 02133",
-      "senate_phone": "(617) 722-1222",
-      "updated_at": "2025-09-16T12:56:55Z"
-    },
-    "J24": {
-      "committee_id": "J24",
-      "name": "Joint Committee on Health Care Financing",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J24",
-      "house_room": "Room 236",
-      "house_address": "24 Beacon St. Room 236 Boston, MA 02133",
-      "house_phone": "(617) 722-2430",
-      "senate_room": "Room 313",
-      "senate_address": "24 Beacon St. Room 313 Boston, MA 02133",
-      "senate_phone": "(617) 722-1432",
-      "updated_at": "2025-09-17T00:16:42Z"
-    },
-    "J29": {
-      "committee_id": "J29",
-      "name": "Joint Committee on Higher Education",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J29",
-      "house_room": "Room 473B",
-      "house_address": "24 Beacon St. Room 473B Boston, MA 02133",
-      "house_phone": "(617) 722-2263",
-      "senate_room": "Room 410",
-      "senate_address": "24 Beacon St. Room 410 Boston, MA 02133",
-      "senate_phone": "(617) 722-1532",
-      "updated_at": "2025-09-17T14:47:10Z"
-    },
-    "J28": {
-      "committee_id": "J28",
-      "name": "Joint Committee on Housing",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J28",
-      "house_room": "Room 146",
-      "house_address": "24 Beacon St. Room 146 Boston, MA 02133",
-      "house_phone": "(617) 722-2575",
-      "senate_room": "Room 111",
-      "senate_address": "24 Beacon St. Room 111 Boston, MA 02133",
-      "senate_phone": "(617) 722-1570",
-      "updated_at": "2025-09-17T15:13:44Z"
-    },
-    "J43": {
-      "committee_id": "J43",
-      "name": "Joint Committee on Labor and Workforce Development",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J43",
-      "house_room": "Room 472",
-      "house_address": "24 Beacon St. Room 472 Boston, MA 02133",
-      "house_phone": "(617) 722-2013",
-      "senate_room": "Room 416-B",
-      "senate_address": "24 Beacon St. Room 416-B Boston, MA 02133",
-      "senate_phone": "(617) 722-1291",
-      "updated_at": "2025-09-17T16:16:43Z"
-    },
-    "J18": {
-      "committee_id": "J18",
-      "name": "Joint Committee on Mental Health, Substance Use and Recovery",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J18",
-      "house_room": "Room 33",
-      "house_address": "24 Beacon St. Room 33 Boston, MA 02133",
-      "house_phone": "(617) 722-2060",
-      "senate_room": "Room 513",
-      "senate_address": "24 Beacon St. Room 513 Boston, MA 02133",
-      "senate_phone": "(617) 722-1415",
-      "updated_at": "2025-09-17T16:44:03Z"
-    },
-    "J16": {
-      "committee_id": "J16",
-      "name": "Joint Committee on Public Health",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J16",
-      "house_room": "Room 130",
-      "house_address": "24 Beacon St. Room 130 Boston, MA 02133",
-      "house_phone": "(617) 722-2130",
-      "senate_room": "Room 507",
-      "senate_address": "24 Beacon St. Room 507 Boston, MA 02133",
-      "senate_phone": "(617) 722-1643",
-      "updated_at": "2025-09-17T21:41:40Z"
-    },
-    "J22": {
-      "committee_id": "J22",
-      "name": "Joint Committee on Public Safety and Homeland Security",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J22",
-      "house_room": "Room 527-A",
-      "house_address": "24 Beacon St. Room 527-A Boston, MA 02133",
-      "house_phone": "(617) 722-2020",
-      "senate_room": "Room 218",
-      "senate_address": "24 Beacon St. Room 218 Boston, MA 02133",
-      "senate_phone": "(617) 722-1230",
-      "updated_at": "2025-09-18T01:11:01Z"
-    },
-    "J23": {
-      "committee_id": "J23",
-      "name": "Joint Committee on Public Service",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J23",
-      "house_room": "Room 156",
-      "house_address": "24 Beacon St. Room 156 Boston, MA 02133",
-      "house_phone": "(617) 722-2240",
-      "senate_room": "Room 416-A",
-      "senate_address": "24 Beacon St. Room 416-A Boston, MA 02133",
-      "senate_phone": "(617) 722-1200",
-      "updated_at": "2025-09-18T02:17:02Z"
-    },
-    "J34": {
-      "committee_id": "J34",
-      "name": "Joint Committee on Racial Equity, Civil Rights, and Inclusion",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J34",
-      "house_room": "Room 236",
-      "house_address": "24 Beacon St. Room 236 Boston, MA 02133",
-      "house_phone": "(617) 722-2430",
-      "senate_room": "Room 519",
-      "senate_address": "24 Beacon St. Room 519 Boston, MA 02133",
-      "senate_phone": "(617) 722-1673",
-      "updated_at": "2025-09-18T04:48:45Z"
-    },
-    "J26": {
-      "committee_id": "J26",
-      "name": "Joint Committee on Revenue",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J26",
-      "house_room": "Room 34",
-      "house_address": "24 Beacon St. Room 34 Boston, MA 02133",
-      "house_phone": "(617) 722-2320",
-      "senate_room": "Room 511-C",
-      "senate_address": "24 Beacon St. Room 511-C Boston, MA 02133",
-      "senate_phone": "(617) 722-1120",
-      "updated_at": "2025-09-18T04:48:48Z"
-    },
-    "J40": {
-      "committee_id": "J40",
-      "name": "Joint Committee on Rules",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J40",
-      "house_room": "Room 166",
-      "house_address": "24 Beacon St. Room 166 Boston, MA 02133",
-      "house_phone": "(617) 722-2692",
-      "senate_room": "Room 413-D",
-      "senate_address": "24 Beacon St. Room 413-D Boston, MA 02133",
-      "senate_phone": "(617) 722-1410",
-      "updated_at": "2025-09-18T11:43:08Z"
-    },
-    "J25": {
-      "committee_id": "J25",
-      "name": "Joint Committee on State Administration and Regulatory Oversight",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J25",
-      "house_room": "Room 466",
-      "house_address": "24 Beacon St. Room 466 Boston, MA 02133",
-      "house_phone": "(617) 722-2017",
-      "senate_room": "Room 511-A",
-      "senate_address": "24 Beacon St. Room 511-A Boston, MA 02133",
-      "senate_phone": "(617) 722-1150",
-      "updated_at": "2025-09-18T11:43:09Z"
-    },
-    "J37": {
-      "committee_id": "J37",
-      "name": "Joint Committee on Telecommunications, Utilities and Energy",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J37",
-      "house_room": "Room 43",
-      "house_address": "24 Beacon St. Room 43 Boston, MA 02133",
-      "house_phone": "(617) 722-2030",
-      "senate_room": "Room 312-B",
-      "senate_address": "24 Beacon St. Room 312-B Boston, MA 02133",
-      "senate_phone": "(617) 722-1572",
-      "updated_at": "2025-09-18T12:27:30Z"
-    },
-    "J30": {
-      "committee_id": "J30",
-      "name": "Joint Committee on Tourism, Arts and Cultural Development",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J30",
-      "house_room": "Room 174",
-      "house_address": "24 Beacon St. Room 174 Boston, MA 02133",
-      "house_phone": "(617) 722-2877",
-      "senate_room": "Room 504",
-      "senate_address": "24 Beacon St. Room 504 Boston, MA 02133",
-      "senate_phone": "(617) 722-1625",
-      "updated_at": "2025-09-18T13:14:06Z"
-    },
-    "J27": {
-      "committee_id": "J27",
-      "name": "Joint Committee on Transportation",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J27",
-      "house_room": "Room 134",
-      "house_address": "24 Beacon St. Room 134 Boston, MA 02133",
-      "house_phone": "(617) 722-2400",
-      "senate_room": "Room 109-C",
-      "senate_address": "24 Beacon St. Room 109-C Boston, MA 02133",
-      "senate_phone": "(617) 722-1350",
-      "updated_at": "2025-09-18T13:17:09Z"
-    },
-    "J31": {
-      "committee_id": "J31",
-      "name": "Joint Committee on Veterans and Federal Affairs",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J31",
-      "house_room": "Room 171",
-      "house_address": "24 Beacon St. Room 171 Boston, MA 02133",
-      "house_phone": "(617) 722-2015",
-      "senate_room": "Room 513",
-      "senate_address": "24 Beacon St. Room 513 Boston, MA 02133",
-      "senate_phone": "(617) 722-1415",
-      "updated_at": "2025-09-18T14:40:29Z"
-    },
-    "J39": {
-      "committee_id": "J39",
-      "name": "Joint Committee on Ways and Means",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J39",
-      "house_room": "Room 243",
-      "house_address": "24 Beacon St. Room 243 Boston, MA 02133",
-      "house_phone": "(617) 722-2380",
-      "senate_room": "Room 212",
-      "senate_address": "24 Beacon St. Room 212 Boston, MA 02133",
-      "senate_phone": "(617) 722-1481",
-      "updated_at": "2025-09-18T14:52:21Z"
-    },
-    "J19": {
-      "committee_id": "J19",
-      "name": "Joint Committee on the Judiciary",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J19",
-      "house_room": "Room 136",
-      "house_address": "24 Beacon St. Room 136 Boston, MA 02133",
-      "house_phone": "(617) 722-2396",
-      "senate_room": "Room 413-A",
-      "senate_address": "24 Beacon St. Room 413-A Boston, MA 02133",
-      "senate_phone": "(617) 722-1634",
-      "updated_at": "2025-09-18T14:52:30Z"
+      "senate_chair_name": "Pavel M. Payano",
+      "senate_chair_email": "Pavel.Payano@masenate.gov",
+      "senate_vice_chair_name": "William J. Driscoll, Jr.",
+      "senate_vice_chair_email": "william.driscoll@masenate.gov",
+      "house_chair_name": "Tackey Chan",
+      "house_chair_email": "Tackey.Chan@mahouse.gov",
+      "house_vice_chair_name": "Mary S. Keefe",
+      "house_vice_chair_email": "Mary.Keefe@mahouse.gov",
+      "updated_at": "2025-09-28T22:18:45Z"
     }
   }
 }

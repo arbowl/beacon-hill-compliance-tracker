@@ -32,9 +32,9 @@ parsers:
 review_mode: "on"
 llm:
   enabled: true
-  host: "192.168.0.170"
+  host: "192.168.0.123"
   port: 11434
-  model: "mistral:7b-instruct"
+  model: "qwen3:4b"
   prompt: |
     bill_id: {bill_id}
     doc_type: {doc_type}

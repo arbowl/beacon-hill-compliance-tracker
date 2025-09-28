@@ -61,9 +61,10 @@ def discover(base_url: str, bill: BillAtHearing) -> Optional[dict]:
         if not pdf_url:
             return None
 
-        preview = f"Possible summary PDF found on hearing documents for {
-            bill.bill_id
-        }"
+        preview = (
+            "Possible summary PDF found on hearing documents"
+            f"for {bill.bill_id}"
+        )
         return {"preview": preview, "source_url": pdf_url, "confidence": 0.8}
 
 

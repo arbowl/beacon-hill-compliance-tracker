@@ -5,6 +5,8 @@ import time
 import sys
 from datetime import datetime, date, timedelta
 
+import requests  # Added for bill title fetch
+
 from components.pipeline import (
     resolve_summary_for_bill,
     resolve_votes_for_bill,
@@ -16,6 +18,8 @@ from components.report import write_basic_html
 from collectors.extension_orders import collect_all_extension_orders
 from collectors.bills_from_hearing import get_bills_for_committee
 from collectors.bill_status_basic import build_status_row
+# New: bill title helper
+from collectors.bill_status_basic import get_bill_title
 from collectors.committee_contact_info import get_committee_contact
 
 
@@ -185,6 +189,17 @@ def run_basic_compliance(
         votes = resolve_votes_for_bill(base_url, cfg, cache, r)
         comp = classify(r.bill_id, r.committee_id, status, summary, votes)
 
+        # Fetch bill title (one request; tolerant to failure)
+        bill_title: str | None = cache.get_title(r.bill_id)
+        if bill_title is None:
+            try:
+                with requests.Session() as sess:
+                    bill_title = get_bill_title(sess, r.bill_url)
+                    if bill_title:
+                        cache.set_title(r.bill_id, bill_title)
+            except Exception:  # pylint: disable=broad-exception-caught
+                bill_title = None
+
         # Update progress indicator with current bill
         _update_progress(i, total_bills, r.bill_id, start_time)
 
@@ -222,8 +237,13 @@ def run_basic_compliance(
         else:
             print(f"  No extension found for {r.bill_id}")
 
+        # Calculate notice gap for reporting
+        from components.compliance import compute_notice_status
+        notice_status, gap_days = compute_notice_status(status)
+        
         results.append({
             "bill_id": r.bill_id,
+            "bill_title": bill_title,
             "bill_url": r.bill_url,
             "hearing_date": str(status.hearing_date),
             "deadline_60": str(status.deadline_60),
@@ -237,6 +257,13 @@ def run_basic_compliance(
             "votes_url": votes.source_url,
             "state": comp.state,
             "reason": comp.reason,
+            "notice_status": notice_status,
+            "notice_gap_days": gap_days,
+            "announcement_date": (str(status.announcement_date) 
+                                  if status.announcement_date else None),
+            "scheduled_hearing_date": (str(status.scheduled_hearing_date)
+                                       if status.scheduled_hearing_date 
+                                       else None),
         })
 
     # Final progress update and cleanup
