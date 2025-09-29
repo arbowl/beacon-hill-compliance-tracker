@@ -242,6 +242,7 @@ The cache stores bill parser information, hearing announcements, and committee c
 {
   "bill_parsers": {
     "H73": {
+      "bill_url": "https://malegislature.gov/Bills/194/H73",
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf",
         "confirmed": true,
@@ -302,12 +303,16 @@ Each committee entry includes:
 
 All chair/vice-chair fields default to empty strings if not found or not applicable.
 
-#### Hearing Announcement Cache Fields (New)
+#### Bill Cache Fields (New)
 
-Each bill entry can include cached hearing announcement data:
+Each bill entry can include additional cached data:
 
+**Top-level fields:**
+- `bill_url`: URL of the bill page (e.g., "https://malegislature.gov/Bills/194/H73")
+
+**Hearing announcement data:**
 - `hearing_announcement.announcement_date`: Date when the hearing was announced (YYYY-MM-DD format)
-- `hearing_announcement.scheduled_hearing_date`: Date when the hearing was scheduled (YYYY-MM-DD format)  
+- `hearing_announcement.scheduled_hearing_date`: Date when the hearing was scheduled (YYYY-MM-DD format)
 - `hearing_announcement.updated_at`: Timestamp when this data was cached
 
 This cache improves performance by avoiding re-scraping bill pages for hearing notice data and preserves historical announcement information even if the source pages change.

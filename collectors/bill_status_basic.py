@@ -232,7 +232,7 @@ def build_status_row(
         announce_date_str = str(announce_date) if announce_date else None
         sched_hearing_str = str(sched_hearing) if sched_hearing else None
         cache.set_hearing_announcement(
-            row.bill_id, announce_date_str, sched_hearing_str
+            row.bill_id, announce_date_str, sched_hearing_str, row.bill_url
         )
     
     # Get reported out status (not cached yet)

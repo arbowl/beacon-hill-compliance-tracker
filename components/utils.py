@@ -109,10 +109,16 @@ class Cache:
         self, 
         bill_id: str, 
         announcement_date: Optional[str], 
-        scheduled_hearing_date: Optional[str]
+        scheduled_hearing_date: Optional[str],
+        bill_url: Optional[str] = None
     ) -> None:
         """Set hearing announcement data for a bill."""
         slot = self._slot(bill_id)
+        
+        # Set bill_url as top-level field if provided
+        if bill_url:
+            slot["bill_url"] = bill_url
+            
         slot["hearing_announcement"] = {
             "announcement_date": announcement_date,
             "scheduled_hearing_date": scheduled_hearing_date,
@@ -128,6 +134,16 @@ class Cache:
         if "hearing_announcement" in slot:
             del slot["hearing_announcement"]
             self.save()
+
+    def get_bill_url(self, bill_id: str) -> Optional[str]:
+        """Return cached bill URL for a bill (or None)."""
+        return self._slot(bill_id).get("bill_url")
+
+    def set_bill_url(self, bill_id: str, bill_url: str) -> None:
+        """Set bill URL for a bill."""
+        slot = self._slot(bill_id)
+        slot["bill_url"] = bill_url
+        self.save()
 
     def add_bill_with_extensions(self, bill_id: str) -> None:
         """Add a bill to cache with extensions field for fallback cases."""
