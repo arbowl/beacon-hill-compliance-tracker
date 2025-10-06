@@ -465,6 +465,91 @@ Use this? (y/n):
 - **Terminal preference**: Users who prefer command-line workflows
 - **Screen readers**: Better accessibility in some cases
 
+## Deferred Review Mode
+
+For faster processing and better workflow, you can defer all manual confirmations to a batch review session at the end instead of interrupting the processing flow.
+
+### Setup
+
+Set `review_mode` to `"deferred"` in your configuration:
+
+```yaml
+# config.yaml
+review_mode: "deferred"  # Collect confirmations, review at end
+popup_review: false      # Use console for batch review (recommended)
+```
+
+### How It Works
+
+1. **Continuous Processing**: Bills are processed without interruption
+2. **Confirmation Collection**: Parser candidates are collected for later review
+3. **Auto-Accept High Confidence**: Parsers with high confidence scores are automatically accepted
+4. **Batch Review Session**: All remaining confirmations presented together at the end
+5. **Cache Updates**: Confirmed parsers are saved for future runs
+
+### Batch Review Interface
+
+```
+================================================================
+BATCH REVIEW SESSION - Committee J33
+================================================================
+Found 12 parser confirmations requiring review:
+  - 8 summaries (5 bills)
+  - 4 vote records (3 bills)
+
+Press Enter to begin review, or 'q' to quit...
+
+================================================================
+CONFIRMATION 1 of 12 - Bill H2391 (Summary)
+================================================================
+Parser: parsers.summary_hearing_docs_pdf
+Confidence: High (85%)
+URL: https://malegislature.gov/Bills/194/H2391/Documents/Committee
+
+Preview:
+----------------------------------------------------------------
+HOUSE DOCKET, NO. 2391        FILED ON: 1/20/2023
+The Commonwealth of Massachusetts
+...
+----------------------------------------------------------------
+================================================================
+Options:
+  [y] Accept this parser
+  [n] Reject this parser
+  [s] Skip (decide later)
+  [a] Accept all remaining for this bill
+  [q] Quit review session
+
+Choice (y/n/s/a/q): 
+```
+
+### Configuration Options
+
+```yaml
+# Deferred review settings (only used when review_mode: "deferred")
+deferred_review:
+  reprocess_after_review: true     # Re-run processing after confirmation
+  show_confidence: true            # Display parser confidence scores
+  group_by_bill: false            # Group confirmations by bill vs chronological
+  auto_accept_high_confidence: 0.9 # Auto-accept if confidence > threshold (0.0-1.0)
+```
+
+### Benefits
+
+- **Faster Processing**: No interruptions during bill collection (3-5x faster)
+- **Better Focus**: Dedicated review session with full context
+- **Batch Decisions**: Accept/reject multiple parsers efficiently
+- **Progress Visibility**: See all bills processed before making decisions
+- **Smart Auto-Accept**: High-confidence parsers accepted automatically
+- **Consistent Experience**: Works with both console and popup review modes
+
+### When to Use Deferred Review
+
+- **Large Committees**: Processing many bills (20+)
+- **Initial Runs**: First time processing a committee (many confirmations needed)
+- **Batch Operations**: Processing multiple committees in sequence
+- **Focus Workflows**: Prefer dedicated review time vs scattered interruptions
+
 ## Configuration
 
 Edit `config.yaml` to customize behavior:
@@ -485,8 +570,14 @@ parsers:
   votes:                                # Vote parsers (cost-ordered)
     - module: "parsers.votes_bill_embedded"
       cost: 1
-review_mode: "on"                       # Show confirmation dialogs
+review_mode: "on"                       # "on" = immediate, "off" = auto-accept, "deferred" = batch at end
 popup_review: true                      # Use Tkinter popups (false = console review)
+# Deferred review settings (only used when review_mode: "deferred")
+deferred_review:
+  reprocess_after_review: true          # Re-run processing after confirmation
+  show_confidence: true                 # Display parser confidence scores
+  group_by_bill: false                 # Group confirmations by bill vs chronological
+  auto_accept_high_confidence: 0.9     # Auto-accept if confidence > threshold
 llm:                                    # LLM integration settings
   enabled: true
   host: "localhost"
