@@ -267,6 +267,117 @@ def ask_yes_no(
         return True
 
 
+def ask_yes_no_console(
+    prompt: str,
+    url: Optional[str] = None,
+    doc_type: str = "document",
+    bill_id: Optional[str] = None
+) -> bool:
+    """
+    Console-based yes/no confirmation dialog.
+    Returns True for Yes, False for No.
+    """
+    # Create header
+    header = "=" * 64
+    if bill_id:
+        title = f"PARSER CONFIRMATION - Bill {bill_id}"
+    else:
+        title = "PARSER CONFIRMATION"
+    
+    print(f"\n{header}")
+    print(f"{title}")
+    print(f"{header}")
+    print(f"Looking for: {doc_type.title()}")
+    print()
+    print(prompt)
+    
+    if url:
+        print(f"\nURL: {url}")
+    
+    print(f"{header}")
+    
+    # Get user input with validation
+    while True:
+        try:
+            choice = input("Use this? (y/n): ").strip().lower()
+            if choice in ['y', 'yes']:
+                return True
+            elif choice in ['n', 'no']:
+                return False
+            else:
+                print("Please enter 'y' for yes or 'n' for no.")
+        except (KeyboardInterrupt, EOFError):
+            print("\nOperation cancelled.")
+            return False
+
+
+def ask_yes_no_with_preview_console(
+    title: str,
+    heading: str,
+    preview_text: str,
+    url: Optional[str] = None,
+    doc_type: str = "document",
+    bill_id: Optional[str] = None
+) -> bool:
+    """
+    Console-based yes/no confirmation with text preview.
+    """
+    # Create header
+    header = "=" * 64
+    if bill_id:
+        full_title = f"PARSER CONFIRMATION - Bill {bill_id}"
+    else:
+        full_title = title
+    
+    print(f"\n{header}")
+    print(f"{full_title}")
+    print(f"{header}")
+    print(f"Looking for: {doc_type.title()}")
+    print()
+    print(heading)
+    
+    if url:
+        print(f"\nURL: {url}")
+    
+    # Display preview with proper wrapping
+    print("\nPreview:")
+    print("-" * 64)
+    
+    # Wrap text to 80 columns for better readability
+    import textwrap
+    wrapped_lines = []
+    for line in preview_text.split('\n'):
+        if line.strip():
+            wrapped_lines.extend(textwrap.wrap(line, width=80))
+        else:
+            wrapped_lines.append('')
+    
+    # Show first 20 lines to avoid overwhelming the console
+    display_lines = wrapped_lines[:20]
+    for line in display_lines:
+        print(line)
+    
+    if len(wrapped_lines) > 20:
+        print(f"\n... ({len(wrapped_lines) - 20} more lines)")
+    
+    print("-" * 64)
+    print(f"{header}")
+    
+    # Get user input with validation
+    while True:
+        try:
+            choice = input("Use this? (y/n): ").strip().lower()
+            if choice in ['y', 'yes']:
+                return True
+            elif choice in ['n', 'no']:
+                return False
+            else:
+                print("Please enter 'y' for yes or 'n' for no.")
+        except (KeyboardInterrupt, EOFError):
+            print("\nOperation cancelled.")
+            return False
+
+
 def ask_llm_decision(
     content: str,
     doc_type: str,
@@ -331,10 +442,22 @@ def ask_yes_no_with_llm_fallback(
         if llm_decision in ["unsure", None]:
             if llm_decision is None:
                 print(
-                    f"LLM unavailable for {doc_type} {bill_id}, falling back to manual review"
+                    f"LLM unavailable for {doc_type} {bill_id}, "
+                    "falling back to manual review"
                 )
-            return ask_yes_no(prompt, url, doc_type, bill_id)
-    return ask_yes_no(prompt, url, doc_type, bill_id)
+            # Route to appropriate UI based on popup_review setting
+            use_popups = config.get("popup_review", True)
+            if use_popups:
+                return ask_yes_no(prompt, url, doc_type, bill_id)
+            else:
+                return ask_yes_no_console(prompt, url, doc_type, bill_id)
+    
+    # Route to appropriate UI based on popup_review setting
+    use_popups = config.get("popup_review", True) if config else True
+    if use_popups:
+        return ask_yes_no(prompt, url, doc_type, bill_id)
+    else:
+        return ask_yes_no_console(prompt, url, doc_type, bill_id)
 
 
 # pylint: disable=too-many-positional-arguments
@@ -378,14 +501,30 @@ def ask_yes_no_with_preview_and_llm_fallback(
         if llm_decision in ["unsure", None]:
             if llm_decision is None:
                 print(
-                    f"LLM unavailable for {doc_type} {bill_id}, falling back to manual review"
+                    f"LLM unavailable for {doc_type} {bill_id}, "
+                    "falling back to manual review"
                 )
-            return ask_yes_no_with_preview(
-                title, heading, preview_text, url, doc_type, bill_id
-            )
-    return ask_yes_no_with_preview(
-        title, heading, preview_text, url, doc_type, bill_id
-    )
+            # Route to appropriate UI based on popup_review setting
+            use_popups = config.get("popup_review", True)
+            if use_popups:
+                return ask_yes_no_with_preview(
+                    title, heading, preview_text, url, doc_type, bill_id
+                )
+            else:
+                return ask_yes_no_with_preview_console(
+                    title, heading, preview_text, url, doc_type, bill_id
+                )
+    
+    # Route to appropriate UI based on popup_review setting
+    use_popups = config.get("popup_review", True) if config else True
+    if use_popups:
+        return ask_yes_no_with_preview(
+            title, heading, preview_text, url, doc_type, bill_id
+        )
+    else:
+        return ask_yes_no_with_preview_console(
+            title, heading, preview_text, url, doc_type, bill_id
+        )
 
 
 def ask_yes_no_with_preview(
