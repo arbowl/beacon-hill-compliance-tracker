@@ -10,14 +10,16 @@ parsers:
   summary:
     - module: "parsers.summary_hearing_docs_pdf"
       cost: 1
+    - module: "parsers.summary_bill_tab_text"     # NEW, plaintext fallback
+      cost: 2
     - module: "parsers.summary_committee_docx"    # Committee Summary DOCX files
       cost: 3
     - module: "parsers.summary_committee_pdf"     # Committee Summary PDF files
       cost: 4
-    - module: "parsers.summary_bill_tab_text"     # NEW, plaintext fallback
-      cost: 2
     - module: "parsers.summary_hearing_pdf"       # still useful as generic backup
       cost: 5
+    - module: "parsers.summary_hearing_docs_pdf_content"  # Most expensive: downloads all PDFs to check content (cached per hearing)
+      cost: 6
   votes:
     - module: "parsers.votes_bill_embedded"   # fastest/happiest path
       cost: 1
