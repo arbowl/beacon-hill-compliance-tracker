@@ -409,6 +409,62 @@ llm:
 - **Performance Issues**: Try a smaller model or increase timeout settings
 - **Network Issues**: Ensure the host/port settings match your Ollama server
 
+## Console Review Mode
+
+For headless environments, SSH sessions, or users who prefer terminal-based workflows, you can use console-based confirmation dialogs instead of Tkinter popups.
+
+### Setup
+
+Set `popup_review` to `false` in your configuration:
+
+```yaml
+# config.yaml
+popup_review: false  # Use console instead of Tkinter popups
+```
+
+### Features
+
+- **Clean formatting**: Well-structured prompts with clear visual separation
+- **Text preview**: Long documents are wrapped and truncated for readability
+- **URL display**: Source URLs are clearly shown for reference
+- **Input validation**: Accepts y/yes/n/no with retry on invalid input
+- **Keyboard interrupt handling**: Graceful exit with Ctrl+C
+
+### Example Console Output
+
+```
+================================================================
+PARSER CONFIRMATION - Bill H2391
+================================================================
+Looking for: Summary
+
+Use this summary for H2391?
+
+URL: https://malegislature.gov/Bills/194/H2391/Documents/Committee
+
+Preview:
+----------------------------------------------------------------
+HOUSE DOCKET, NO. 2391        FILED ON: 1/20/2023
+
+The Commonwealth of Massachusetts
+_______________
+
+PRESENTED BY:
+
+Mr. Donato of Medford
+...
+----------------------------------------------------------------
+================================================================
+Use this? (y/n): 
+```
+
+### When to Use Console Review
+
+- **SSH/Remote sessions**: No GUI available
+- **Headless servers**: Running in automated environments
+- **Terminal preference**: Users who prefer command-line workflows
+- **Screen readers**: Better accessibility in some cases
+
 ## Configuration
 
 Edit `config.yaml` to customize behavior:
@@ -430,6 +486,7 @@ parsers:
     - module: "parsers.votes_bill_embedded"
       cost: 1
 review_mode: "on"                       # Show confirmation dialogs
+popup_review: true                      # Use Tkinter popups (false = console review)
 llm:                                    # LLM integration settings
   enabled: true
   host: "localhost"

@@ -32,6 +32,7 @@ parsers:
     - module: "parsers.votes_bill_pdf"        # common fallback
       cost: 5
 review_mode: "on"
+popup_review: true  # true = Tkinter popups, false = console review (headless/SSH friendly)
 llm:
   enabled: true
   host: "192.168.0.123"
