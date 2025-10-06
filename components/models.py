@@ -1,9 +1,10 @@
 """ Data models for the Massachusetts Legislature website.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
+import uuid
 
 
 @dataclass(frozen=True)
@@ -129,3 +130,51 @@ class CommitteeContact:  # pylint: disable=too-many-instance-attributes
     house_chair_email: str = ""
     house_vice_chair_name: str = ""
     house_vice_chair_email: str = ""
+
+
+@dataclass
+class DeferredConfirmation:
+    """Represents a parser confirmation that needs review."""
+    confirmation_id: str
+    bill_id: str
+    parser_type: str  # "summary" or "votes"
+    parser_module: str
+    candidate: dict  # The discovered candidate data
+    preview_text: Optional[str] = None
+    confidence: Optional[float] = None
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    
+    def __post_init__(self):
+        """Generate confirmation ID if not provided."""
+        if not self.confirmation_id:
+            object.__setattr__(self, 'confirmation_id', str(uuid.uuid4())[:8])
+
+
+@dataclass
+class DeferredReviewSession:
+    """Collection of all deferred confirmations for batch review."""
+    session_id: str
+    committee_id: str
+    confirmations: List[DeferredConfirmation] = field(default_factory=list)
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    
+    def __post_init__(self):
+        """Generate session ID if not provided."""
+        if not self.session_id:
+            object.__setattr__(self, 'session_id', str(uuid.uuid4())[:8])
+    
+    def add_confirmation(self, confirmation: DeferredConfirmation) -> None:
+        """Add a confirmation to the session."""
+        self.confirmations.append(confirmation)
+    
+    def get_summary_count(self) -> int:
+        """Get count of summary confirmations."""
+        return len([c for c in self.confirmations if c.parser_type == "summary"])
+    
+    def get_votes_count(self) -> int:
+        """Get count of vote confirmations."""
+        return len([c for c in self.confirmations if c.parser_type == "votes"])
+    
+    def get_bill_ids(self) -> List[str]:
+        """Get unique list of bill IDs in this session."""
+        return list(set(c.bill_id for c in self.confirmations))

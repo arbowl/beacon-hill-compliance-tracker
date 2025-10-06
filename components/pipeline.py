@@ -4,7 +4,7 @@ import importlib
 from typing import Any, Optional
 
 from components.utils import Cache
-from components.models import BillAtHearing, SummaryInfo, VoteInfo
+from components.models import BillAtHearing, SummaryInfo, VoteInfo, DeferredConfirmation, DeferredReviewSession
 from components.utils import (
     ask_yes_no_with_llm_fallback,
     ask_yes_no_with_preview_and_llm_fallback
@@ -19,10 +19,11 @@ def _load_parsers(config: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def resolve_summary_for_bill(
-    base_url: str, cfg: dict, cache: Cache, row: BillAtHearing
+    base_url: str, cfg: dict, cache: Cache, row: BillAtHearing,
+    deferred_session: Optional[DeferredReviewSession] = None
 ) -> SummaryInfo:
     """Resolve the summary for a bill."""
-    review_mode: bool = cfg.get("review_mode", "on").lower() == "on"
+    review_mode: str = cfg.get("review_mode", "on").lower()
     # 1) If we have a confirmed parser, run it silently and return.
     cached: Optional[str] = cache.get_parser(row.bill_id, "summary")
     if cached and cache.is_confirmed(row.bill_id, "summary"):
@@ -55,10 +56,35 @@ def resolve_summary_for_bill(
         candidate = mod.discover(base_url, row)
         if not candidate:
             continue
-        # If we’re here via an unconfirmed cache OR a new parser:
+        # If we're here via an unconfirmed cache OR a new parser:
         accepted = True
         needs_review = False
-        if review_mode:
+        
+        if review_mode == "deferred" and deferred_session is not None:
+            # Collect for deferred review instead of asking now
+            preview_text = candidate.get("full_text", candidate.get("preview", ""))
+            confidence = candidate.get("confidence", 0.5)
+            
+            # Check if we should auto-accept based on confidence
+            auto_accept_threshold = cfg.get("deferred_review", {}).get("auto_accept_high_confidence", 0.9)
+            if confidence >= auto_accept_threshold:
+                accepted = True
+                needs_review = False
+            else:
+                # Add to deferred session for later review
+                confirmation = DeferredConfirmation(
+                    confirmation_id="",  # Will be auto-generated
+                    bill_id=row.bill_id,
+                    parser_type="summary",
+                    parser_module=modname,
+                    candidate=candidate,
+                    preview_text=preview_text,
+                    confidence=confidence
+                )
+                deferred_session.add_confirmation(confirmation)
+                accepted = True  # Tentatively accept for now
+                needs_review = True
+        elif review_mode == "on":
             # show dialog only when not previously confirmed
             # Use full_text if available, otherwise fall back to preview
             preview_text = candidate.get(
@@ -82,14 +108,14 @@ def resolve_summary_for_bill(
                     bill_id=row.bill_id,
                     config=cfg
                 )
-        else:
+        else:  # review_mode == "off"
             needs_review = True
 
         if accepted:
             parsed = mod.parse(base_url, candidate)
             # mark confirmed if we actually asked; otherwise keep unconfirmed
             cache.set_parser(row.bill_id, "summary", modname, confirmed=(
-                review_mode and not needs_review
+                review_mode == "on" and not needs_review
             ))
             return SummaryInfo(
                 present=True,
@@ -129,7 +155,8 @@ def _infer_location_from_module(modname: str) -> str:
 
 
 def resolve_votes_for_bill(
-    base_url: str, cfg: dict, cache: Cache, row: BillAtHearing
+    base_url: str, cfg: dict, cache: Cache, row: BillAtHearing,
+    deferred_session: Optional[DeferredReviewSession] = None
 ) -> VoteInfo:
     """
     Votes pipeline with confirmed-cache short-circuit:
@@ -141,7 +168,7 @@ def resolve_votes_for_bill(
       * Mark confirmed=True when a user explicitly accepts; False for headless
       auto-accept.
     """
-    review_mode = cfg.get("review_mode", "on").lower() == "on"
+    review_mode = cfg.get("review_mode", "on").lower()
     cached_mod = cache.get_parser(row.bill_id, "votes")
     # 1) Confirmed-cache fast path (silent)
     if cached_mod and cache.is_confirmed(row.bill_id, "votes"):
@@ -186,7 +213,32 @@ def resolve_votes_for_bill(
         # Decide whether to prompt
         accepted = True
         needs_review = False
-        if review_mode:
+        
+        if review_mode == "deferred" and deferred_session is not None:
+            # Collect for deferred review instead of asking now
+            preview_text = candidate.get("full_text", candidate.get("preview", ""))
+            confidence = candidate.get("confidence", 0.5)
+            
+            # Check if we should auto-accept based on confidence
+            auto_accept_threshold = cfg.get("deferred_review", {}).get("auto_accept_high_confidence", 0.9)
+            if confidence >= auto_accept_threshold:
+                accepted = True
+                needs_review = False
+            else:
+                # Add to deferred session for later review
+                confirmation = DeferredConfirmation(
+                    confirmation_id="",  # Will be auto-generated
+                    bill_id=row.bill_id,
+                    parser_type="votes",
+                    parser_module=modname,
+                    candidate=candidate,
+                    preview_text=preview_text,
+                    confidence=confidence
+                )
+                deferred_session.add_confirmation(confirmation)
+                accepted = True  # Tentatively accept for now
+                needs_review = True
+        elif review_mode == "on":
             # Use full_text if available, otherwise fall back to preview
             preview_text = candidate.get(
                 "full_text", candidate.get("preview", "")
@@ -209,7 +261,7 @@ def resolve_votes_for_bill(
                     bill_id=row.bill_id,
                     config=cfg
                 )
-        else:
+        else:  # review_mode == "off"
             # auto-accept in headless mode; not "confirmed"
             needs_review = True
         if not accepted:
@@ -223,7 +275,7 @@ def resolve_votes_for_bill(
         # in a future interactive run)
         cache.set_parser(
             row.bill_id, "votes", modname,
-            confirmed=review_mode and not needs_review
+            confirmed=review_mode == "on" and not needs_review
         )
 
         return VoteInfo(

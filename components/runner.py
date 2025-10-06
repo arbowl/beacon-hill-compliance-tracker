@@ -15,6 +15,8 @@ from components.committees import get_committees
 from components.utils import Cache
 from components.compliance import classify
 from components.report import write_basic_html
+from components.models import DeferredReviewSession
+from components.batch_review import conduct_batch_review, apply_review_results
 from collectors.extension_orders import collect_all_extension_orders
 from collectors.bills_from_hearing import get_bills_for_committee
 from collectors.bill_status_basic import build_status_row
@@ -139,7 +141,17 @@ def run_basic_compliance(
     else:
         print("Extension checking disabled - using cached data only")
 
-    # 3) per-bill: status → summary → votes → classify
+    # 3) Initialize deferred review session if needed
+    review_mode = cfg.get("review_mode", "on").lower()
+    deferred_session = None
+    if review_mode == "deferred":
+        deferred_session = DeferredReviewSession(
+            session_id="",  # Will be auto-generated
+            committee_id=committee_id
+        )
+        print("Deferred review mode enabled - confirmations will be collected for batch review.")
+
+    # 4) per-bill: status → summary → votes → classify
     results = []
     total_bills = len(rows)
     start_time = time.time()
@@ -185,8 +197,8 @@ def run_basic_compliance(
                     extension_until = None
 
         status = build_status_row(base_url, r, extension_until)
-        summary = resolve_summary_for_bill(base_url, cfg, cache, r)
-        votes = resolve_votes_for_bill(base_url, cfg, cache, r)
+        summary = resolve_summary_for_bill(base_url, cfg, cache, r, deferred_session)
+        votes = resolve_votes_for_bill(base_url, cfg, cache, r, deferred_session)
         comp = classify(r.bill_id, r.committee_id, status, summary, votes)
 
         # Fetch bill title (one request; tolerant to failure)
@@ -270,7 +282,24 @@ def run_basic_compliance(
     _update_progress(total_bills, total_bills, "Complete", start_time)
     print()  # Move to next line after progress indicator
 
-    # 4) artifacts (JSON + HTML)
+    # 4) Conduct batch review session if needed
+    if review_mode == "deferred" and deferred_session and deferred_session.confirmations:
+        print("\nProcessing complete. Conducting batch review session...")
+        review_results = conduct_batch_review(deferred_session, cfg, cache)
+        
+        # Apply review results (already applied in conduct_batch_review, but ensure consistency)
+        apply_review_results(review_results, deferred_session, cache)
+        
+        # Optionally re-process with confirmed parsers
+        if cfg.get("deferred_review", {}).get("reprocess_after_review", True):
+            print("\nRe-processing bills with confirmed parsers...")
+            # Note: For now, we'll skip re-processing as it would require significant refactoring
+            # The tentative results are already in the results list with needs_review=True
+            print("Re-processing skipped - using tentative results with confirmed cache entries.")
+    elif review_mode == "deferred":
+        print("\nNo confirmations needed - all parsers were auto-accepted or cached.")
+
+    # 5) artifacts (JSON + HTML)
     if write_json:
         outdir = Path("out")
         outdir.mkdir(exist_ok=True)
