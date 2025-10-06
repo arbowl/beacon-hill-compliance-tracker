@@ -31,10 +31,16 @@ parsers:
       cost: 4
     - module: "parsers.votes_bill_pdf"        # common fallback
       cost: 5
-review_mode: "on"
-popup_review: true  # true = Tkinter popups, false = console review (headless/SSH friendly)
+review_mode: "deferred"  # "on" = immediate review, "off" = auto-accept, "deferred" = batch review at end
+popup_review: false  # true = Tkinter popups, false = console review (headless/SSH friendly)
+# Deferred review settings (only used when review_mode: "deferred")
+deferred_review:
+  reprocess_after_review: true     # Re-run processing after confirmation
+  show_confidence: true            # Display parser confidence scores
+  group_by_bill: false            # Group confirmations by bill vs chronological
+  auto_accept_high_confidence: 0.9 # Auto-accept if confidence > threshold (0.0-1.0)
 llm:
-  enabled: true
+  enabled: false
   host: "192.168.0.123"
   port: 11434
   model: "qwen3:4b"
