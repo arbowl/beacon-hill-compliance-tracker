@@ -79,6 +79,7 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover committee vote documents on the hearing page."""
+        print(f"Trying {cls.__name__}...")
         with requests.Session() as s:
             # Get the hearing page
             soup = cls._soup(s, bill.hearing_url)

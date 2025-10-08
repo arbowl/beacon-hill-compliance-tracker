@@ -49,6 +49,7 @@ class SummaryHearingPdfParser(ParserInterface):
         """Quick probe. Return a Candidate 
         or None if nothing plausible is found.
         """
+        print(f"Trying {cls.__name__}...")
         with requests.Session() as s:
             soup = cls._soup(s, bill.hearing_url)
             # Prefer the hearing detail page URL; derive it from known pattern:

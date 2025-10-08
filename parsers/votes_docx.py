@@ -98,8 +98,8 @@ class VotesDocxParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover vote DOCX files."""
+        print(f"Trying {cls.__name__}...")
         # Try multiple locations where vote DOCX files might be found
-        
         locations_to_check = [
             # Committee Documents tab
             f"{base_url}/Committees/Detail/{bill.committee_id}/194/Documents",

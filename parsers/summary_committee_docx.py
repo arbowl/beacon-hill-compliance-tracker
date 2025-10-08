@@ -93,6 +93,7 @@ class SummaryCommitteeDocxParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the Committee Summary DOCX."""
+        print(f"Trying {cls.__name__}...")
         # Navigate to the Committee Summary tab
         committee_summary_url = f"{bill.bill_url}/CommitteeSummary"
         with requests.Session() as s:

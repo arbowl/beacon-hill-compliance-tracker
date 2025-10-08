@@ -59,11 +59,10 @@ def _update_progress(current, total, bill_id, start_time):
     filled_width = int((current / total) * bar_width)
     bar = "█" * filled_width + "░" * (bar_width - filled_width)
     progress_line = (
-        f"\r[{bar}] {current}/{total} ({percentage:.1f}%) | "
+        f"[{bar}] {current}/{total} ({percentage:.1f}%) | "
         f"Processing {bill_id} | {speed_str} | ETA: {time_remaining_str}"
     )
-    sys.stdout.write(progress_line)
-    sys.stdout.flush()
+    print(progress_line)
 
 
 def run_basic_compliance(
@@ -172,7 +171,7 @@ def run_basic_compliance(
                 except (ValueError, KeyError):
                     extension_until = None
 
-        status = build_status_row(base_url, r, extension_until)
+        status = build_status_row(base_url, r, cache, extension_until)
         summary = resolve_summary_for_bill(base_url, cfg, cache, r, deferred_session)
         votes = resolve_votes_for_bill(base_url, cfg, cache, r, deferred_session)
         comp = classify(r.bill_id, r.committee_id, status, summary, votes)

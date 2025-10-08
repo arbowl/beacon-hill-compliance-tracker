@@ -168,6 +168,7 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover vote documents in committee Documents tab."""
+        print(f"Trying {cls.__name__}...")
         # Construct committee Documents URL
         # Format: /Committees/Detail/{committee_id}/194/Documents
         committee_documents_url = f"{base_url}/Committees/Detail/{bill.committee_id}/194/Documents"

@@ -72,6 +72,26 @@ class Cache:
         }
         self.save()
 
+    def get_result(self, bill_id: str, kind: str) -> Optional[dict]:
+        """Return cached result data for a bill/kind (or None)."""
+        entry = self._slot(bill_id).get(kind)
+        if isinstance(entry, dict):
+            return entry.get("result")
+        return None
+
+    def set_result(self, bill_id: str, kind: str, module_name: str, result_data: dict, *, confirmed: bool) -> None:
+        """Set result data + module + confirmation flag in the new schema."""
+        slot = self._slot(bill_id)
+        slot[kind] = {
+            "module": module_name,
+            "confirmed": bool(confirmed),
+            "result": result_data,
+            "updated_at": datetime.utcnow().isoformat(
+                timespec="seconds"
+            ) + "Z",
+        }
+        self.save()
+
     def _slot(self, bill_id: str) -> dict[str, Any]:
         return self._data.setdefault(
             "bill_parsers", {}

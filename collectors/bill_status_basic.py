@@ -10,7 +10,7 @@ import requests  # type: ignore
 from bs4 import BeautifulSoup
 
 from components.models import BillAtHearing, BillStatus
-from components.utils import compute_deadlines
+from components.utils import Cache, compute_deadlines
 
 # Common phrases on bill history when a committee moves a bill
 _REPORTED_PATTERNS = [
@@ -188,13 +188,11 @@ def get_bill_title(session: requests.Session, bill_url: str) -> str | None:
 
 
 def build_status_row(
-    _base_url: str, row: BillAtHearing, extension_until=None
+    _base_url: str, row: BillAtHearing, cache: Cache, extension_until=None
 ) -> BillStatus:
     """Build the status row."""
-    from components.utils import Cache
     
     d60, d90, effective = compute_deadlines(row.hearing_date, extension_until)
-    cache = Cache()
     
     # Try to get hearing announcement from cache first
     cached_announcement = cache.get_hearing_announcement(row.bill_id)

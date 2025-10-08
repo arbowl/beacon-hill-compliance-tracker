@@ -87,6 +87,7 @@ class SummaryBillTabTextParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the summary."""
+        print(f"Trying {cls.__name__}...")
         bill_url = bill.bill_url
         with requests.Session() as s:
             soup = cls._soup(s, bill_url)

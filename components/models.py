@@ -1,6 +1,8 @@
 """ Data models for the Massachusetts Legislature website.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Optional, List
@@ -68,6 +70,29 @@ class SummaryInfo:
     parser_module: Optional[str]  # which parser landed
     needs_review: bool = False    # if we auto-accepted in headless mode
 
+    def to_dict(self) -> dict:
+        """Convert to dictionary, omitting None values."""
+        result = {
+            "present": self.present,
+            "location": self.location,
+            "needs_review": self.needs_review,
+        }
+        if self.source_url is not None:
+            result["source_url"] = self.source_url
+        if self.parser_module is not None:
+            result["parser_module"] = self.parser_module
+        return result
+
+    def from_dict(data: dict) -> 'SummaryInfo':
+        """Create SummaryInfo from a dictionary."""
+        return SummaryInfo(
+            present=data.get("present", False),
+            location=data.get("location", "unknown"),
+            source_url=data.get("source_url"),
+            parser_module=data.get("parser_module"),
+            needs_review=data.get("needs_review", False),
+        )
+
 
 @dataclass(frozen=True)
 class VoteRecord:
@@ -90,6 +115,48 @@ class VoteInfo:  # pylint: disable=too-many-instance-attributes
     tallies: Optional[dict] = None  # {"yea": 10, "nay": 3, ...}
     records: Optional[list[VoteRecord]] = None
     needs_review: bool = False
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary, omitting None values."""
+        result = {
+            "present": self.present,
+            "location": self.location,
+            "needs_review": self.needs_review,
+        }
+        if self.source_url is not None:
+            result["source_url"] = self.source_url
+        if self.parser_module is not None:
+            result["parser_module"] = self.parser_module
+        if self.motion is not None:
+            result["motion"] = self.motion
+        if self.date is not None:
+            result["date"] = self.date
+        if self.tallies is not None:
+            result["tallies"] = self.tallies
+        if self.records is not None:
+            result["records"] = (
+                [{"member": r.member, "vote": r.vote} for r in self.records] if self.records else None
+            )
+        return result
+
+    def from_dict(data: dict) -> VoteInfo:
+        """Create VoteInfo from a dictionary."""
+        records_data = data.get("records")
+        records = (
+            [VoteRecord(member=r["member"], vote=r["vote"]) for r in records_data]
+            if records_data else None
+        )
+        return VoteInfo(
+            present=data.get("present", False),
+            location=data.get("location", "unknown"),
+            source_url=data.get("source_url"),
+            parser_module=data.get("parser_module"),
+            motion=data.get("motion"),
+            date=data.get("date"),
+            tallies=data.get("tallies"),
+            records=records,
+            needs_review=data.get("needs_review", False),
+        )
 
 
 @dataclass(frozen=True)

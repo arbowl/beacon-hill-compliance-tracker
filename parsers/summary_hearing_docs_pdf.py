@@ -126,6 +126,7 @@ class SummaryHearingDocsPdfParser(ParserInterface):
         Probe the hearing 'Documents' tab for a Summary PDF that matches this bill.
         Returns {"preview","source_url","confidence"} or None.
         """
+        print(f"Trying {cls.__name__}...")
         # We rely on hearing_url (added in step 2 tweak)
         hearing_docs_url = bill.hearing_url  # docs are here (tabbed content)
         with requests.Session() as s:

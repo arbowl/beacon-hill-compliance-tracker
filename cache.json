@@ -19,103 +19,124 @@
       "house_chair_email": "Mark.Cusack@mahouse.gov",
       "house_vice_chair_name": "Michael P. Kushmerek",
       "house_vice_chair_email": "Michael.Kushmerek@mahouse.gov",
-      "updated_at": "2025-10-08T20:48:16Z"
+      "updated_at": "2025-10-08T21:51:00Z"
     }
   },
   "bill_parsers": {
     "H3444": {
+      "bill_url": "https://malegislature.gov/Bills/194/H3444",
+      "hearing_announcement": {
+        "announcement_date": "2025-04-30",
+        "scheduled_hearing_date": "2025-05-06",
+        "updated_at": "2025-10-08T21:51:18Z"
+      },
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": false,
-        "updated_at": "2025-10-08T20:51:45Z"
+        "confirmed": true,
+        "result": {
+          "present": true,
+          "location": "Hearing page Documents tab PDF content",
+          "needs_review": false,
+          "source_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=21244&Title=H.3444&fileExtension=.pdf",
+          "parser_module": "parsers.summary_hearing_docs_pdf_content"
+        },
+        "updated_at": "2025-10-08T22:05:26Z"
       },
       "title": {
         "value": "An Act relative to s-license compliance",
-        "updated_at": "2025-10-08T20:49:55Z"
+        "updated_at": "2025-10-08T21:54:42Z"
       }
     },
     "H3470": {
+      "bill_url": "https://malegislature.gov/Bills/194/H3470",
+      "hearing_announcement": {
+        "announcement_date": "2025-04-30",
+        "scheduled_hearing_date": "2025-05-06",
+        "updated_at": "2025-10-08T21:54:43Z"
+      },
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": false,
-        "updated_at": "2025-10-08T20:52:26Z"
+        "confirmed": true,
+        "result": {
+          "present": true,
+          "location": "Hearing page Documents tab PDF content",
+          "needs_review": false,
+          "source_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=21245&Title=H.3470&fileExtension=.pdf",
+          "parser_module": "parsers.summary_hearing_docs_pdf_content"
+        },
+        "updated_at": "2025-10-08T22:07:19Z"
       },
       "title": {
         "value": "An Act protecting transportation network driver data privacy and integrity",
-        "updated_at": "2025-10-08T20:53:05Z"
+        "updated_at": "2025-10-08T21:55:53Z"
       }
     },
     "H3478": {
+      "bill_url": "https://malegislature.gov/Bills/194/H3478",
+      "hearing_announcement": {
+        "announcement_date": "2025-04-30",
+        "scheduled_hearing_date": "2025-05-06",
+        "updated_at": "2025-10-08T21:55:55Z"
+      },
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": false,
-        "updated_at": "2025-10-08T20:53:38Z"
+        "confirmed": true,
+        "result": {
+          "present": true,
+          "location": "Hearing page Documents tab PDF content",
+          "needs_review": false,
+          "source_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=21246&Title=H.3478&fileExtension=.pdf",
+          "parser_module": "parsers.summary_hearing_docs_pdf_content"
+        },
+        "updated_at": "2025-10-08T22:08:55Z"
       },
       "title": {
         "value": "An Act to streamline broadband permitting and ensure equitable access to infrastructure",
-        "updated_at": "2025-10-08T20:54:15Z"
+        "updated_at": "2025-10-08T21:57:04Z"
       }
     },
     "H3481": {
+      "bill_url": "https://malegislature.gov/Bills/194/H3481",
+      "hearing_announcement": {
+        "announcement_date": "2025-04-30",
+        "scheduled_hearing_date": "2025-05-06",
+        "updated_at": "2025-10-08T21:57:07Z"
+      },
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": false,
-        "updated_at": "2025-10-08T20:54:54Z"
+        "confirmed": true,
+        "result": {
+          "present": true,
+          "location": "Hearing page Documents tab PDF content",
+          "needs_review": false,
+          "source_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=21247&Title=H.3481&fileExtension=.pdf",
+          "parser_module": "parsers.summary_hearing_docs_pdf_content"
+        },
+        "updated_at": "2025-10-08T22:12:57Z"
       },
       "title": {
         "value": "An Act relative to the maximum storage charges on motor vehicles involuntarily towed",
-        "updated_at": "2025-10-08T20:55:38Z"
+        "updated_at": "2025-10-08T22:03:16Z"
       }
     },
     "H3483": {
-      "summary": {
-        "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": false,
-        "updated_at": "2025-10-08T20:56:07Z"
+      "bill_url": "https://malegislature.gov/Bills/194/H3483",
+      "hearing_announcement": {
+        "announcement_date": "2025-04-30",
+        "scheduled_hearing_date": "2025-05-06",
+        "updated_at": "2025-10-08T22:03:22Z"
       },
-      "title": {
-        "value": "An Act halting close proximity antennas and higher frequencies to enforce RadLimits",
-        "updated_at": "2025-10-08T20:56:46Z"
-      }
-    },
-    "H3484": {
       "summary": {
         "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": false,
-        "updated_at": "2025-10-08T20:57:17Z"
-      },
-      "title": {
-        "value": "An Act limiting tech radiation in anchor institutions",
-        "updated_at": "2025-10-08T20:57:57Z"
-      }
-    },
-    "H3485": {
-      "summary": {
-        "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": false,
-        "updated_at": "2025-10-08T20:58:25Z"
-      },
-      "title": {
-        "value": "An Act relative to tow lien reform",
-        "updated_at": "2025-10-08T20:59:01Z"
-      }
-    },
-    "H3506": {
-      "summary": {
-        "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": false,
-        "updated_at": "2025-10-08T20:59:34Z"
-      },
-      "title": {
-        "value": "An Act relative to digital inclusion for seniors",
-        "updated_at": "2025-10-08T21:00:18Z"
-      }
-    },
-    "H3507": {
-      "summary": {
-        "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": false,
-        "updated_at": "2025-10-08T21:01:47Z"
+        "confirmed": true,
+        "result": {
+          "present": true,
+          "location": "Hearing page Documents tab PDF content",
+          "needs_review": false,
+          "source_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=21248&Title=H.3483&fileExtension=.pdf",
+          "parser_module": "parsers.summary_hearing_docs_pdf_content"
+        },
+        "updated_at": "2025-10-08T22:38:40Z"
       }
     }
   }

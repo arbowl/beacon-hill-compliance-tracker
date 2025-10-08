@@ -57,6 +57,7 @@ class VotesBillPdfParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the votes."""
+        print(f"Trying {cls.__name__}...")
         with requests.Session() as s:
             soup = cls._soup(s, bill.bill_url)
             for a in soup.find_all("a", href=True):

@@ -52,6 +52,14 @@ def resolve_summary_for_bill(
 ) -> SummaryInfo:
     """Resolve the summary for a bill."""
     review_mode: str = cfg.get("review_mode", "on").lower()
+    cached_result = cache.get_result(
+        row.bill_id, ParserInterface.ParserType.SUMMARY.value
+    )
+    if cached_result and cache.is_confirmed(
+        row.bill_id, ParserInterface.ParserType.SUMMARY.value
+    ):
+        print("Found summary in cache; skipping summary search...")
+        return SummaryInfo.from_dict(cached_result)
     # 1) If we have a confirmed parser, run it silently and return.
     summary_has_parser: Optional[str] = cache.get_parser(
         row.bill_id, ParserInterface.ParserType.SUMMARY.value
@@ -65,13 +73,20 @@ def resolve_summary_for_bill(
         )
         if candidate:
             parsed: dict = mod.parse(base_url, candidate)
-            return SummaryInfo(
+            result = SummaryInfo(
                 present=True,
                 location=mod.location,
                 source_url=candidate.source_url,
                 parser_module=summary_has_parser,
                 needs_review=False,
             )
+            cache.set_result(
+                row.bill_id,
+                ParserInterface.ParserType.SUMMARY.value,
+                result.to_dict(),
+                confirmed=True,
+            )
+            return result
         # If the source vanished, fall through to normal sequence.
     # 2) Otherwise, try cached first (unconfirmed), then others by cost
     parser_sequence: list[ParserInterface] = [
@@ -99,7 +114,7 @@ def resolve_summary_for_bill(
         if review_mode == "deferred" and deferred_session is not None:
             # Collect for deferred review instead of asking now
             preview_text = candidate.full_text if candidate.full_text else candidate.preview
-            confidence = candidate.confidence
+            confidence = candidate.confidence if candidate.confidence else 0.5
             auto_accept_threshold = cfg.get("deferred_review", {}).get("auto_accept_high_confidence", 0.9)
             if confidence >= auto_accept_threshold:
                 accepted = True
@@ -109,7 +124,7 @@ def resolve_summary_for_bill(
                 confirmation = DeferredConfirmation(
                     confirmation_id="",  # Will be auto-generated
                     bill_id=row.bill_id,
-                    parser_type="summary",
+                    parser_type=ParserInterface.ParserType.SUMMARY.value,
                     parser_module=modname,
                     candidate=candidate,
                     preview_text=preview_text,
@@ -145,22 +160,21 @@ def resolve_summary_for_bill(
 
         if accepted:
             parsed = p.parse(base_url, candidate)
-            # mark confirmed if we actually asked; otherwise keep unconfirmed
-            cache.set_parser(
-                row.bill_id,
-                ParserInterface.ParserType.SUMMARY.value,
-                modname,
-                confirmed=(
-                    review_mode == "on" and not needs_review
-                )
-            )
-            return SummaryInfo(
+            result = SummaryInfo(
                 present=True,
                 location=p.location,
                 source_url=parsed.get("source_url"),
                 parser_module=modname,
                 needs_review=needs_review,
             )
+            cache.set_result(
+                row.bill_id,
+                ParserInterface.ParserType.SUMMARY.value,
+                modname,
+                result.to_dict(),
+                confirmed=review_mode == "on" and not needs_review
+            )
+            return result
     return SummaryInfo(
         present=False,
         location="unknown",
@@ -188,6 +202,14 @@ def resolve_votes_for_bill(
       auto-accept.
     """
     review_mode = cfg.get("review_mode", "on").lower()
+    cached_result = cache.get_result(
+        row.bill_id, ParserInterface.ParserType.VOTES.value
+    )
+    if cached_result and cache.is_confirmed(
+        row.bill_id, ParserInterface.ParserType.VOTES.value
+    ):
+        print("Found votes in cache; skipping votes search...")
+        return VoteInfo.from_dict(cached_result)
     votes_has_parser = cache.get_parser(
         row.bill_id, ParserInterface.ParserType.VOTES.value
     )
@@ -201,13 +223,21 @@ def resolve_votes_for_bill(
         )
         if candidate:
             parsed = mod.parse(base_url, candidate)
-            return VoteInfo(
+            result = VoteInfo(
                 present=True,
                 location=mod.location,
                 source_url=candidate.source_url,
                 parser_module=votes_has_parser,
                 needs_review=False,
             )
+            cache.set_result(
+                row.bill_id,
+                ParserInterface.ParserType.VOTES.value,
+                votes_has_parser,
+                result.to_dict(),
+                confirmed=True,
+            )
+            return result
         # stale: fall through to normal flow
     # 2) Build sequence: cached (if any) first, then by cost
     votes_sequence: list[ParserInterface] = [
@@ -283,25 +313,30 @@ def resolve_votes_for_bill(
             continue
 
         parsed = p.parse(base_url, candidate)
-
-        # Mark confirmation status:
-        # - review_mode ON -> confirmed True (user explicitly accepted)
-        # - review_mode OFF -> confirmed False (auto-accepted; will ask once
-        # in a future interactive run)
-        cache.set_parser(
-            row.bill_id,
-            ParserInterface.ParserType.VOTES.value,
-            modname,
-            confirmed=review_mode == "on" and not needs_review
-        )
-        return VoteInfo(
+        result = VoteInfo(
             present=True,
             location=p.location,
             source_url=parsed.get("source_url"),
             parser_module=modname,
             needs_review=needs_review,
         )
+        # Mark confirmation status:
+        # - review_mode ON -> confirmed True (user explicitly accepted)
+        # - review_mode OFF -> confirmed False (auto-accepted; will ask once
+        # in a future interactive run)
+        cache.set_result(
+            row.bill_id,
+            ParserInterface.ParserType.VOTES.value,
+            modname,
+            result.to_dict(),
+            confirmed=review_mode == "on" and not needs_review
+        )
+        return result
     # 4) Nothing landed
     return VoteInfo(
-        present=False, location="unknown", source_url=None, parser_module=None
+        present=False,
+        location="unknown",
+        source_url=None,
+        parser_module=None,
+        needs_review=False,
     )

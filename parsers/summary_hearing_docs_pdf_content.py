@@ -256,8 +256,8 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
         Uses caching to avoid re-downloading PDFs for bills from the same hearing.
         Returns {"preview","source_url","confidence"} or None.
         """
+        print(f"Trying {cls.__name__}...")
         hearing_docs_url = bill.hearing_url
-
         # Check if we've already processed this hearing
         if hearing_docs_url not in _HEARING_PDF_CACHE:
             print(f"First time processing hearing {hearing_docs_url} - "

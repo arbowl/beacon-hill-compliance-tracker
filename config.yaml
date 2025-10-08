@@ -6,7 +6,7 @@ runner:
   committee_ids: ["J10"]  # list of committee IDs, or ["all"] for all committees
   limit_hearings: 999       # keep small for fast tests; increase later
   check_extensions: false  # whether to check for bill extensions (time-consuming)
-review_mode: "deferred"  # "on" = immediate review, "off" = auto-accept, "deferred" = batch review at end
+review_mode: "on"  # "on" = immediate review, "off" = auto-accept, "deferred" = batch review at end
 popup_review: false  # true = Tkinter popups, false = console review (headless/SSH friendly)
 # Deferred review settings (only used when review_mode: "deferred")
 deferred_review:
