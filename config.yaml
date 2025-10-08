@@ -6,31 +6,6 @@ runner:
   committee_ids: ["J10"]  # list of committee IDs, or ["all"] for all committees
   limit_hearings: 999       # keep small for fast tests; increase later
   check_extensions: false  # whether to check for bill extensions (time-consuming)
-parsers:
-  summary:
-    - module: "parsers.summary_hearing_docs_pdf"
-      cost: 1
-    - module: "parsers.summary_bill_tab_text"     # NEW, plaintext fallback
-      cost: 2
-    - module: "parsers.summary_committee_docx"    # Committee Summary DOCX files
-      cost: 3
-    - module: "parsers.summary_committee_pdf"     # Committee Summary PDF files
-      cost: 4
-    - module: "parsers.summary_hearing_pdf"       # still useful as generic backup
-      cost: 5
-    - module: "parsers.summary_hearing_docs_pdf_content"  # Most expensive: downloads all PDFs to check content (cached per hearing)
-      cost: 6
-  votes:
-    - module: "parsers.votes_bill_embedded"   # fastest/happiest path
-      cost: 1
-    - module: "parsers.votes_hearing_committee"  # committee vote documents on hearing page
-      cost: 2
-    - module: "parsers.votes_committee_documents"  # committee Documents tab PDFs
-      cost: 3
-    - module: "parsers.votes_docx"            # DOCX vote documents
-      cost: 4
-    - module: "parsers.votes_bill_pdf"        # common fallback
-      cost: 5
 review_mode: "deferred"  # "on" = immediate review, "off" = auto-accept, "deferred" = batch review at end
 popup_review: false  # true = Tkinter popups, false = console review (headless/SSH friendly)
 # Deferred review settings (only used when review_mode: "deferred")
@@ -41,7 +16,7 @@ deferred_review:
   auto_accept_high_confidence: 0.9 # Auto-accept if confidence > threshold (0.0-1.0)
 llm:
   enabled: false
-  host: "192.168.0.123"
+  host: "192.168.0.170"
   port: 11434
   model: "qwen3:4b"
   prompt: |

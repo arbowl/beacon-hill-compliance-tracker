@@ -10,6 +10,8 @@ from components.options import (
     get_extension_check_preference,
     print_options_summary
 )
+from collectors.extension_orders import collect_all_extension_orders
+from components.utils import Cache
 
 
 class Cfg(str, Enum):
@@ -30,6 +32,7 @@ def main():
     cfg = load_config()
     base_url = cfg[Cfg.BASE_URL]
     include_chambers = cfg[Cfg.FITLTERS][Cfg.INCLUDE_CHAMBERS]
+    cache = Cache()
     
     if cfg[Cfg.COLLECT_INPUT]:
         # Get interactive inputs
@@ -60,6 +63,21 @@ def main():
             limit_hearings,
             check_extensions
         )
+    
+    # Collect all extension orders once at the beginning if enabled
+    extension_lookup: dict[str, list] = {}
+    if check_extensions:
+        print("Collecting all extension orders...")
+        all_extension_orders = collect_all_extension_orders(base_url, cache)
+        print(f"Found {len(all_extension_orders)} total extension orders")
+
+        # Create lookup dictionary for quick access
+        for eo in all_extension_orders:
+            if eo.bill_id not in extension_lookup:
+                extension_lookup[eo.bill_id] = []
+            extension_lookup[eo.bill_id].append(eo)
+    else:
+        print("Extension checking disabled - using cached data only")
 
     # Process each committee
     for committee_id in committee_ids:
@@ -72,6 +90,8 @@ def main():
             committee_id=committee_id,
             limit_hearings=limit_hearings,
             cfg=cfg,
+            cache=cache,
+            extension_lookup=extension_lookup,
             write_json=True
         )
     input("Collection complete! Press Enter to exit.")

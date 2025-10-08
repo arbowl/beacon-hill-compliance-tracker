@@ -2,26 +2,77 @@
 tracker.
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Optional, Any, Dict
+from dataclasses import dataclass
+from enum import Enum
+from typing import Optional, Any
+
+from bs4 import BeautifulSoup
+import requests
+
 from components.models import BillAtHearing
 
 
 class ParserInterface(ABC):
     """Base interface that all parsers must implement."""
 
-    def __init__(self, output_controller=None):
-        """Initialize parser with optional output controller.
+    # Helper classes for standardized return types:
+    class ParserType(str, Enum):
+        """Determines when to use a given parser"""
 
-        Args:
-            output_controller: OutputController instance for structured output
-        """
-        self.output = output_controller
+        SUMMARY = "summary"
+        VOTES = "votes"
+
+    @dataclass(frozen=True)
+    class DiscoveryResult:
+        """Result of the discover() method."""
+
+        preview: str
+        full_text: str
+        source_url: str
+        confidence: float
+
+    # Mandatory fields for each implementation of this interface:
+    parser_type: ParserType
+    """Must declare what kind of information this looks for"""
+    location: str
+    """Plaintext, human-readable description of where this parser looks"""
+    cost: int
+    """Relative cost of running this parser (higher = more expensive)"""
+
+    def __init_subclass__(cls, **kwargs):
+        """Ensures each subclass sets required class attributes at startup"""
+        super().__init_subclass__()
+        if not hasattr(cls, "parser_type"):
+            raise TypeError(f"{cls.__name__} must set class attribute 'parser_type'")
+        if not isinstance(getattr(cls, "parser_type"), ParserInterface.ParserType):
+            raise TypeError(f"{cls.__name__}.parser_type must be a ParserType enum value")
+        if not hasattr(cls, "cost"):
+            raise TypeError(f"{cls.__name__} must set class attribute 'cost'")
+        if not isinstance(getattr(cls, "cost"), int):
+            raise TypeError(f"{cls.__name__}.cost must be an int")
+        if not hasattr(cls, "location"):
+            raise TypeError(f"{cls.__name__} must set class attribute 'location'")
+        if not isinstance(getattr(cls, "location"), str):
+            raise TypeError(f"{cls.__name__}.location must be a str")
+
+    @staticmethod
+    def _soup(s: requests.Session, url: str) -> BeautifulSoup:
+        """Get the soup of the page."""
+        for _ in range(5):  # Retry up to 5 times
+            try:
+                r = s.get(url, timeout=20, headers={"User-Agent": "legis-scraper/0.1"})
+                r.raise_for_status()
+            except (requests.RequestException, requests.Timeout):
+                continue
+        return BeautifulSoup(r.text, "html.parser")
 
     @abstractmethod
     def discover(
         self, base_url: str, row: BillAtHearing
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover potential documents for parsing.
 
         Args:
@@ -29,58 +80,19 @@ class ParserInterface(ABC):
             row: BillAtHearing object containing bill information
 
         Returns:
-            Dictionary with document information if found, None otherwise
+            DiscoveryResult if a document is found, else None
         """
 
     @abstractmethod
     def parse(
-        self, base_url: str, candidate: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, base_url: str, candidate: ParserInterface.DiscoveryResult
+    ) -> dict[str, Any]:
         """Parse the discovered document.
 
         Args:
             base_url: Base URL for the legislature website
-            candidate: Dictionary with document information from discover()
+            candidate: DiscoveryResult with document information from discover()
 
         Returns:
             Dictionary with parsed document data
         """
-
-    def _warning(self, message: str, **kwargs):
-        """Emit a warning message using the output controller if available.
-
-        Args:
-            message: Warning message
-            **kwargs: Additional data for the warning
-        """
-        if self.output:
-            self.output.parser_warning(
-                self.__class__.__name__, message, **kwargs
-            )
-        else:
-            print(f"Warning: {message}")
-
-    def _debug(self, bill_id: str, message: str, **kwargs):
-        """Emit a debug message using the output controller if available.
-
-        Args:
-            bill_id: Bill ID for context
-            message: Debug message
-            **kwargs: Additional data for the debug message
-        """
-        if self.output:
-            self.output.parser_debug(bill_id, message, **kwargs)
-        else:
-            print(f"DEBUG: {message}")
-
-    def _error(self, message: str, **kwargs):
-        """Emit an error message using the output controller if available.
-
-        Args:
-            message: Error message
-            **kwargs: Additional data for the error
-        """
-        if self.output:
-            self.output.error("parser", "error", message, **kwargs)
-        else:
-            print(f"Error: {message}")

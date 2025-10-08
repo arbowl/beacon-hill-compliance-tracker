@@ -66,12 +66,6 @@ release/app.exe  # Windows
 release/app      # Linux/Mac
 ```
 
-This will:
-- Fetch committee data and hearings
-- Collect bills from the first hearing
-- Check compliance for each bill
-- Generate HTML and JSON reports in the `out/` folder
-
 ## Outputs
 
 The tool generates two types of reports:
@@ -86,7 +80,7 @@ A human-readable report containing:
 **Compliance Table:**
 - Bill ID and hearing date
 - 60-day and effective deadlines
-- **Notice gap** (days between announcement and hearing)
+- Notice gap (days between announcement and hearing)
 - Whether the bill was "reported out"
 - Summary and vote availability
 - Compliance status and reason
@@ -94,7 +88,7 @@ A human-readable report containing:
 ### JSON Data (`out/basic_J33.json`)
 Machine-readable data for each bill including:
 - All compliance information
-- **Notice gap data** (announcement date, hearing date, gap days, status)
+- Notice gap data (announcement date, hearing date, gap days, status)
 - Source URLs for summaries and votes
 - Parser modules used
 - Timestamps and metadata
@@ -103,17 +97,24 @@ Machine-readable data for each bill including:
 
 The design is deliberately modular and straightforward:
 
-### Core Components
+### Components
 
-- **`components/models.py`**: Think of this as "bundles of information", e.g. contact details, bill details, vote details, etc. The calculations and compliance checks are compiled using sets of this information. This file handles structure, not so much logic.
-- **`components/pipeline.py`**: Orchestrates discovery of summaries and votes using cost-ordered parsers. We rate each method based on how "expensive" it is so we can attempt the least "costly" methods first on unknown data sources, then cache the method which worked.
-- **`components/compliance.py`**: Rule engine that classifies bills based on deadlines, reported-out status, and document availability.
-- **`components/report.py`**: Generates HTML and JSON outputs.
-- **`components/utils.py`**: Cache management, configuration loading, and UI helpers.
+The "components" folder can be thought of as the unique "employees" of this project. Each one has a different task. When a new task needs to be added to the project flow, add it here for organization.
+
+- **`committees.py`**: Retrieves data related to ALL committees.
+- **`compliance.py`**: Rule engine that classifies bills based on deadlines, reported-out status, and document availability.
+- **`interfaces.py`**: Provides abstract base classes for other elements of the project to implement concrete versions of.
+- **`llm.py`**: Coordinates integration with local LLMs for more automatic review.
+- **`models.py`**: Think of this as "bundles of information", e.g. contact details, bill details, vote details, etc. The calculations and compliance checks are compiled using sets of this information. This file handles structure, not so much logic.
+- **`options.py`**: Allows the user to access an options menu (if enabled in config) and toggle various features at runtime
+- **`pipeline.py`**: Orchestrates discovery of summaries and votes using cost-ordered parsers. We rate each method based on how "expensive" it is so we can attempt the least "costly" methods first on unknown data sources, then cache the method which worked.
+- **`report.py`**: Handles saving completed datasets to disk in various formats (human-readable, machine-readable, etc.).
+- **`utils.py`**: Cache management, configuration loading, and UI helpers.
 
 ### Data Flow
 
-1. **Collect committees** (House/Joint only, ignoring Senate)
+1. **Parse extension orders** (Optional, computationally expensive)
+2. **Collect committee info** (House/Joint only, ignoring Senate)
 2. **Get hearings and bills** for the target committee
 3. **Compute deadlines** and check "reported out" status
 4. **Discover summaries** using cost-ordered parsers
@@ -154,61 +155,54 @@ Parsers are small, pluggable modules that discover and extract summaries or vote
 ### Parser Interface
 
 ```python
-def discover(base_url: str, bill: BillAtHearing) -> Optional[dict]:
-    """Find a candidate document/source for this bill.
-    Returns None if not found, or a dict with:
-    - preview: Short description for user confirmation
-    - source_url: Direct link to the document
-    - confidence: Float 0.0-1.0 (optional)
-    - full_text: Full text content for preview (optional)
-    """
 
-def parse(base_url: str, candidate: dict) -> dict:
-    """Extract structured data from the candidate.
-    Returns a dict with:
-    - source_url: Confirmed URL
-    - location: Human-readable location name
-    - Additional fields as needed
-    """
+from components.interfaces import ParserInterface
+
+class ExampleParser(ParserInterface):
+
+    parser_type: str = "SUMMARY"  # or "VOTES" (or any future nth type)
+    location: str = "Where you manually found this content"
+    cost: int = 1  # How "expensive" it is to run this operation, relative to the others
+
+    @classmethod
+    def discover(
+      cls, base_url: str, bill: BillAtHearing
+    ) -> Optional[ParserInterface.ParserType]:
+        """Find a candidate document/source for this bill.
+        Returns None if not found, or a dict with:
+        - preview: Short description for user confirmation
+        - source_url: Direct link to the document
+        - confidence: Float 0.0-1.0 (optional)
+        - full_text: Full text content for preview (optional)
+        """
+
+    @staticmethod
+    def parse(
+      base_url: str, candidate: Optional[ParserInterface.Parsertype]
+    ) -> dict:
+        """Extract structured data from the candidate.
+        Returns a dict with:
+        - source_url: Confirmed URL
+        - location: Human-readable location name
+        - Additional fields as needed
+        """
 ```
 
-### Example Parser
+### Registering Parser
+
+When you make a new parser, insert it in `pipeline.py` so that it can be imported at startup and accessed at runtime:
 
 ```python
-# parsers/summary_custom_format.py
-from typing import Optional
-from components.models import BillAtHearing
+# components/pipeline.py
+...
+from parsers.example_parser import ExampleParser
 
-def discover(base_url: str, bill: BillAtHearing) -> Optional[dict]:
-    # Your discovery logic here
-    if found_something:
-        return {
-            "preview": "Found summary in custom location",
-            "source_url": "https://example.com/summary.pdf",
-            "confidence": 0.9
-        }
-    return None
-
-def parse(base_url: str, candidate: dict) -> dict:
-    # Your parsing logic here
-    return {
-        "source_url": candidate["source_url"],
-        "location": "custom_format"
-    }
-```
-
-### Registering Parsers
-
-Add your parser to `config.yaml`:
-
-```yaml
-parsers:
-  summary:
-    - module: "parsers.summary_custom_format"
-      cost: 5  # Higher cost = tried later
-  votes:
-    - module: "parsers.votes_custom_format"
-      cost: 3
+PARSER_REGISTRY: dict[str, ParserInterface] = {
+    module.__module__: module for module in [
+      ...
+      ExampleParser,
+    ]
+}
 ```
 
 ## Adding Collectors
@@ -334,7 +328,15 @@ The system is designed to work with Ollama, a local LLM server. Follow these ste
    OLLAMA_HOST=0.0.0.0 ollama serve
    ```
 
+   ```cmd
+   set OLLAMA_HOST=0.0.0.0 & ollama serve
+   ```
+
 3. **Pull a model** (choose one based on your hardware):
+
+  I use `qwen3:4b` for less powerful machines; reasoning models work best.
+
+  Example commands:
    ```bash
    # For faster, smaller models (recommended for most users)
    ollama pull llama3.2:3b
@@ -347,7 +349,7 @@ The system is designed to work with Ollama, a local LLM server. Follow these ste
 
 4. **Test the model**:
    ```bash
-   ollama run mistral:7b-instruct
+   ollama run qwen3:4b
    ```
 
 ### LLM Configuration
@@ -357,9 +359,9 @@ Edit the `llm` section in `config.yaml` to configure LLM integration:
 ```yaml
 llm:
   enabled: true                   # Enable/disable LLM integration
-  host: "localhost"               # Ollama server host (use 0.0.0.0 for remote access)
+  host: "192.168.0.111"           # Ollama server host
   port: 11434                     # Ollama server port
-  model: "mistral:7b-instruct"    # Model name (must match what you pulled)
+  model: "qwen3:4b"               # Model name (must match what you pulled)
   prompt: |                       # Custom prompt template
     bill_id: {bill_id}
     doc_type: {doc_type}
@@ -549,55 +551,6 @@ deferred_review:
 - **Initial Runs**: First time processing a committee (many confirmations needed)
 - **Batch Operations**: Processing multiple committees in sequence
 - **Focus Workflows**: Prefer dedicated review time vs scattered interruptions
-
-## Configuration
-
-Edit `config.yaml` to customize behavior:
-
-```yaml
-base_url: "https://malegislature.gov"
-filters:
-  include_chambers: ["House", "Joint"]  # Ignore Senate committees
-runner:
-  committee_id: "J33"                   # Target committee
-  limit_hearings: 1                     # Number of hearings to process
-compliance:
-  min_notice_days: 10                   # Minimum hearing notice days (default: 10)
-parsers:
-  summary:                              # Summary parsers (cost-ordered)
-    - module: "parsers.summary_hearing_docs_pdf"
-      cost: 1
-  votes:                                # Vote parsers (cost-ordered)
-    - module: "parsers.votes_bill_embedded"
-      cost: 1
-review_mode: "on"                       # "on" = immediate, "off" = auto-accept, "deferred" = batch at end
-popup_review: true                      # Use Tkinter popups (false = console review)
-# Deferred review settings (only used when review_mode: "deferred")
-deferred_review:
-  reprocess_after_review: true          # Re-run processing after confirmation
-  show_confidence: true                 # Display parser confidence scores
-  group_by_bill: false                 # Group confirmations by bill vs chronological
-  auto_accept_high_confidence: 0.9     # Auto-accept if confidence > threshold
-llm:                                    # LLM integration settings
-  enabled: true
-  host: "localhost"
-  port: 11434
-  model: "mistral:7b-instruct"
-  # ... (see LLM Integration section above for full config)
-```
-
-## Testing
-
-Run individual components:
-
-```bash
-# Test bill collection
-python tests/collect_bills.py
-
-# Test specific parsers
-python tests/summary_tab_parser.py
-python tests/votes_pipeline.py
-```
 
 ## Design Philosophy
 

@@ -70,7 +70,7 @@ def classify(
             summary=summary,
             votes=votes,
             status=status,
-            state=ComplianceState.NON_COMPLIANT,
+            state=ComplianceState.NON_COMPLIANT.value,
             reason=(f"Insufficient notice: {gap_days} days "
                     f"(minimum {min_notice_days})"),
         )
@@ -89,7 +89,7 @@ def classify(
                 summary=summary,
                 votes=votes,
                 status=status,
-                state=ComplianceState.UNKNOWN,
+                state=ComplianceState.UNKNOWN.value,
                 reason="No hearing announcement found and no other evidence",
             )
         else:
@@ -100,7 +100,7 @@ def classify(
                 summary=summary,
                 votes=votes,
                 status=status,
-                state=ComplianceState.NON_COMPLIANT,
+                state=ComplianceState.NON_COMPLIANT.value,
                 reason="No hearing announcement found",
             )
     
@@ -113,25 +113,25 @@ def classify(
         summary_present = summary.present
 
         if votes_present and summary_present:
-            state, reason = ComplianceState.COMPLIANT, (
+            state, reason = ComplianceState.COMPLIANT.value, (
                 "Senate bill: summaries and votes posted, adequate notice "
                 f"({gap_days} days)"
             )
         elif votes_present or summary_present:
             missing = "summaries" if not summary_present else "votes"
-            state, reason = ComplianceState.INCOMPLETE, (
+            state, reason = ComplianceState.INCOMPLETE.value, (
                 f"Senate bill: {missing} missing, adequate notice "
                 f"({gap_days} days)"
             )
         else:
-            state, reason = ComplianceState.NON_COMPLIANT, (
+            state, reason = ComplianceState.NON_COMPLIANT.value, (
                 f"Senate bill: no votes or summaries posted, adequate notice "
                 f"({gap_days} days)"
             )
     else:
         # House bills and others - check deadlines and all requirements
         if today <= status.effective_deadline:
-            state, reason = ComplianceState.UNKNOWN, (
+            state, reason = ComplianceState.UNKNOWN.value, (
                 f"Before deadline, adequate notice ({gap_days} days)"
             )
         else:
@@ -143,7 +143,7 @@ def classify(
             present_count = sum([reported_out, votes_present, summary_present])
 
             if present_count == 3:
-                state, reason = ComplianceState.COMPLIANT, (
+                state, reason = ComplianceState.COMPLIANT.value, (
                     "All requirements met: reported out, votes posted, "
                     f"summaries posted, adequate notice ({gap_days} days)"
                 )
@@ -151,7 +151,7 @@ def classify(
                 missing = _get_missing_requirements(
                     reported_out, votes_present, summary_present
                 )
-                state, reason = ComplianceState.INCOMPLETE, (
+                state, reason = ComplianceState.INCOMPLETE.value, (
                     f"One requirement missing: {missing}, adequate notice "
                     f"({gap_days} days)"
                 )
@@ -159,7 +159,7 @@ def classify(
                 missing = _get_missing_requirements(
                     reported_out, votes_present, summary_present
                 )
-                state, reason = ComplianceState.NON_COMPLIANT, (
+                state, reason = ComplianceState.NON_COMPLIANT.value, (
                     f"Factors: {missing}, adequate notice ({gap_days} days)"
                 )
 

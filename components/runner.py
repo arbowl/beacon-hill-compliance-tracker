@@ -5,22 +5,20 @@ import time
 import sys
 from datetime import datetime, date, timedelta
 
-import requests  # Added for bill title fetch
+import requests
 
 from components.pipeline import (
     resolve_summary_for_bill,
     resolve_votes_for_bill,
 )
 from components.committees import get_committees
-from components.utils import Cache
 from components.compliance import classify
 from components.report import write_basic_html
-from components.models import DeferredReviewSession
-from components.batch_review import conduct_batch_review, apply_review_results
-from collectors.extension_orders import collect_all_extension_orders
+from components.utils import Cache
+from components.models import DeferredReviewSession, ExtensionOrder
+from components.review import conduct_batch_review, apply_review_results
 from collectors.bills_from_hearing import get_bills_for_committee
 from collectors.bill_status_basic import build_status_row
-# New: bill title helper
 from collectors.bill_status_basic import get_bill_title
 from collectors.committee_contact_info import get_committee_contact
 
@@ -41,12 +39,8 @@ def _update_progress(current, total, bill_id, start_time):
     """Update progress indicator on the same line."""
     if total == 0:
         return
-
-    # Calculate progress metrics
     percentage = (current / total) * 100
     elapsed_time = time.time() - start_time
-
-    # Calculate processing speed and time remaining
     if current > 0:
         bills_per_second = current / elapsed_time
         bills_per_minute = bills_per_second * 60
@@ -61,25 +55,25 @@ def _update_progress(current, total, bill_id, start_time):
     else:
         time_remaining_str = "calculating..."
         speed_str = "calculating..."
-
-    # Create progress bar (20 characters wide)
     bar_width = 20
     filled_width = int((current / total) * bar_width)
     bar = "█" * filled_width + "░" * (bar_width - filled_width)
-
-    # Format the progress line
     progress_line = (
         f"\r[{bar}] {current}/{total} ({percentage:.1f}%) | "
         f"Processing {bill_id} | {speed_str} | ETA: {time_remaining_str}"
     )
-
-    # Write to stdout and flush immediately
     sys.stdout.write(progress_line)
     sys.stdout.flush()
 
 
 def run_basic_compliance(
-    base_url, include_chambers, committee_id, limit_hearings, cfg,
+    base_url: str,
+    include_chambers: bool,
+    committee_id: str,
+    limit_hearings: bool,
+    cfg: dict[str, str | int | bool | dict],
+    cache: Cache,
+    extension_lookup: dict[str, list[ExtensionOrder]],
     write_json=True
 ):
     """Run basic compliance check for a committee.
@@ -107,9 +101,6 @@ def run_basic_compliance(
         f"[{committee.id}]..."
     )
 
-    # Initialize cache early for reuse
-    cache = Cache()
-
     # 1.5) get committee contact info
     print("Collecting committee contact information...")
     contact = get_committee_contact(base_url, committee, cache)
@@ -125,21 +116,6 @@ def run_basic_compliance(
         f"Found {len(rows)} bill-hearing rows "
         f"(first {limit_hearings} hearing(s))"
     )
-
-    # Collect all extension orders once at the beginning if enabled
-    extension_lookup = {}
-    if cfg.get("runner", {}).get("check_extensions", True):
-        print("Collecting all extension orders...")
-        all_extension_orders = collect_all_extension_orders(base_url, cache)
-        print(f"Found {len(all_extension_orders)} total extension orders")
-
-        # Create lookup dictionary for quick access
-        for eo in all_extension_orders:
-            if eo.bill_id not in extension_lookup:
-                extension_lookup[eo.bill_id] = []
-            extension_lookup[eo.bill_id].append(eo)
-    else:
-        print("Extension checking disabled - using cached data only")
 
     # 3) Initialize deferred review session if needed
     review_mode = cfg.get("review_mode", "on").lower()
@@ -277,24 +253,14 @@ def run_basic_compliance(
                                        if status.scheduled_hearing_date 
                                        else None),
         })
-
-    # Final progress update and cleanup
     _update_progress(total_bills, total_bills, "Complete", start_time)
-    print()  # Move to next line after progress indicator
-
-    # 4) Conduct batch review session if needed
+    print()
     if review_mode == "deferred" and deferred_session and deferred_session.confirmations:
         print("\nProcessing complete. Conducting batch review session...")
         review_results = conduct_batch_review(deferred_session, cfg, cache)
-        
-        # Apply review results (already applied in conduct_batch_review, but ensure consistency)
         apply_review_results(review_results, deferred_session, cache)
-        
-        # Optionally re-process with confirmed parsers
         if cfg.get("deferred_review", {}).get("reprocess_after_review", True):
             print("\nRe-processing bills with confirmed parsers...")
-            # Note: For now, we'll skip re-processing as it would require significant refactoring
-            # The tentative results are already in the results list with needs_review=True
             print("Re-processing skipped - using tentative results with confirmed cache entries.")
     elif review_mode == "deferred":
         print("\nNo confirmations needed - all parsers were auto-accepted or cached.")
