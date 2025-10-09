@@ -125,12 +125,11 @@ def get_hearing_limit():
             print("Please enter a valid number.")
 
 
-def get_extension_check_preference():
+def get_extension_check_preference(cache: Cache) -> None:
     """Interactive extension check preference with cache status."""
     print("\n" + "="*60)
     print("EXTENSION CHECKING")
     print("="*60)
-    cache: Cache = Cache()
     if cache.search_for_keyword('extensions'):
         print("✓ Cache contains extension data.")
         print("You can skip this unless you want to use the latest data (it just takes a while).")

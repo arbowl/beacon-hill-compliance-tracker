@@ -1,142 +1,542 @@
 {
-  "committee_contacts": {
-    "J37": {
-      "committee_id": "J37",
-      "name": "Joint Committee on Telecommunications, Utilities and Energy",
-      "chamber": "Joint",
-      "url": "https://malegislature.gov/Committees/Detail/J37",
-      "house_room": "Room 43",
-      "house_address": "24 Beacon St. Room 43 Boston, MA 02133",
-      "house_phone": "(617) 722-2030",
-      "senate_room": "Room 312-B",
-      "senate_address": "24 Beacon St. Room 312-B Boston, MA 02133",
-      "senate_phone": "(617) 722-1572",
-      "senate_chair_name": "Michael J. Barrett",
-      "senate_chair_email": "Mike.Barrett@masenate.gov",
-      "senate_vice_chair_name": "Michael D. Brady",
-      "senate_vice_chair_email": "Michael.Brady@masenate.gov",
-      "house_chair_name": "Mark J. Cusack",
-      "house_chair_email": "Mark.Cusack@mahouse.gov",
-      "house_vice_chair_name": "Michael P. Kushmerek",
-      "house_vice_chair_email": "Michael.Kushmerek@mahouse.gov",
-      "updated_at": "2025-10-08T21:51:00Z"
-    }
-  },
   "bill_parsers": {
-    "H3444": {
-      "bill_url": "https://malegislature.gov/Bills/194/H3444",
-      "hearing_announcement": {
-        "announcement_date": "2025-04-30",
-        "scheduled_hearing_date": "2025-05-06",
-        "updated_at": "2025-10-08T21:51:18Z"
-      },
-      "summary": {
-        "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": true,
-        "result": {
-          "present": true,
-          "location": "Hearing page Documents tab PDF content",
-          "needs_review": false,
-          "source_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=21244&Title=H.3444&fileExtension=.pdf",
-          "parser_module": "parsers.summary_hearing_docs_pdf_content"
-        },
-        "updated_at": "2025-10-08T22:05:26Z"
-      },
-      "title": {
-        "value": "An Act relative to s-license compliance",
-        "updated_at": "2025-10-08T21:54:42Z"
+    "H1316": {
+      "extensions": {
+        "extension_date": "2020-05-31",
+        "extension_url": "https://malegislature.gov/Bills/191/H4596/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:11Z"
       }
     },
-    "H3470": {
-      "bill_url": "https://malegislature.gov/Bills/194/H3470",
-      "hearing_announcement": {
-        "announcement_date": "2025-04-30",
-        "scheduled_hearing_date": "2025-05-06",
-        "updated_at": "2025-10-08T21:54:43Z"
-      },
-      "summary": {
-        "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": true,
-        "result": {
-          "present": true,
-          "location": "Hearing page Documents tab PDF content",
-          "needs_review": false,
-          "source_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=21245&Title=H.3470&fileExtension=.pdf",
-          "parser_module": "parsers.summary_hearing_docs_pdf_content"
-        },
-        "updated_at": "2025-10-08T22:07:19Z"
-      },
-      "title": {
-        "value": "An Act protecting transportation network driver data privacy and integrity",
-        "updated_at": "2025-10-08T21:55:53Z"
+    "H3924": {
+      "extensions": {
+        "extension_date": "2020-05-31",
+        "extension_url": "https://malegislature.gov/Bills/191/H4596/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:11Z"
       }
     },
-    "H3478": {
-      "bill_url": "https://malegislature.gov/Bills/194/H3478",
-      "hearing_announcement": {
-        "announcement_date": "2025-04-30",
-        "scheduled_hearing_date": "2025-05-06",
-        "updated_at": "2025-10-08T21:55:55Z"
-      },
-      "summary": {
-        "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": true,
-        "result": {
-          "present": true,
-          "location": "Hearing page Documents tab PDF content",
-          "needs_review": false,
-          "source_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=21246&Title=H.3478&fileExtension=.pdf",
-          "parser_module": "parsers.summary_hearing_docs_pdf_content"
-        },
-        "updated_at": "2025-10-08T22:08:55Z"
-      },
-      "title": {
-        "value": "An Act to streamline broadband permitting and ensure equitable access to infrastructure",
-        "updated_at": "2025-10-08T21:57:04Z"
+    "H4517": {
+      "extensions": {
+        "extension_date": "2020-05-31",
+        "extension_url": "https://malegislature.gov/Bills/191/H4597/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:10Z"
       }
     },
-    "H3481": {
-      "bill_url": "https://malegislature.gov/Bills/194/H3481",
-      "hearing_announcement": {
-        "announcement_date": "2025-04-30",
-        "scheduled_hearing_date": "2025-05-06",
-        "updated_at": "2025-10-08T21:57:07Z"
-      },
-      "summary": {
-        "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": true,
-        "result": {
-          "present": true,
-          "location": "Hearing page Documents tab PDF content",
-          "needs_review": false,
-          "source_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=21247&Title=H.3481&fileExtension=.pdf",
-          "parser_module": "parsers.summary_hearing_docs_pdf_content"
-        },
-        "updated_at": "2025-10-08T22:12:57Z"
-      },
-      "title": {
-        "value": "An Act relative to the maximum storage charges on motor vehicles involuntarily towed",
-        "updated_at": "2025-10-08T22:03:16Z"
+    "S2913": {
+      "extensions": {
+        "extension_date": "2020-11-30",
+        "extension_url": "https://malegislature.gov/Bills/191/H5057/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:11Z"
       }
     },
-    "H3483": {
-      "bill_url": "https://malegislature.gov/Bills/194/H3483",
-      "hearing_announcement": {
-        "announcement_date": "2025-04-30",
-        "scheduled_hearing_date": "2025-05-06",
-        "updated_at": "2025-10-08T22:03:22Z"
-      },
-      "summary": {
-        "module": "parsers.summary_hearing_docs_pdf_content",
-        "confirmed": true,
-        "result": {
-          "present": true,
-          "location": "Hearing page Documents tab PDF content",
-          "needs_review": false,
-          "source_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=21248&Title=H.3483&fileExtension=.pdf",
-          "parser_module": "parsers.summary_hearing_docs_pdf_content"
-        },
-        "updated_at": "2025-10-08T22:38:40Z"
+    "S2924": {
+      "extensions": {
+        "extension_date": "2020-12-15",
+        "extension_url": "https://malegislature.gov/Bills/191/H5142/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:13Z"
+      }
+    },
+    "H4718": {
+      "extensions": {
+        "extension_date": "2020-07-31",
+        "extension_url": "https://malegislature.gov/Bills/191/H4787/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:25Z"
+      }
+    },
+    "S2839": {
+      "extensions": {
+        "extension_date": "2020-10-19",
+        "extension_url": "https://malegislature.gov/Bills/191/H4976/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:23Z"
+      }
+    },
+    "H3980": {
+      "extensions": {
+        "extension_date": "2020-09-11",
+        "extension_url": "https://malegislature.gov/Bills/191/H4964/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:20Z"
+      }
+    },
+    "H4850": {
+      "extensions": {
+        "extension_date": "2022-07-31",
+        "extension_url": "https://malegislature.gov/Bills/192/H4917/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:28Z"
+      }
+    },
+    "H4561": {
+      "extensions": {
+        "extension_date": "2022-05-06",
+        "extension_url": "https://malegislature.gov/Bills/192/H4707/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:30Z"
+      }
+    },
+    "H4634": {
+      "extensions": {
+        "extension_date": "2022-06-30",
+        "extension_url": "https://malegislature.gov/Bills/192/H4719/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:33Z"
+      }
+    },
+    "H4637": {
+      "extensions": {
+        "extension_date": "2022-07-31",
+        "extension_url": "https://malegislature.gov/Bills/192/H4963/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:47Z"
+      }
+    },
+    "S886": {
+      "extensions": {
+        "extension_date": "2022-05-09",
+        "extension_url": "https://malegislature.gov/Bills/192/H4426/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:47Z"
+      }
+    },
+    "S2436": {
+      "extensions": {
+        "extension_date": "2022-03-11",
+        "extension_url": "https://malegislature.gov/Bills/192/H4379/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:45Z"
+      }
+    },
+    "H664": {
+      "extensions": {
+        "extension_date": "2022-03-01",
+        "extension_url": "https://malegislature.gov/Bills/192/H4427/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:39Z"
+      }
+    },
+    "S863": {
+      "extensions": {
+        "extension_date": "2022-02-11",
+        "extension_url": "https://malegislature.gov/Bills/192/H4415/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:41Z"
+      }
+    },
+    "H4361": {
+      "extensions": {
+        "extension_date": "2022-05-04",
+        "extension_url": "https://malegislature.gov/Bills/192/H4518/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:43Z"
+      }
+    },
+    "H4362": {
+      "extensions": {
+        "extension_date": "2022-05-04",
+        "extension_url": "https://malegislature.gov/Bills/192/H4518/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:43Z"
+      }
+    },
+    "H4524": {
+      "extensions": {
+        "extension_date": "2024-07-31",
+        "extension_url": "https://malegislature.gov/Bills/193/H4591/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:49Z"
+      }
+    },
+    "H4575": {
+      "extensions": {
+        "extension_date": "2024-07-31",
+        "extension_url": "https://malegislature.gov/Bills/193/H4667/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:51Z"
+      }
+    },
+    "H4271": {
+      "extensions": {
+        "extension_date": "2024-04-30",
+        "extension_url": "https://malegislature.gov/Bills/193/H4434/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:53Z"
+      }
+    },
+    "H4287": {
+      "extensions": {
+        "extension_date": "2024-05-23",
+        "extension_url": "https://malegislature.gov/Bills/193/H4435/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:55Z"
+      }
+    },
+    "H4283": {
+      "extensions": {
+        "extension_date": "2024-03-15",
+        "extension_url": "https://malegislature.gov/Bills/193/H4445/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:57Z"
+      }
+    },
+    "S2623": {
+      "extensions": {
+        "extension_date": "2024-04-12",
+        "extension_url": "https://malegislature.gov/Bills/193/H4472/House/Order/Text",
+        "updated_at": "2025-10-09T00:55:59Z"
+      }
+    },
+    "H4398": {
+      "extensions": {
+        "extension_date": "2024-03-29",
+        "extension_url": "https://malegislature.gov/Bills/193/H4492/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:02Z"
+      }
+    },
+    "S2949": {
+      "extensions": {
+        "extension_date": "2024-12-31",
+        "extension_url": "https://malegislature.gov/Bills/193/H5067/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:04Z"
+      }
+    },
+    "S2390": {
+      "extensions": {
+        "extension_date": "2018-06-22",
+        "extension_url": "https://malegislature.gov/Bills/190/H4414/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:06Z"
+      }
+    },
+    "H4378": {
+      "extensions": {
+        "extension_date": "2018-06-22",
+        "extension_url": "https://malegislature.gov/Bills/190/H4414/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:06Z"
+      }
+    },
+    "S2056": {
+      "extensions": {
+        "extension_date": "2020-03-04",
+        "extension_url": "https://malegislature.gov/Bills/191/H4394/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:08Z"
+      }
+    },
+    "H3672": {
+      "extensions": {
+        "extension_date": "2020-03-04",
+        "extension_url": "https://malegislature.gov/Bills/191/H4394/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:08Z"
+      }
+    },
+    "H1257": {
+      "extensions": {
+        "extension_date": "2020-05-31",
+        "extension_url": "https://malegislature.gov/Bills/191/H4596/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:11Z"
+      }
+    },
+    "S2831": {
+      "extensions": {
+        "extension_date": "2020-10-31",
+        "extension_url": "https://malegislature.gov/Bills/191/H4958/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:13Z"
+      }
+    },
+    "H4878": {
+      "extensions": {
+        "extension_date": "2020-10-31",
+        "extension_url": "https://malegislature.gov/Bills/191/H4958/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:13Z"
+      }
+    },
+    "S2256": {
+      "extensions": {
+        "extension_date": "2022-05-06",
+        "extension_url": "https://malegislature.gov/Bills/192/H4564/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:57Z"
+      }
+    },
+    "H3482": {
+      "extensions": {
+        "extension_date": "2022-07-01",
+        "extension_url": "https://malegislature.gov/Bills/192/H4763/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:15Z"
+      }
+    },
+    "S2340": {
+      "extensions": {
+        "extension_date": "2022-04-08",
+        "extension_url": "https://malegislature.gov/Bills/192/H4411/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:28Z"
+      }
+    },
+    "H3403": {
+      "extensions": {
+        "extension_date": "2022-04-08",
+        "extension_url": "https://malegislature.gov/Bills/192/H4411/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:28Z"
+      }
+    },
+    "S868": {
+      "extensions": {
+        "extension_date": "2022-05-09",
+        "extension_url": "https://malegislature.gov/Bills/192/H4424/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:37Z"
+      }
+    },
+    "H1377": {
+      "extensions": {
+        "extension_date": "2022-05-09",
+        "extension_url": "https://malegislature.gov/Bills/192/H4424/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:37Z"
+      }
+    },
+    "H1378": {
+      "extensions": {
+        "extension_date": "2022-05-09",
+        "extension_url": "https://malegislature.gov/Bills/192/H4426/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:47Z"
+      }
+    },
+    "S314": {
+      "extensions": {
+        "extension_date": "2022-06-01",
+        "extension_url": "https://malegislature.gov/Bills/192/H4395/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:52Z"
+      }
+    },
+    "H714": {
+      "extensions": {
+        "extension_date": "2022-06-01",
+        "extension_url": "https://malegislature.gov/Bills/192/H4395/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:52Z"
+      }
+    },
+    "H3323": {
+      "extensions": {
+        "extension_date": "2024-07-01",
+        "extension_url": "https://malegislature.gov/Bills/193/H4673/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:58Z"
+      }
+    },
+    "H3352": {
+      "extensions": {
+        "extension_date": "2024-07-01",
+        "extension_url": "https://malegislature.gov/Bills/193/H4673/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:58Z"
+      }
+    },
+    "H3834": {
+      "extensions": {
+        "extension_date": "2024-07-01",
+        "extension_url": "https://malegislature.gov/Bills/193/H4673/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:58Z"
+      }
+    },
+    "H3876": {
+      "extensions": {
+        "extension_date": "2024-07-01",
+        "extension_url": "https://malegislature.gov/Bills/193/H4673/House/Order/Text",
+        "updated_at": "2025-10-09T00:56:58Z"
+      }
+    },
+    "S2528": {
+      "extensions": {
+        "extension_date": "2024-06-01",
+        "extension_url": "https://malegislature.gov/Bills/193/H4336/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:03Z"
+      }
+    },
+    "H4229": {
+      "extensions": {
+        "extension_date": "2024-06-01",
+        "extension_url": "https://malegislature.gov/Bills/193/H4336/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:03Z"
+      }
+    },
+    "S279": {
+      "extensions": {
+        "extension_date": "2018-02-08",
+        "extension_url": "https://malegislature.gov/Bills/190/H4202/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:08Z"
+      }
+    },
+    "S291": {
+      "extensions": {
+        "extension_date": "2018-02-08",
+        "extension_url": "https://malegislature.gov/Bills/190/H4202/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:08Z"
+      }
+    },
+    "S323": {
+      "extensions": {
+        "extension_date": "2018-02-08",
+        "extension_url": "https://malegislature.gov/Bills/190/H4202/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:08Z"
+      }
+    },
+    "H3083": {
+      "extensions": {
+        "extension_date": "2020-03-04",
+        "extension_url": "https://malegislature.gov/Bills/191/H4384/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:13Z"
+      }
+    },
+    "S2123": {
+      "extensions": {
+        "extension_date": "2020-03-04",
+        "extension_url": "https://malegislature.gov/Bills/191/H4384/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:13Z"
+      }
+    },
+    "S2137": {
+      "extensions": {
+        "extension_date": "2020-03-04",
+        "extension_url": "https://malegislature.gov/Bills/191/H4384/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:13Z"
+      }
+    },
+    "S289": {
+      "extensions": {
+        "extension_date": "2020-03-05",
+        "extension_url": "https://malegislature.gov/Bills/191/H4376/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:46Z"
+      }
+    },
+    "S2659": {
+      "extensions": {
+        "extension_date": "2020-06-16",
+        "extension_url": "https://malegislature.gov/Bills/191/H4750/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:33Z"
+      }
+    },
+    "S2563": {
+      "extensions": {
+        "extension_date": "2020-07-31",
+        "extension_url": "https://malegislature.gov/Bills/191/H4793/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:28Z"
+      }
+    },
+    "S2586": {
+      "extensions": {
+        "extension_date": "2020-06-16",
+        "extension_url": "https://malegislature.gov/Bills/191/H4750/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:33Z"
+      }
+    },
+    "S2605": {
+      "extensions": {
+        "extension_date": "2020-06-16",
+        "extension_url": "https://malegislature.gov/Bills/191/H4750/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:33Z"
+      }
+    },
+    "H3523": {
+      "extensions": {
+        "extension_date": "2022-07-01",
+        "extension_url": "https://malegislature.gov/Bills/192/H4843/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:45Z"
+      }
+    },
+    "S2255": {
+      "extensions": {
+        "extension_date": "2022-07-01",
+        "extension_url": "https://malegislature.gov/Bills/192/H4843/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:45Z"
+      }
+    },
+    "S2295": {
+      "extensions": {
+        "extension_date": "2022-07-01",
+        "extension_url": "https://malegislature.gov/Bills/192/H4843/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:45Z"
+      }
+    },
+    "S890": {
+      "extensions": {
+        "extension_date": "2022-03-08",
+        "extension_url": "https://malegislature.gov/Bills/192/H4418/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:12Z"
+      }
+    },
+    "S891": {
+      "extensions": {
+        "extension_date": "2022-02-22",
+        "extension_url": "https://malegislature.gov/Bills/192/H4416/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:04Z"
+      }
+    },
+    "S2353": {
+      "extensions": {
+        "extension_date": "2022-05-06",
+        "extension_url": "https://malegislature.gov/Bills/192/H4564/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:57Z"
+      }
+    },
+    "S2356": {
+      "extensions": {
+        "extension_date": "2022-05-06",
+        "extension_url": "https://malegislature.gov/Bills/192/H4564/House/Order/Text",
+        "updated_at": "2025-10-09T00:57:57Z"
+      }
+    },
+    "S869": {
+      "extensions": {
+        "extension_date": "2022-02-22",
+        "extension_url": "https://malegislature.gov/Bills/192/H4416/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:04Z"
+      }
+    },
+    "S2265": {
+      "extensions": {
+        "extension_date": "2022-04-29",
+        "extension_url": "https://malegislature.gov/Bills/192/H4516/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:19Z"
+      }
+    },
+    "S2287": {
+      "extensions": {
+        "extension_date": "2022-04-29",
+        "extension_url": "https://malegislature.gov/Bills/192/H4516/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:19Z"
+      }
+    },
+    "S1834": {
+      "extensions": {
+        "extension_date": "2024-12-31",
+        "extension_url": "https://malegislature.gov/Bills/193/H4956/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:26Z"
+      }
+    },
+    "S1836": {
+      "extensions": {
+        "extension_date": "2024-12-31",
+        "extension_url": "https://malegislature.gov/Bills/193/H4956/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:26Z"
+      }
+    },
+    "S1869": {
+      "extensions": {
+        "extension_date": "2024-12-31",
+        "extension_url": "https://malegislature.gov/Bills/193/H4956/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:26Z"
+      }
+    },
+    "S2199": {
+      "extensions": {
+        "extension_date": "2024-07-01",
+        "extension_url": "https://malegislature.gov/Bills/193/H4665/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:33Z"
+      }
+    },
+    "S2230": {
+      "extensions": {
+        "extension_date": "2024-07-01",
+        "extension_url": "https://malegislature.gov/Bills/193/H4665/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:33Z"
+      }
+    },
+    "S44": {
+      "extensions": {
+        "extension_date": "2024-05-01",
+        "extension_url": "https://malegislature.gov/Bills/193/H4298/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:39Z"
+      }
+    },
+    "S484": {
+      "extensions": {
+        "extension_date": "2024-05-01",
+        "extension_url": "https://malegislature.gov/Bills/193/H4298/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:39Z"
+      }
+    },
+    "S553": {
+      "extensions": {
+        "extension_date": "2024-05-01",
+        "extension_url": "https://malegislature.gov/Bills/193/H4298/House/Order/Text",
+        "updated_at": "2025-10-09T00:58:39Z"
       }
     }
   }

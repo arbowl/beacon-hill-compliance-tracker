@@ -38,7 +38,7 @@ def main():
         # Get interactive inputs
         committee_ids = get_committee_selection(base_url, include_chambers)
         limit_hearings = get_hearing_limit()
-        check_extensions = get_extension_check_preference()
+        check_extensions = get_extension_check_preference(cache)
         print_options_summary(
             committee_ids,
             limit_hearings,
