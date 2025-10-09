@@ -79,7 +79,15 @@ class Cache:
             return entry.get("result")
         return None
 
-    def set_result(self, bill_id: str, kind: str, module_name: str, result_data: dict, *, confirmed: bool) -> None:
+    def set_result(
+        self,
+        bill_id: str,
+        kind: str,
+        module_name: str,
+        result_data: dict,
+        *,
+        confirmed: bool
+    ) -> None:
         """Set result data + module + confirmation flag in the new schema."""
         slot = self._slot(bill_id)
         slot[kind] = {
@@ -234,6 +242,98 @@ class Cache:
             return False
         content = self.path.read_text(encoding="utf-8")
         return keyword.lower() in content.lower()
+
+    # ---------------------------------------------------------------------
+    # Committee-level parser tracking
+    # ---------------------------------------------------------------------
+
+    def get_committee_parsers(
+        self, committee_id: str, parser_type: str
+    ) -> list[str]:
+        """Return list of parser modules that have worked for this committee.
+        
+        Returns them ordered by:
+        1. Recent streak (if >= 2 consecutive successes)
+        2. Total success count
+        
+        This allows the system to detect when a committee shifts their
+        document practices to a new parser.
+        """
+        committee_data = self._data.setdefault(
+            "committee_parsers", {}
+        ).get(committee_id, {})
+        
+        parser_stats = committee_data.get(parser_type, {})
+        if not parser_stats:
+            return []
+        
+        # Sort by:
+        # Primary: has active streak >= 2 (recent pattern)
+        # Secondary: total count (historical success)
+        def sort_key(item):
+            module_name, stats = item
+            streak = stats.get("current_streak", 0)
+            count = stats.get("count", 0)
+            # Parsers with streak >= 2 get priority boost
+            has_active_streak = 1 if streak >= 2 else 0
+            return (has_active_streak, count)
+        
+        sorted_parsers = sorted(
+            parser_stats.items(),
+            key=sort_key,
+            reverse=True
+        )
+        return [module_name for module_name, _ in sorted_parsers]
+
+    def record_committee_parser(
+        self, committee_id: str, parser_type: str, module_name: str
+    ) -> None:
+        """Record that a parser successfully worked for a committee.
+        
+        Tracks success count, streak, and timestamps. Streaks detect when
+        a committee shifts to consistently using a different parser.
+        """
+        committee_parsers = self._data.setdefault(
+            "committee_parsers", {}
+        )
+        committee_data = committee_parsers.setdefault(committee_id, {})
+        parser_type_data = committee_data.setdefault(parser_type, {})
+        
+        # Get the last successful parser for this committee+type
+        last_parser = committee_data.get(f"{parser_type}_last_parser")
+        
+        # Initialize entry if new
+        if module_name not in parser_type_data:
+            parser_type_data[module_name] = {
+                "count": 0,
+                "current_streak": 0,
+                "first_seen": datetime.utcnow().isoformat(
+                    timespec="seconds"
+                ) + "Z",
+            }
+        
+        # Update count and timestamp
+        parser_type_data[module_name]["count"] += 1
+        parser_type_data[module_name]["last_used"] = (
+            datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        )
+        
+        # Update streaks:
+        # - If same as last parser, increment its streak
+        # - If different, reset all other parsers' streaks
+        if last_parser == module_name:
+            # Continue the streak
+            parser_type_data[module_name]["current_streak"] += 1
+        else:
+            # New parser - reset all streaks and start fresh
+            for parser_key in parser_type_data:
+                if isinstance(parser_type_data[parser_key], dict):
+                    parser_type_data[parser_key]["current_streak"] = 0
+            parser_type_data[module_name]["current_streak"] = 1
+            # Remember this as the new last parser
+            committee_data[f"{parser_type}_last_parser"] = module_name
+        
+        self.save()
 
 
 def load_config() -> dict:
