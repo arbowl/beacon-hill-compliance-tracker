@@ -7,7 +7,8 @@ from components.models import BillAtHearing, SummaryInfo, VoteInfo, DeferredConf
 from components.utils import (
     Cache,
     ask_yes_no_with_llm_fallback,
-    ask_yes_no_with_preview_and_llm_fallback
+    ask_yes_no_with_preview_and_llm_fallback,
+    ask_llm_decision
 )
 from parsers.summary_bill_tab_text import SummaryBillTabTextParser
 from parsers.summary_committee_pdf import SummaryCommitteePdfParser
@@ -41,6 +42,25 @@ VOTES_REGISTRY: dict[str, ParserInterface] = {
         VotesHearingCommitteeDocumentsParser,
     ]
 }
+
+
+def try_llm_decision(
+    candidate: ParserInterface.DiscoveryResult,
+    bill_id: str,
+    doc_type: str,
+    config: dict
+) -> Optional[str]:
+    """
+    Try to get an LLM decision for a candidate.
+    
+    Returns:
+        "yes", "no", "unsure", or None if LLM is disabled/unavailable
+    """
+    preview_text = (
+        candidate.full_text if candidate.full_text
+        else candidate.preview
+    )
+    return ask_llm_decision(preview_text, doc_type, bill_id, config)
 
 
 def resolve_summary_for_bill(
@@ -138,27 +158,52 @@ def resolve_summary_for_bill(
         accepted = True
         needs_review = False
         if review_mode == "deferred" and deferred_session is not None:
-            # Collect for deferred review instead of asking now
-            preview_text = candidate.full_text if candidate.full_text else candidate.preview
-            confidence = candidate.confidence if candidate.confidence else 0.5
-            auto_accept_threshold = cfg.get("deferred_review", {}).get("auto_accept_high_confidence", 0.9)
-            if confidence >= auto_accept_threshold:
+            # Try LLM first if enabled
+            llm_decision = try_llm_decision(
+                candidate,
+                row.bill_id,
+                ParserInterface.ParserType.SUMMARY.value,
+                cfg
+            )
+            
+            if llm_decision == "yes":
+                # LLM confidently accepts - mark as confirmed
                 accepted = True
                 needs_review = False
+            elif llm_decision == "no":
+                # LLM confidently rejects - skip this parser
+                continue
             else:
-                # Add to deferred session for later review
-                confirmation = DeferredConfirmation(
-                    confirmation_id="",  # Will be auto-generated
-                    bill_id=row.bill_id,
-                    parser_type=ParserInterface.ParserType.SUMMARY.value,
-                    parser_module=modname,
-                    candidate=candidate,
-                    preview_text=preview_text,
-                    confidence=confidence
+                # LLM returned "unsure" or is unavailable
+                # Fall back to confidence threshold logic
+                preview_text = (
+                    candidate.full_text if candidate.full_text
+                    else candidate.preview
                 )
-                deferred_session.add_confirmation(confirmation)
-                accepted = True  # Tentatively accept for now
-                needs_review = True
+                confidence = (
+                    candidate.confidence if candidate.confidence else 0.5
+                )
+                auto_accept_threshold = cfg.get(
+                    "deferred_review", {}
+                ).get("auto_accept_high_confidence", 0.9)
+                
+                if confidence >= auto_accept_threshold:
+                    accepted = True
+                    needs_review = False
+                else:
+                    # Add to deferred session for later review
+                    confirmation = DeferredConfirmation(
+                        confirmation_id="",  # Will be auto-generated
+                        bill_id=row.bill_id,
+                        parser_type=ParserInterface.ParserType.SUMMARY.value,
+                        parser_module=modname,
+                        candidate=candidate,
+                        preview_text=preview_text,
+                        confidence=confidence
+                    )
+                    deferred_session.add_confirmation(confirmation)
+                    accepted = True  # Tentatively accept for now
+                    needs_review = True
         elif review_mode == "on":
             # show dialog only when not previously confirmed
             # Use full_text if available, otherwise fall back to preview
@@ -218,7 +263,7 @@ def resolve_summary_for_bill(
 
 def resolve_votes_for_bill(
     base_url: str,
-    cfg: dict, 
+    cfg: dict,
     cache: Cache,
     row: BillAtHearing,
     deferred_session: Optional[DeferredReviewSession] = None
@@ -321,28 +366,52 @@ def resolve_votes_for_bill(
         accepted = True
         needs_review = False
         if review_mode == "deferred" and deferred_session is not None:
-            # Collect for deferred review instead of asking now
-            preview_text = candidate.full_text if candidate.full_text else candidate.preview
-            confidence = candidate.confidence if candidate.confidence else 0.5
-            # Check if we should auto-accept based on confidence
-            auto_accept_threshold = cfg.get("deferred_review", {}).get("auto_accept_high_confidence", 0.9)
-            if confidence >= auto_accept_threshold:
+            # Try LLM first if enabled
+            llm_decision = try_llm_decision(
+                candidate,
+                row.bill_id,
+                ParserInterface.ParserType.VOTES.value,
+                cfg
+            )
+            
+            if llm_decision == "yes":
+                # LLM confidently accepts - mark as confirmed
                 accepted = True
                 needs_review = False
+            elif llm_decision == "no":
+                # LLM confidently rejects - skip this parser
+                continue
             else:
-                # Add to deferred session for later review
-                confirmation = DeferredConfirmation(
-                    confirmation_id="",  # Will be auto-generated
-                    bill_id=row.bill_id,
-                    parser_type=ParserInterface.ParserType.VOTES.value,
-                    parser_module=modname,
-                    candidate=candidate,
-                    preview_text=preview_text,
-                    confidence=confidence
+                # LLM returned "unsure" or is unavailable
+                # Fall back to confidence threshold logic
+                preview_text = (
+                    candidate.full_text if candidate.full_text
+                    else candidate.preview
                 )
-                deferred_session.add_confirmation(confirmation)
-                accepted = True  # Tentatively accept for now
-                needs_review = True
+                confidence = (
+                    candidate.confidence if candidate.confidence else 0.5
+                )
+                auto_accept_threshold = cfg.get(
+                    "deferred_review", {}
+                ).get("auto_accept_high_confidence", 0.9)
+                
+                if confidence >= auto_accept_threshold:
+                    accepted = True
+                    needs_review = False
+                else:
+                    # Add to deferred session for later review
+                    confirmation = DeferredConfirmation(
+                        confirmation_id="",  # Will be auto-generated
+                        bill_id=row.bill_id,
+                        parser_type=ParserInterface.ParserType.VOTES.value,
+                        parser_module=modname,
+                        candidate=candidate,
+                        preview_text=preview_text,
+                        confidence=confidence
+                    )
+                    deferred_session.add_confirmation(confirmation)
+                    accepted = True  # Tentatively accept for now
+                    needs_review = True
         elif review_mode == "on":
             # Use full_text if available, otherwise fall back to preview
             preview_text = candidate.full_text if candidate.full_text else candidate.preview
