@@ -8,7 +8,6 @@ import os
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 
 def run_command(cmd, description):

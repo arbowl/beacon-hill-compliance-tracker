@@ -60,7 +60,7 @@ def classify(
     
     # First, check notice compliance (applies to all bills)
     notice_status, gap_days = compute_notice_status(status, min_notice_days)
-    
+    effective_reported_out = status.reported_out or votes.present
     # Deal-breaker: insufficient notice
     if notice_status == NoticeStatus.OUT_OF_RANGE:
         return BillCompliance(
@@ -78,7 +78,7 @@ def classify(
     # Handle missing notice cases
     if notice_status == NoticeStatus.MISSING:
         # Check if there's any other compliance evidence
-        has_evidence = (status.reported_out or votes.present or 
+        has_evidence = (effective_reported_out or votes.present or 
                         summary.present)
         
         if not has_evidence:
@@ -136,7 +136,7 @@ def classify(
             )
         else:
             # Count how many compliance factors are present
-            reported_out = status.reported_out
+            reported_out = effective_reported_out
             votes_present = votes.present
             summary_present = summary.present
 

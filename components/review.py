@@ -111,7 +111,7 @@ def review_single_confirmation(
         print(f"Confidence: {confidence_label} ({confidence_pct}%)")
     
     # Show URL if available
-    source_url = confirmation.candidate.get("source_url")
+    source_url = confirmation.candidate.source_url
     if source_url:
         print(f"URL: {source_url}")
     

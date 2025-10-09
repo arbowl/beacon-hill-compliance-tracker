@@ -5,8 +5,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 import uuid
+
+if TYPE_CHECKING:
+    from components.interfaces import ParserInterface
 
 
 @dataclass(frozen=True)
@@ -206,7 +209,7 @@ class DeferredConfirmation:
     bill_id: str
     parser_type: str  # "summary" or "votes"
     parser_module: str
-    candidate: dict  # The discovered candidate data
+    candidate: ParserInterface.DiscoveryResult  # The discovered candidate data
     preview_text: Optional[str] = None
     confidence: Optional[float] = None
     created_at: datetime = field(default_factory=datetime.utcnow)
