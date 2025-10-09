@@ -115,7 +115,6 @@ class SummaryCommitteeDocxParser(ParserInterface):
                     docx_text,
                     docx_url,
                     0.9,
-                    docx_text
                 )
             else:
                 # Fallback to simple preview if text extraction fails
