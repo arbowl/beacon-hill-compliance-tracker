@@ -1,6 +1,6 @@
 """ Pipeline for resolving the summary for a bill. """
 
-from typing import Any, Optional
+from typing import Optional
 
 from components.interfaces import ParserInterface
 from components.models import BillAtHearing, SummaryInfo, VoteInfo, DeferredConfirmation, DeferredReviewSession
@@ -83,26 +83,52 @@ def resolve_summary_for_bill(
             cache.set_result(
                 row.bill_id,
                 ParserInterface.ParserType.SUMMARY.value,
+                summary_has_parser,
                 result.to_dict(),
                 confirmed=True,
             )
+            # Record success for committee-level learning
+            cache.record_committee_parser(
+                row.committee_id,
+                ParserInterface.ParserType.SUMMARY.value,
+                summary_has_parser
+            )
             return result
         # If the source vanished, fall through to normal sequence.
-    # 2) Otherwise, try cached first (unconfirmed), then others by cost
-    parser_sequence: list[ParserInterface] = [
+    # 2) Build parser sequence with committee-aware prioritization
+    all_parsers: list[ParserInterface] = [
         parser
         for parser in SUMMARY_REGISTRY.values()
         if parser.parser_type == ParserInterface.ParserType.SUMMARY
     ]
-    # If unconfirmed but suspected, move to the front of the line
-    if summary_has_parser:
-        parser_sequence.insert(
-            0, parser_sequence.pop(
-                parser_sequence.index(
-                    SUMMARY_REGISTRY[summary_has_parser]
-                )
-            )
-        )
+    # Sort by cost (ascending) - cheaper parsers first
+    all_parsers.sort(key=lambda p: p.cost)
+    
+    # Build tiered priority list:
+    # Tier 0: Bill-specific cached parser (highest priority)
+    # Tier 1: Committee-proven parsers (ordered by success count)
+    # Tier 2: Remaining parsers by cost
+    parser_sequence: list[ParserInterface] = []
+    
+    # Tier 0: Bill-specific cache
+    if summary_has_parser and summary_has_parser in SUMMARY_REGISTRY:
+        parser_sequence.append(SUMMARY_REGISTRY[summary_has_parser])
+    
+    # Tier 1: Committee-proven parsers
+    committee_parsers = cache.get_committee_parsers(
+        row.committee_id,
+        ParserInterface.ParserType.SUMMARY.value
+    )
+    for module_name in committee_parsers:
+        if module_name in SUMMARY_REGISTRY:
+            parser = SUMMARY_REGISTRY[module_name]
+            if parser not in parser_sequence:
+                parser_sequence.append(parser)
+    
+    # Tier 2: Remaining parsers by cost
+    for parser in all_parsers:
+        if parser not in parser_sequence:
+            parser_sequence.append(parser)
     for p in parser_sequence:
         modname = p.__module__
         candidate = p.discover(base_url, row)
@@ -174,6 +200,12 @@ def resolve_summary_for_bill(
                 result.to_dict(),
                 confirmed=review_mode == "on" and not needs_review
             )
+            # Record success for committee-level learning
+            cache.record_committee_parser(
+                row.committee_id,
+                ParserInterface.ParserType.SUMMARY.value,
+                modname
+            )
             return result
     return SummaryInfo(
         present=False,
@@ -237,22 +269,48 @@ def resolve_votes_for_bill(
                 result.to_dict(),
                 confirmed=True,
             )
+            # Record success for committee-level learning
+            cache.record_committee_parser(
+                row.committee_id,
+                ParserInterface.ParserType.VOTES.value,
+                votes_has_parser
+            )
             return result
         # stale: fall through to normal flow
-    # 2) Build sequence: cached (if any) first, then by cost
-    votes_sequence: list[ParserInterface] = [
+    # 2) Build parser sequence with committee-aware prioritization
+    all_votes_parsers: list[ParserInterface] = [
         parser
         for parser in VOTES_REGISTRY.values()
         if parser.parser_type == ParserInterface.ParserType.VOTES
     ]
-    if votes_has_parser:
-        votes_sequence.insert(
-            0, votes_sequence.pop(
-                votes_sequence.index(
-                    VOTES_REGISTRY[votes_has_parser]
-                )
-            )
-        )
+    # Sort by cost (ascending) - cheaper parsers first
+    all_votes_parsers.sort(key=lambda p: p.cost)
+    
+    # Build tiered priority list:
+    # Tier 0: Bill-specific cached parser (highest priority)
+    # Tier 1: Committee-proven parsers (ordered by success count)
+    # Tier 2: Remaining parsers by cost
+    votes_sequence: list[ParserInterface] = []
+    
+    # Tier 0: Bill-specific cache
+    if votes_has_parser and votes_has_parser in VOTES_REGISTRY:
+        votes_sequence.append(VOTES_REGISTRY[votes_has_parser])
+    
+    # Tier 1: Committee-proven parsers
+    committee_votes_parsers = cache.get_committee_parsers(
+        row.committee_id,
+        ParserInterface.ParserType.VOTES.value
+    )
+    for module_name in committee_votes_parsers:
+        if module_name in VOTES_REGISTRY:
+            parser = VOTES_REGISTRY[module_name]
+            if parser not in votes_sequence:
+                votes_sequence.append(parser)
+    
+    # Tier 2: Remaining parsers by cost
+    for parser in all_votes_parsers:
+        if parser not in votes_sequence:
+            votes_sequence.append(parser)
     # 3) Try parsers
     for p in votes_sequence:
         modname = p.__module__
@@ -330,6 +388,12 @@ def resolve_votes_for_bill(
             modname,
             result.to_dict(),
             confirmed=review_mode == "on" and not needs_review
+        )
+        # Record success for committee-level learning
+        cache.record_committee_parser(
+            row.committee_id,
+            ParserInterface.ParserType.VOTES.value,
+            modname
         )
         return result
     # 4) Nothing landed
