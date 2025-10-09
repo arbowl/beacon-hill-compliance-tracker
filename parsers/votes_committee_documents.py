@@ -202,14 +202,14 @@ class VotesCommitteeDocumentsParser(ParserInterface):
                     preview += f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
                 else:
                     preview += f"\n\nPDF Content:\n{pdf_text}"
-                cls._bill_vote_data[bill.bill_id] = bill_vote_record
-                return ParserInterface.DiscoveryResult(
+                result = ParserInterface.DiscoveryResult(
                     preview,
                     pdf_text,
                     pdf_url,
                     0.9
                 )
-        
+                cls._bill_vote_data[preview] = bill_vote_record
+                return result
         return None
 
     @classmethod
@@ -217,9 +217,7 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         cls, _base_url: str, candidate: ParserInterface.DiscoveryResult
     ) -> dict:
         """Parse the committee vote document."""
-        vote_data = VotesCommitteeDocumentsParser._bill_vote_data.get(
-            candidate.get("bill_id", ""), {}
-        )
+        vote_data = VotesCommitteeDocumentsParser._bill_vote_data[candidate.preview]
         
         return {
             "location": "committee_documents",
