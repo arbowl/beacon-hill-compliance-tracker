@@ -136,6 +136,10 @@ def run_basic_compliance(
     for i, r in enumerate(rows, 1):
         # Update progress indicator
         _update_progress(i - 1, total_bills, r.bill_id, start_time)
+        
+        # Track this bill for the committee
+        cache.add_bill_to_committee(r.committee_id, r.bill_id)
+        
         # Get extension data for this bill if available
         extension_until = None
         if r.bill_id in extension_lookup:
@@ -186,9 +190,6 @@ def run_basic_compliance(
                         cache.set_title(r.bill_id, bill_title)
             except Exception:  # pylint: disable=broad-exception-caught
                 bill_title = None
-
-        # Update progress indicator with current bill
-        _update_progress(i, total_bills, r.bill_id, start_time)
 
         # console line (moved after progress update)
         print(
