@@ -1,5 +1,6 @@
 """ Pipeline for resolving the summary for a bill. """
 
+from enum import IntEnum
 from typing import Optional
 
 from components.interfaces import ParserInterface
@@ -22,6 +23,14 @@ from parsers.votes_committee_documents import VotesCommitteeDocumentsParser
 from parsers.votes_docx import VotesDocxParser
 from parsers.votes_hearing_committee import VotesHearingCommitteeDocumentsParser
 
+
+class ParserTier(IntEnum):
+    """Parser priority tiers for intelligent selection."""
+    BILL_CACHED = 0      # This specific bill used this parser before
+    COMMITTEE_PROVEN = 1  # Parser has proven track record for committee
+    COST_FALLBACK = 2    # Trying parsers by cost (no committee history)
+
+
 # Maps the cache module name to the actual module object
 SUMMARY_REGISTRY: dict[str, ParserInterface] = {
     module.__module__: module for module in [
@@ -42,6 +51,82 @@ VOTES_REGISTRY: dict[str, ParserInterface] = {
         VotesHearingCommitteeDocumentsParser,
     ]
 }
+
+
+def should_use_llm_for_parser(
+    parser_module: str,
+    committee_id: str,
+    parser_type: str,
+    cache: Cache,
+    tier: ParserTier,
+    candidate: ParserInterface.DiscoveryResult
+) -> bool:
+    """
+    Decide if we should consult the LLM for this parser.
+    
+    Phase-based strategy with parser confidence gate:
+    - Learning phase (streak < 3 or count < 5): Always use LLM
+    - Established phase (streak ≥ 3 AND count ≥ 5): 
+      * Skip LLM if parser confidence ≥ 0.5 (parser not worried)
+      * Use LLM if parser confidence < 0.5 (parser suspicious - maybe change?)
+    
+    Special cases:
+    - Tier 0 (bill-specific cache): Skip LLM unless parser is very suspicious
+    - Tier 2 (cost fallback): Always use LLM (no history)
+    
+    Args:
+        parser_module: Module name of the parser
+        committee_id: Committee ID
+        parser_type: "summary" or "votes"
+        cache: Cache instance
+        tier: Which tier this parser came from
+        candidate: Discovery result with confidence score
+        
+    Returns:
+        True if we should consult LLM, False to skip
+    """
+    # Get parser's confidence (default 0.5 if not specified)
+    parser_conf = candidate.confidence if candidate.confidence else 0.5
+    
+    # Tier 0: Bill-specific cache - very high trust
+    # Only validate if parser is very suspicious (< 0.3)
+    if tier == ParserTier.BILL_CACHED:
+        return parser_conf < 0.3
+    
+    # Tier 2: Cost fallback - no committee proof, always use LLM
+    if tier == ParserTier.COST_FALLBACK:
+        return True
+    
+    # Tier 1: Committee-proven - phase-based with confidence gate
+    if tier == ParserTier.COMMITTEE_PROVEN:
+        committee_data = cache._data.get("committee_parsers", {}).get(
+            committee_id, {}
+        )
+        parser_stats = committee_data.get(parser_type, {}).get(
+            parser_module, {}
+        )
+        
+        if not parser_stats:
+            # No stats? Use LLM (shouldn't happen in tier 1, but be safe)
+            return True
+        
+        streak = parser_stats.get("current_streak", 0)
+        count = parser_stats.get("count", 0)
+        
+        # Check if pattern is established
+        pattern_established = (streak >= 3 and count >= 5)
+        
+        if pattern_established:
+            # Established phase: Use parser confidence as gate
+            # Skip LLM if parser isn't worried (≥ 0.5)
+            # Use LLM if parser is suspicious (< 0.5)
+            return parser_conf < 0.5
+        else:
+            # Learning phase: Always validate with LLM
+            return True
+    
+    # Default: use LLM
+    return True
 
 
 def try_llm_decision(
@@ -124,15 +209,16 @@ def resolve_summary_for_bill(
     # Sort by cost (ascending) - cheaper parsers first
     all_parsers.sort(key=lambda p: p.cost)
     
-    # Build tiered priority list:
-    # Tier 0: Bill-specific cached parser (highest priority)
-    # Tier 1: Committee-proven parsers (ordered by success count)
-    # Tier 2: Remaining parsers by cost
-    parser_sequence: list[ParserInterface] = []
+    # Build tiered priority list with tier tracking
+    # Each entry is (parser, tier, module_name)
+    parser_sequence: list[tuple[ParserInterface, ParserTier, str]] = []
+    added_parsers = set()
     
     # Tier 0: Bill-specific cache
     if summary_has_parser and summary_has_parser in SUMMARY_REGISTRY:
-        parser_sequence.append(SUMMARY_REGISTRY[summary_has_parser])
+        parser = SUMMARY_REGISTRY[summary_has_parser]
+        parser_sequence.append((parser, ParserTier.BILL_CACHED, summary_has_parser))
+        added_parsers.add(parser)
     
     # Tier 1: Committee-proven parsers
     committee_parsers = cache.get_committee_parsers(
@@ -142,15 +228,17 @@ def resolve_summary_for_bill(
     for module_name in committee_parsers:
         if module_name in SUMMARY_REGISTRY:
             parser = SUMMARY_REGISTRY[module_name]
-            if parser not in parser_sequence:
-                parser_sequence.append(parser)
+            if parser not in added_parsers:
+                parser_sequence.append((parser, ParserTier.COMMITTEE_PROVEN, module_name))
+                added_parsers.add(parser)
     
     # Tier 2: Remaining parsers by cost
     for parser in all_parsers:
-        if parser not in parser_sequence:
-            parser_sequence.append(parser)
-    for p in parser_sequence:
-        modname = p.__module__
+        if parser not in added_parsers:
+            module_name = parser.__module__
+            parser_sequence.append((parser, ParserTier.COST_FALLBACK, module_name))
+            added_parsers.add(parser)
+    for p, tier, modname in parser_sequence:
         candidate = p.discover(base_url, row)
         if not candidate:
             continue
@@ -158,52 +246,67 @@ def resolve_summary_for_bill(
         accepted = True
         needs_review = False
         if review_mode == "deferred" and deferred_session is not None:
-            # Try LLM first if enabled
-            llm_decision = try_llm_decision(
-                candidate,
-                row.bill_id,
+            # Decide if we should consult LLM based on pattern confidence
+            should_use_llm = should_use_llm_for_parser(
+                modname,
+                row.committee_id,
                 ParserInterface.ParserType.SUMMARY.value,
-                cfg
+                cache,
+                tier,
+                candidate
             )
             
-            if llm_decision == "yes":
-                # LLM confidently accepts - mark as confirmed
-                accepted = True
-                needs_review = False
-            elif llm_decision == "no":
-                # LLM confidently rejects - skip this parser
-                continue
-            else:
-                # LLM returned "unsure" or is unavailable
-                # Fall back to confidence threshold logic
-                preview_text = (
-                    candidate.full_text if candidate.full_text
-                    else candidate.preview
+            if should_use_llm:
+                # Pattern not established or parser is suspicious - use LLM
+                llm_decision = try_llm_decision(
+                    candidate,
+                    row.bill_id,
+                    ParserInterface.ParserType.SUMMARY.value,
+                    cfg
                 )
-                confidence = (
-                    candidate.confidence if candidate.confidence else 0.5
-                )
-                auto_accept_threshold = cfg.get(
-                    "deferred_review", {}
-                ).get("auto_accept_high_confidence", 0.9)
                 
-                if confidence >= auto_accept_threshold:
+                if llm_decision == "yes":
+                    # LLM confidently accepts
                     accepted = True
                     needs_review = False
+                elif llm_decision == "no":
+                    # LLM confidently rejects - skip this parser
+                    continue
                 else:
-                    # Add to deferred session for later review
-                    confirmation = DeferredConfirmation(
-                        confirmation_id="",  # Will be auto-generated
-                        bill_id=row.bill_id,
-                        parser_type=ParserInterface.ParserType.SUMMARY.value,
-                        parser_module=modname,
-                        candidate=candidate,
-                        preview_text=preview_text,
-                        confidence=confidence
+                    # LLM returned "unsure" or is unavailable
+                    # Fall back to confidence threshold logic
+                    preview_text = (
+                        candidate.full_text if candidate.full_text
+                        else candidate.preview
                     )
-                    deferred_session.add_confirmation(confirmation)
-                    accepted = True  # Tentatively accept for now
-                    needs_review = True
+                    confidence = (
+                        candidate.confidence if candidate.confidence else 0.5
+                    )
+                    auto_accept_threshold = cfg.get(
+                        "deferred_review", {}
+                    ).get("auto_accept_high_confidence", 0.9)
+                    
+                    if confidence >= auto_accept_threshold:
+                        accepted = True
+                        needs_review = False
+                    else:
+                        # Add to deferred session for later review
+                        confirmation = DeferredConfirmation(
+                            confirmation_id="",  # Will be auto-generated
+                            bill_id=row.bill_id,
+                            parser_type=ParserInterface.ParserType.SUMMARY.value,
+                            parser_module=modname,
+                            candidate=candidate,
+                            preview_text=preview_text,
+                            confidence=confidence
+                        )
+                        deferred_session.add_confirmation(confirmation)
+                        accepted = True  # Tentatively accept for now
+                        needs_review = True
+            else:
+                # Pattern confidence is high - trust it without LLM
+                accepted = True
+                needs_review = False
         elif review_mode == "on":
             # show dialog only when not previously confirmed
             # Use full_text if available, otherwise fall back to preview
@@ -331,15 +434,16 @@ def resolve_votes_for_bill(
     # Sort by cost (ascending) - cheaper parsers first
     all_votes_parsers.sort(key=lambda p: p.cost)
     
-    # Build tiered priority list:
-    # Tier 0: Bill-specific cached parser (highest priority)
-    # Tier 1: Committee-proven parsers (ordered by success count)
-    # Tier 2: Remaining parsers by cost
-    votes_sequence: list[ParserInterface] = []
+    # Build tiered priority list with tier tracking
+    # Each entry is (parser, tier, module_name)
+    votes_sequence: list[tuple[ParserInterface, ParserTier, str]] = []
+    added_votes_parsers = set()
     
     # Tier 0: Bill-specific cache
     if votes_has_parser and votes_has_parser in VOTES_REGISTRY:
-        votes_sequence.append(VOTES_REGISTRY[votes_has_parser])
+        parser = VOTES_REGISTRY[votes_has_parser]
+        votes_sequence.append((parser, ParserTier.BILL_CACHED, votes_has_parser))
+        added_votes_parsers.add(parser)
     
     # Tier 1: Committee-proven parsers
     committee_votes_parsers = cache.get_committee_parsers(
@@ -349,16 +453,18 @@ def resolve_votes_for_bill(
     for module_name in committee_votes_parsers:
         if module_name in VOTES_REGISTRY:
             parser = VOTES_REGISTRY[module_name]
-            if parser not in votes_sequence:
-                votes_sequence.append(parser)
+            if parser not in added_votes_parsers:
+                votes_sequence.append((parser, ParserTier.COMMITTEE_PROVEN, module_name))
+                added_votes_parsers.add(parser)
     
     # Tier 2: Remaining parsers by cost
     for parser in all_votes_parsers:
-        if parser not in votes_sequence:
-            votes_sequence.append(parser)
+        if parser not in added_votes_parsers:
+            module_name = parser.__module__
+            votes_sequence.append((parser, ParserTier.COST_FALLBACK, module_name))
+            added_votes_parsers.add(parser)
     # 3) Try parsers
-    for p in votes_sequence:
-        modname = p.__module__
+    for p, tier, modname in votes_sequence:
         candidate = p.discover(base_url, row)
         if not candidate:
             continue
@@ -366,52 +472,67 @@ def resolve_votes_for_bill(
         accepted = True
         needs_review = False
         if review_mode == "deferred" and deferred_session is not None:
-            # Try LLM first if enabled
-            llm_decision = try_llm_decision(
-                candidate,
-                row.bill_id,
+            # Decide if we should consult LLM based on pattern confidence
+            should_use_llm = should_use_llm_for_parser(
+                modname,
+                row.committee_id,
                 ParserInterface.ParserType.VOTES.value,
-                cfg
+                cache,
+                tier,
+                candidate
             )
             
-            if llm_decision == "yes":
-                # LLM confidently accepts - mark as confirmed
-                accepted = True
-                needs_review = False
-            elif llm_decision == "no":
-                # LLM confidently rejects - skip this parser
-                continue
-            else:
-                # LLM returned "unsure" or is unavailable
-                # Fall back to confidence threshold logic
-                preview_text = (
-                    candidate.full_text if candidate.full_text
-                    else candidate.preview
+            if should_use_llm:
+                # Pattern not established or parser is suspicious - use LLM
+                llm_decision = try_llm_decision(
+                    candidate,
+                    row.bill_id,
+                    ParserInterface.ParserType.VOTES.value,
+                    cfg
                 )
-                confidence = (
-                    candidate.confidence if candidate.confidence else 0.5
-                )
-                auto_accept_threshold = cfg.get(
-                    "deferred_review", {}
-                ).get("auto_accept_high_confidence", 0.9)
                 
-                if confidence >= auto_accept_threshold:
+                if llm_decision == "yes":
+                    # LLM confidently accepts
                     accepted = True
                     needs_review = False
+                elif llm_decision == "no":
+                    # LLM confidently rejects - skip this parser
+                    continue
                 else:
-                    # Add to deferred session for later review
-                    confirmation = DeferredConfirmation(
-                        confirmation_id="",  # Will be auto-generated
-                        bill_id=row.bill_id,
-                        parser_type=ParserInterface.ParserType.VOTES.value,
-                        parser_module=modname,
-                        candidate=candidate,
-                        preview_text=preview_text,
-                        confidence=confidence
+                    # LLM returned "unsure" or is unavailable
+                    # Fall back to confidence threshold logic
+                    preview_text = (
+                        candidate.full_text if candidate.full_text
+                        else candidate.preview
                     )
-                    deferred_session.add_confirmation(confirmation)
-                    accepted = True  # Tentatively accept for now
-                    needs_review = True
+                    confidence = (
+                        candidate.confidence if candidate.confidence else 0.5
+                    )
+                    auto_accept_threshold = cfg.get(
+                        "deferred_review", {}
+                    ).get("auto_accept_high_confidence", 0.9)
+                    
+                    if confidence >= auto_accept_threshold:
+                        accepted = True
+                        needs_review = False
+                    else:
+                        # Add to deferred session for later review
+                        confirmation = DeferredConfirmation(
+                            confirmation_id="",  # Will be auto-generated
+                            bill_id=row.bill_id,
+                            parser_type=ParserInterface.ParserType.VOTES.value,
+                            parser_module=modname,
+                            candidate=candidate,
+                            preview_text=preview_text,
+                            confidence=confidence
+                        )
+                        deferred_session.add_confirmation(confirmation)
+                        accepted = True  # Tentatively accept for now
+                        needs_review = True
+            else:
+                # Pattern confidence is high - trust it without LLM
+                accepted = True
+                needs_review = False
         elif review_mode == "on":
             # Use full_text if available, otherwise fall back to preview
             preview_text = candidate.full_text if candidate.full_text else candidate.preview
