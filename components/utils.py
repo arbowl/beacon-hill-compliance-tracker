@@ -244,6 +244,47 @@ class Cache:
         return keyword.lower() in content.lower()
 
     # ---------------------------------------------------------------------
+    # Committee bill tracking
+    # ---------------------------------------------------------------------
+
+    def add_bill_to_committee(
+        self, committee_id: str, bill_id: str
+    ) -> None:
+        """Track which bills belong to each committee.
+        
+        Args:
+            committee_id: Committee ID (e.g., "J37")
+            bill_id: Bill ID (e.g., "H3444")
+        """
+        committee_bills = self._data.setdefault("committee_bills", {})
+        committee_data = committee_bills.setdefault(committee_id, {
+            "bills": [],
+            "bill_count": 0
+        })
+        
+        # Add bill if not already tracked
+        if bill_id not in committee_data["bills"]:
+            committee_data["bills"].append(bill_id)
+            committee_data["bill_count"] = len(committee_data["bills"])
+            committee_data["last_updated"] = (
+                datetime.utcnow().isoformat(timespec="seconds") + "Z"
+            )
+            self.save()
+    
+    def get_committee_bills(self, committee_id: str) -> list[str]:
+        """Get all bills for a committee.
+        
+        Args:
+            committee_id: Committee ID (e.g., "J37")
+            
+        Returns:
+            List of bill IDs
+        """
+        committee_bills = self._data.get("committee_bills", {})
+        committee_data = committee_bills.get(committee_id, {})
+        return committee_data.get("bills", [])
+
+    # ---------------------------------------------------------------------
     # Committee-level parser tracking
     # ---------------------------------------------------------------------
 
