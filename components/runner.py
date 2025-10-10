@@ -1,8 +1,8 @@
 """Runner module for basic compliance checking."""
+
 from pathlib import Path
 import json
 import time
-import sys
 from datetime import datetime, date, timedelta
 
 import requests
@@ -12,7 +12,8 @@ from components.pipeline import (
     resolve_votes_for_bill,
 )
 from components.committees import get_committees
-from components.compliance import classify
+from components.compliance import classify, compute_notice_status
+from components.interfaces import Config
 from components.report import write_basic_html
 from components.utils import Cache
 from components.models import DeferredReviewSession, ExtensionOrder
@@ -70,7 +71,7 @@ def run_basic_compliance(
     include_chambers: bool,
     committee_id: str,
     limit_hearings: bool,
-    cfg: dict[str, str | int | bool | dict],
+    cfg: Config,
     cache: Cache,
     extension_lookup: dict[str, list[ExtensionOrder]],
     write_json=True
@@ -117,9 +118,8 @@ def run_basic_compliance(
     )
 
     # 3) Initialize deferred review session if needed
-    review_mode = cfg.get("review_mode", "on").lower()
     deferred_session = None
-    if review_mode == "deferred":
+    if cfg.review_mode == "deferred":
         deferred_session = DeferredReviewSession(
             session_id="",  # Will be auto-generated
             committee_id=committee_id
@@ -154,7 +154,7 @@ def run_basic_compliance(
                       f"{extension_until}")
             else:
                 extension_until = latest_extension.extension_date
-        elif not cfg.get("runner", {}).get("check_extensions", True):
+        elif not cfg.runner.check_extensions:
             # If extension checking is disabled, check cache for previously
             # discovered data
             cached_extension = cache.get_extension(r.bill_id)
@@ -213,7 +213,7 @@ def run_basic_compliance(
             extension_order_url = latest_extension.extension_order_url
             extension_date = latest_extension.extension_date
             print(f"  Found extension: {extension_date}")
-        elif not cfg.get("runner", {}).get("check_extensions", True):
+        elif not cfg.runner.check_extensions:
             # If extension checking is disabled, use cached data if available
             cached_extension = cache.get_extension(r.bill_id)
             if cached_extension:
@@ -226,7 +226,6 @@ def run_basic_compliance(
             print(f"  No extension found for {r.bill_id}")
 
         # Calculate notice gap for reporting
-        from components.compliance import compute_notice_status
         notice_status, gap_days = compute_notice_status(status)
         
         results.append({
@@ -255,14 +254,14 @@ def run_basic_compliance(
         })
     _update_progress(total_bills, total_bills, "Complete", start_time)
     print()
-    if review_mode == "deferred" and deferred_session and deferred_session.confirmations:
+    if cfg.review_mode == "deferred" and deferred_session and deferred_session.confirmations:
         print("\nProcessing complete. Conducting batch review session...")
         review_results = conduct_batch_review(deferred_session, cfg, cache)
         apply_review_results(review_results, deferred_session, cache)
-        if cfg.get("deferred_review", {}).get("reprocess_after_review", True):
+        if cfg.deferred_review.reprocess_after_review:
             print("\nRe-processing bills with confirmed parsers...")
             print("Re-processing skipped - using tentative results with confirmed cache entries.")
-    elif review_mode == "deferred":
+    elif cfg.review_mode == "deferred":
         print("\nNo confirmations needed - all parsers were auto-accepted or cached.")
 
     # 5) artifacts (JSON + HTML)

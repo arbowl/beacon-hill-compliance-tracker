@@ -953,7 +953,7 @@
     "effective_deadline": "2025-09-08",
     "extension_order_url": null,
     "extension_date": null,
-    "reported_out": false,
+    "reported_out": true,
     "summary_present": true,
     "summary_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=24401&Title=S.41%20-%20Senate%20Committee%20Bill%20Summary%20-%20An%20Act%20to%20modernize%20funding%20for%20community%20media%20programming&fileExtension=.pdf",
     "votes_present": false,

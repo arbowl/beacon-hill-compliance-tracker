@@ -8,15 +8,10 @@ from tkinter import messagebox, scrolledtext
 from typing import Optional, Any, Literal
 import webbrowser
 
-import yaml  # type: ignore
-
-from components.llm import create_llm_parser
+from components.llm import LLMParser
+from components.interfaces import Config
 from collectors.extension_orders import collect_all_extension_orders
 
-DEFAULT_CONFIG = {
-    "base_url": "https://malegislature.gov",
-    "filters": {"include_chambers": ["House", "Joint"]},
-}
 _DEFAULT_PATH = Path("cache.json")
 
 
@@ -377,15 +372,6 @@ class Cache:
         self.save()
 
 
-def load_config() -> dict:
-    """ Load the configuration from the config.yaml file. """
-    cfg_path = Path("config.yaml")
-    if cfg_path.exists():
-        with cfg_path.open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or DEFAULT_CONFIG
-    return DEFAULT_CONFIG
-
-
 def compute_deadlines(
     hearing_date: date, extension_until: Optional[date] = None
 ) -> tuple[date, date, date]:
@@ -543,7 +529,7 @@ def ask_llm_decision(
     content: str,
     doc_type: str,
     bill_id: str,
-    config: dict
+    config: Config
 ) -> Optional[Literal["yes", "no", "unsure"]]:
     """
     Ask LLM to make a decision about document matching.
@@ -557,12 +543,9 @@ def ask_llm_decision(
     Returns:
         "yes", "no", "unsure", or None if LLM is unavailable
     """
-    llm_config = config.get("llm", {})
     # Always create parser if audit logging is enabled, even if LLM is disabled
-    if llm_config.get("audit_log", {}).get(
-        "enabled", False
-    ) or llm_config.get("enabled", False):
-        llm_parser = create_llm_parser(llm_config)
+    if config.llm.enabled:
+        llm_parser = LLMParser(config)
         if llm_parser is None:
             return None
         return llm_parser.make_decision(content, doc_type, bill_id)

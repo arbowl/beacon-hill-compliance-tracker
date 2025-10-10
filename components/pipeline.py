@@ -3,7 +3,7 @@
 from enum import IntEnum
 from typing import Optional
 
-from components.interfaces import ParserInterface
+from components.interfaces import ParserInterface, Config
 from components.models import BillAtHearing, SummaryInfo, VoteInfo, DeferredConfirmation, DeferredReviewSession
 from components.utils import (
     Cache,
@@ -150,13 +150,12 @@ def try_llm_decision(
 
 def resolve_summary_for_bill(
     base_url: str,
-    cfg: dict,
+    cfg: Config,
     cache: Cache,
     row: BillAtHearing,
     deferred_session: Optional[DeferredReviewSession] = None
 ) -> SummaryInfo:
     """Resolve the summary for a bill."""
-    review_mode: str = cfg.get("review_mode", "on").lower()
     cached_result = cache.get_result(
         row.bill_id, ParserInterface.ParserType.SUMMARY.value
     )
@@ -245,7 +244,7 @@ def resolve_summary_for_bill(
         # If we're here via an unconfirmed cache OR a new parser:
         accepted = True
         needs_review = False
-        if review_mode == "deferred" and deferred_session is not None:
+        if cfg.review_mode == "deferred" and deferred_session is not None:
             # Decide if we should consult LLM based on pattern confidence
             should_use_llm = should_use_llm_for_parser(
                 modname,
@@ -282,11 +281,7 @@ def resolve_summary_for_bill(
                     confidence = (
                         candidate.confidence if candidate.confidence else 0.5
                     )
-                    auto_accept_threshold = cfg.get(
-                        "deferred_review", {}
-                    ).get("auto_accept_high_confidence", 0.9)
-                    
-                    if confidence >= auto_accept_threshold:
+                    if confidence >= cfg.deferred_review.auto_accept_high_confidence:
                         accepted = True
                         needs_review = False
                     else:
@@ -307,7 +302,7 @@ def resolve_summary_for_bill(
                 # Pattern confidence is high - trust it without LLM
                 accepted = True
                 needs_review = False
-        elif review_mode == "on":
+        elif cfg.review_mode == "on":
             # show dialog only when not previously confirmed
             # Use full_text if available, otherwise fall back to preview
             preview_text = candidate.full_text if candidate.full_text else candidate.preview
@@ -346,7 +341,7 @@ def resolve_summary_for_bill(
                 ParserInterface.ParserType.SUMMARY.value,
                 modname,
                 result.to_dict(),
-                confirmed=review_mode == "on" and not needs_review
+                confirmed=cfg.review_mode == "on" and not needs_review
             )
             # Record success for committee-level learning
             cache.record_committee_parser(
@@ -366,7 +361,7 @@ def resolve_summary_for_bill(
 
 def resolve_votes_for_bill(
     base_url: str,
-    cfg: dict,
+    cfg: Config,
     cache: Cache,
     row: BillAtHearing,
     deferred_session: Optional[DeferredReviewSession] = None
@@ -381,7 +376,6 @@ def resolve_votes_for_bill(
       * Mark confirmed=True when a user explicitly accepts; False for headless
       auto-accept.
     """
-    review_mode = cfg.get("review_mode", "on").lower()
     cached_result = cache.get_result(
         row.bill_id, ParserInterface.ParserType.VOTES.value
     )
@@ -471,7 +465,7 @@ def resolve_votes_for_bill(
         # Decide whether to prompt
         accepted = True
         needs_review = False
-        if review_mode == "deferred" and deferred_session is not None:
+        if cfg.review_mode == "deferred" and deferred_session is not None:
             # Decide if we should consult LLM based on pattern confidence
             should_use_llm = should_use_llm_for_parser(
                 modname,
@@ -508,11 +502,8 @@ def resolve_votes_for_bill(
                     confidence = (
                         candidate.confidence if candidate.confidence else 0.5
                     )
-                    auto_accept_threshold = cfg.get(
-                        "deferred_review", {}
-                    ).get("auto_accept_high_confidence", 0.9)
                     
-                    if confidence >= auto_accept_threshold:
+                    if confidence >= cfg.deferred_review.auto_accept_high_confidence:
                         accepted = True
                         needs_review = False
                     else:
@@ -533,7 +524,7 @@ def resolve_votes_for_bill(
                 # Pattern confidence is high - trust it without LLM
                 accepted = True
                 needs_review = False
-        elif review_mode == "on":
+        elif cfg.review_mode == "on":
             # Use full_text if available, otherwise fall back to preview
             preview_text = candidate.full_text if candidate.full_text else candidate.preview
             if len(preview_text) > 140:
@@ -577,7 +568,7 @@ def resolve_votes_for_bill(
             ParserInterface.ParserType.VOTES.value,
             modname,
             result.to_dict(),
-            confirmed=review_mode == "on" and not needs_review
+            confirmed=cfg.review_mode == "on" and not needs_review
         )
         # Record success for committee-level learning
         cache.record_committee_parser(

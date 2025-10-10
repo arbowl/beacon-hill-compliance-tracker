@@ -1,7 +1,6 @@
 base_url: "https://malegislature.gov"
 collect_input: true  # Whether to let the user select committees
-filters:
-  include_chambers: ["House", "Joint"]
+include_chambers: ["House", "Joint"]
 runner:
   committee_ids: ["J10"]  # list of committee IDs, or ["all"] for all committees
   limit_hearings: 999       # keep small for fast tests; increase later
@@ -15,7 +14,7 @@ deferred_review:
   group_by_bill: false            # Group confirmations by bill vs chronological
   auto_accept_high_confidence: 0.9 # Auto-accept if confidence > threshold (0.0-1.0)
 llm:
-  enabled: true
+  enabled: false
   host: "192.168.0.170"
   port: 11434
   model: "qwen3:4b"

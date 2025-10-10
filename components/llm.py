@@ -13,34 +13,24 @@ from dataclasses import dataclass
 
 import requests  # type: ignore
 
-
-@dataclass
-class LLMConfig:
-    """Configuration for LLM integration."""
-    enabled: bool
-    host: str
-    port: int
-    model: str
-    prompt: str
-    timeout: int
-    audit_log: dict
+from components.interfaces import Config
 
 
 class LLMParser:
     """LLM-based parser for document confirmation decisions."""
 
-    def __init__(self, config: LLMConfig):
+    def __init__(self, config: Config) -> None:
         self.config = config
-        self.base_url = f"http://{config.host}:{config.port}"
+        self.base_url = f"http://{config.llm.host}:{config.llm.port}"
         self._setup_audit_logging()
 
     def _setup_audit_logging(self):
         """Set up audit logging if enabled."""
-        self.audit_enabled = self.config.audit_log.get("enabled", False)
+        self.audit_enabled = self.config.audit_log.enabled
         if not self.audit_enabled:
             return
         # Set up file logging
-        log_file = self.config.audit_log.get("file", "llm_audit.log")
+        log_file = self.config.audit_log.file
         self.audit_logger = logging.getLogger("llm_audit")
         self.audit_logger.setLevel(logging.INFO)
         # Remove existing handlers to avoid duplicates
@@ -305,34 +295,11 @@ class LLMParser:
             "raw_response": raw_response,
         }
         # Add model info if configured
-        if self.config.audit_log.get("include_model_info", True):
+        if self.config.audit_log.include_model_info:
             audit_entry.update({
-                "model": self.config.model,
-                "host": self.config.host,
-                "port": self.config.port  # type: ignore
+                "model": self.config.llm.model,
+                "host": self.config.llm.host,
+                "port": self.config.llm.port
             })
         # Log as JSON for easy parsing
         self.audit_logger.info(json.dumps(audit_entry, ensure_ascii=False))
-
-
-def create_llm_parser(config_dict: dict) -> Optional[LLMParser]:
-    """Create an LLM parser from configuration dictionary."""
-    try:
-        llm_config = LLMConfig(
-            enabled=config_dict.get("enabled", False),
-            host=config_dict.get("host", "localhost"),
-            port=config_dict.get("port", 11434),
-            model=config_dict.get("model", "llama3.2"),
-            prompt=config_dict.get(
-                "prompt", "Given the string \"{content}\", "
-                "does it appear that this system discovered the {doc_type} "
-                "for {bill_id}? Answer with one word, \"yes\", \"no\", or "
-                "\"unsure\"."
-            ),
-            timeout=config_dict.get("timeout", 30),
-            audit_log=config_dict.get("audit_log", {})
-        )
-        return LLMParser(llm_config)
-        # pylint: disable=broad-exception-caught
-    except Exception:
-        return None

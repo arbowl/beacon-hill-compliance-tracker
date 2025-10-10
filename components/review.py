@@ -1,17 +1,17 @@
 """Batch review session manager for deferred confirmations."""
 
-from typing import Dict
 import textwrap
 
+from components.interfaces import Config
 from components.models import DeferredReviewSession, DeferredConfirmation
 from components.utils import Cache
 
 
 def conduct_batch_review(
     session: DeferredReviewSession, 
-    config: dict,
+    config: Config,
     cache: Cache
-) -> Dict[str, bool]:
+) -> dict[str, bool]:
     """
     Present all deferred confirmations for batch review.
     Returns dict mapping confirmation_id -> accepted (bool)
@@ -43,7 +43,7 @@ def conduct_batch_review(
     
     # Group by bill if configured
     confirmations = session.confirmations
-    if config.get("deferred_review", {}).get("group_by_bill", False):
+    if config.deferred_review.group_by_bill:
         confirmations = sorted(confirmations, key=lambda c: c.bill_id)
     
     for i, confirmation in enumerate(confirmations, 1):
@@ -92,7 +92,7 @@ def review_single_confirmation(
     confirmation: DeferredConfirmation,
     index: int,
     total: int,
-    config: dict
+    config: Config
 ) -> bool:
     """
     Review one confirmation with context.
@@ -104,7 +104,7 @@ def review_single_confirmation(
     print(f"Parser: {confirmation.parser_module}")
     
     # Show confidence if available and configured
-    if (config.get("deferred_review", {}).get("show_confidence", True) 
+    if (config.deferred_review.show_confidence 
         and confirmation.confidence is not None):
         confidence_pct = int(confirmation.confidence * 100)
         confidence_label = "High" if confirmation.confidence >= 0.8 else "Medium" if confirmation.confidence >= 0.5 else "Low"
@@ -173,7 +173,7 @@ def review_single_confirmation(
 
 
 def apply_review_results(
-    results: Dict[str, bool], 
+    results: dict[str, bool], 
     session: DeferredReviewSession, 
     cache: Cache
 ) -> None:

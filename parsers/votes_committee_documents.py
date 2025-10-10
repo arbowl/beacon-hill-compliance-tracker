@@ -217,11 +217,11 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         cls, _base_url: str, candidate: ParserInterface.DiscoveryResult
     ) -> dict:
         """Parse the committee vote document."""
-        vote_data = VotesCommitteeDocumentsParser._bill_vote_data[candidate.preview]
+        vote_data: dict = VotesCommitteeDocumentsParser._bill_vote_data[candidate.preview]
         
         return {
             "location": "committee_documents",
-            "source_url": candidate["source_url"],
+            "source_url": candidate.source_url,
             "motion": f"Committee vote on {vote_data.get('bill_id', 'unknown bill')}",
             "date": None,  # Could be extracted from PDF if available
             "tallies": {
