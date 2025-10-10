@@ -192,7 +192,9 @@ def build_status_row(
 ) -> BillStatus:
     """Build the status row."""
     
-    d60, d90, effective = compute_deadlines(row.hearing_date, extension_until)
+    d60, d90, effective = compute_deadlines(
+        row.hearing_date, extension_until, row.bill_id
+    )
     
     # Try to get hearing announcement from cache first
     cached_announcement = cache.get_hearing_announcement(row.bill_id)
