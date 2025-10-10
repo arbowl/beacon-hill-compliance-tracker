@@ -372,17 +372,75 @@ class Cache:
         self.save()
 
 
+def get_next_first_wednesday_december(from_date: date) -> date:
+    """Get the next first Wednesday in December from a given date.
+
+    For Senate bills: Joint Rule 10 requires reports by the first
+    Wednesday in December of the first annual session.
+
+    Args:
+        from_date: Reference date (typically the hearing date)
+
+    Returns:
+        The next first Wednesday in December (may be in current or next year)
+    """
+    # Start with December 1st of the current year
+    year = from_date.year
+    dec_first = date(year, 12, 1)
+
+    # Find the first Wednesday (weekday 2 is Wednesday, 0=Monday)
+    days_until_wednesday = (2 - dec_first.weekday()) % 7
+    first_wednesday = dec_first + timedelta(days=days_until_wednesday)
+
+    # If that date has already passed, go to next year's December
+    if first_wednesday < from_date:
+        dec_first_next = date(year + 1, 12, 1)
+        days_until_wednesday = (2 - dec_first_next.weekday()) % 7
+        first_wednesday = dec_first_next + timedelta(days=days_until_wednesday)
+
+    return first_wednesday
+
+
 def compute_deadlines(
-    hearing_date: date, extension_until: Optional[date] = None
+    hearing_date: date,
+    extension_until: Optional[date] = None,
+    bill_id: Optional[str] = None
 ) -> tuple[date, date, date]:
-    """Return (deadline_60, deadline_90, effective_deadline)."""
-    d60 = hearing_date + timedelta(days=60)
-    d90 = hearing_date + timedelta(days=90)
+    """Return (deadline_60, deadline_90, effective_deadline).
+
+    Args:
+        hearing_date: Date of the hearing
+        extension_until: Optional extension date
+        bill_id: Bill identifier (e.g., "H73", "S197") - used to determine
+                 if Senate bill rules apply
+
+    Returns:
+        Tuple of (deadline_60, deadline_90, effective_deadline)
+
+    Rules:
+        - House bills: 60 days from hearing + optional 30-day extension
+          (90 max)
+        - Senate bills: First Wednesday in December + optional 30-day
+          extension
+    """
+    # Check if this is a Senate bill
+    is_senate_bill = bill_id and bill_id.upper().startswith('S')
+
+    if is_senate_bill:
+        # Senate bills: first Wednesday in December
+        d60 = get_next_first_wednesday_december(hearing_date)
+        d90 = d60 + timedelta(days=30)  # Extension adds 30 days
+    else:
+        # House bills: 60 days from hearing
+        d60 = hearing_date + timedelta(days=60)
+        d90 = hearing_date + timedelta(days=90)
+
     if not extension_until:
         return d60, d90, d60
-    # Extension cannot exceed 30 days beyond d60 and never beyond 90 total.
+
+    # Extension logic
     effective = min(extension_until, d90)
-    # Guard against bogus early dates; if earlier than 60, keep 60.
+    # Guard against bogus early dates; if earlier than default, keep default.
     effective = max(effective, d60)
     return d60, d90, effective
 
