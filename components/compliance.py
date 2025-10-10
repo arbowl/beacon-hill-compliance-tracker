@@ -7,6 +7,11 @@ from datetime import date
 
 from components.models import SummaryInfo, VoteInfo, BillStatus
 
+# Bills weren't subject to the 10-day hearing advance notice requirement
+# before this date. Any hearing announced PRIOR to this date is
+# automatically compliant with notice requirements.
+NOTICE_REQUIREMENT_START_DATE = date(2025, 6, 26)
+
 
 class ComplianceState(str, Enum):
     """Compliance states for bills."""
@@ -51,16 +56,31 @@ def classify(
     - Notice missing + no other evidence → UNKNOWN
     - Notice missing + any other evidence → NON-COMPLIANT
     - Notice ≥ 10 days → proceed with normal compliance logic
-    
+
     Normal compliance logic:
     - Senate bills: only check summaries and votes (no deadline enforcement)
     - House bills: check reported-out, summaries, votes within deadlines
     """
     today = date.today()
-    
+
     # First, check notice compliance (applies to all bills)
     notice_status, gap_days = compute_notice_status(status, min_notice_days)
     effective_reported_out = status.reported_out or votes.present
+
+    # Generate appropriate notice description for reason strings
+    if notice_status == NoticeStatus.IN_RANGE and gap_days is not None:
+        # Check if this is due to exemption or actual compliance
+        if (status.announcement_date and
+                status.announcement_date < NOTICE_REQUIREMENT_START_DATE):
+            announce_date = status.announcement_date
+            notice_desc = (
+                f"exempt from notice requirement "
+                f"(announced {announce_date}, before 6/26/2025)"
+            )
+        else:
+            notice_desc = f"adequate notice ({gap_days} days)"
+    else:
+        notice_desc = ""  # Not used for missing/out of range cases
     # Deal-breaker: insufficient notice
     if notice_status == NoticeStatus.OUT_OF_RANGE:
         return BillCompliance(
@@ -70,17 +90,17 @@ def classify(
             summary=summary,
             votes=votes,
             status=status,
-            state=ComplianceState.NON_COMPLIANT.value,
+            state=ComplianceState.NON_COMPLIANT.value,  # type: ignore
             reason=(f"Insufficient notice: {gap_days} days "
                     f"(minimum {min_notice_days})"),
         )
-    
+
     # Handle missing notice cases
     if notice_status == NoticeStatus.MISSING:
         # Check if there's any other compliance evidence
-        has_evidence = (effective_reported_out or votes.present or 
+        has_evidence = (effective_reported_out or votes.present or
                         summary.present)
-        
+
         if not has_evidence:
             return BillCompliance(
                 bill_id=bill_id,
@@ -89,7 +109,7 @@ def classify(
                 summary=summary,
                 votes=votes,
                 status=status,
-                state=ComplianceState.UNKNOWN.value,
+                state=ComplianceState.UNKNOWN.value,  # type: ignore
                 reason="No hearing announcement found and no other evidence",
             )
         else:
@@ -100,68 +120,44 @@ def classify(
                 summary=summary,
                 votes=votes,
                 status=status,
-                state=ComplianceState.NON_COMPLIANT.value,
+                state=ComplianceState.NON_COMPLIANT.value,  # type: ignore
                 reason="No hearing announcement found",
             )
-    
+
     # Notice is adequate (IN_RANGE), proceed with normal compliance logic
-    
-    # Senate bills are exempt from 60-day deadline requirements
-    if bill_id.upper().startswith('S'):
-        # For Senate bills, only check if summaries and votes are posted
+
+    # Check if we're before the deadline
+    if today <= status.effective_deadline:
+        state, reason = ComplianceState.UNKNOWN.value, (
+            f"Before deadline, {notice_desc}"
+        )
+    else:
+        # After deadline - check all requirements
+        reported_out = effective_reported_out
         votes_present = votes.present
         summary_present = summary.present
 
-        if votes_present and summary_present:
+        present_count = sum([reported_out, votes_present, summary_present])
+
+        if present_count == 3:
             state, reason = ComplianceState.COMPLIANT.value, (
-                "Senate bill: summaries and votes posted, adequate notice "
-                f"({gap_days} days)"
+                f"All requirements met: reported out, votes posted, "
+                f"summaries posted, {notice_desc}"
             )
-        elif votes_present or summary_present:
-            missing = "summaries" if not summary_present else "votes"
+        elif present_count == 2:
+            missing = _get_missing_requirements(
+                reported_out, votes_present, summary_present
+            )
             state, reason = ComplianceState.INCOMPLETE.value, (
-                f"Senate bill: {missing} missing, adequate notice "
-                f"({gap_days} days)"
+                f"One requirement missing: {missing}, {notice_desc}"
             )
-        else:
+        else:  # present_count == 0 or 1
+            missing = _get_missing_requirements(
+                reported_out, votes_present, summary_present
+            )
             state, reason = ComplianceState.NON_COMPLIANT.value, (
-                f"Senate bill: no votes or summaries posted, adequate notice "
-                f"({gap_days} days)"
+                f"Factors: {missing}, {notice_desc}"
             )
-    else:
-        # House bills and others - check deadlines and all requirements
-        if today <= status.effective_deadline:
-            state, reason = ComplianceState.UNKNOWN.value, (
-                f"Before deadline, adequate notice ({gap_days} days)"
-            )
-        else:
-            # Count how many compliance factors are present
-            reported_out = effective_reported_out
-            votes_present = votes.present
-            summary_present = summary.present
-
-            present_count = sum([reported_out, votes_present, summary_present])
-
-            if present_count == 3:
-                state, reason = ComplianceState.COMPLIANT.value, (
-                    "All requirements met: reported out, votes posted, "
-                    f"summaries posted, adequate notice ({gap_days} days)"
-                )
-            elif present_count == 2:
-                missing = _get_missing_requirements(
-                    reported_out, votes_present, summary_present
-                )
-                state, reason = ComplianceState.INCOMPLETE.value, (
-                    f"One requirement missing: {missing}, adequate notice "
-                    f"({gap_days} days)"
-                )
-            else:  # present_count == 0 or 1
-                missing = _get_missing_requirements(
-                    reported_out, votes_present, summary_present
-                )
-                state, reason = ComplianceState.NON_COMPLIANT.value, (
-                    f"Factors: {missing}, adequate notice ({gap_days} days)"
-                )
 
     return BillCompliance(
         bill_id=bill_id,
@@ -179,21 +175,26 @@ def compute_notice_status(
     status: BillStatus, min_notice_days: int = 10
 ) -> tuple[NoticeStatus, Optional[int]]:
     """Compute notice status and gap days for a bill.
-    
+
     Args:
         status: BillStatus containing announcement and hearing dates
         min_notice_days: Minimum required notice days (default 10)
-        
+
     Returns:
         Tuple of (NoticeStatus, gap_days) where gap_days is None if missing
     """
-    if (status.announcement_date is None or 
+    if (status.announcement_date is None or
             status.scheduled_hearing_date is None):
         return NoticeStatus.MISSING, None
-    
+
     # Calculate the gap in days
     gap_days = (status.scheduled_hearing_date - status.announcement_date).days
-    
+
+    # Exemption: hearings announced before NOTICE_REQUIREMENT_START_DATE are
+    # automatically compliant with notice requirements
+    if status.announcement_date < NOTICE_REQUIREMENT_START_DATE:
+        return NoticeStatus.IN_RANGE, gap_days
+
     if gap_days >= min_notice_days:
         return NoticeStatus.IN_RANGE, gap_days
     else:
