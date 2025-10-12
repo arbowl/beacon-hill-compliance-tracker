@@ -66,26 +66,20 @@ class ParserInterface(ABC):
     @staticmethod
     def _soup(s: requests.Session, url: str) -> BeautifulSoup:
         """Get the soup of the page (cached by URL)."""
-        # Check cache first - avoids redundant requests for same URL
         if url in _URL_CACHE:
             return BeautifulSoup(_URL_CACHE[url], "html.parser")
-        
-        # Fetch if not cached
         r = None
-        for _ in range(5):  # Retry up to 5 times
+        for _ in range(5):
             try:
                 r = s.get(url, timeout=20, headers={"User-Agent": "legis-scraper/0.1"})
                 r.raise_for_status()
-                break  # Success - exit retry loop
+                break
             except (requests.RequestException, requests.Timeout):
                 continue
-        
-        # Cache the raw HTML if we got a successful response
         if r is not None:
             _URL_CACHE[url] = r.text
             return BeautifulSoup(r.text, "html.parser")
         else:
-            # All retries failed - return empty soup
             return BeautifulSoup("", "html.parser")
 
     @abstractmethod

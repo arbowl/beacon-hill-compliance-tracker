@@ -8,6 +8,7 @@ import requests  # type: ignore
 from bs4 import BeautifulSoup
 
 from components.models import Committee, CommitteeContact
+from collectors.utils import soup as _soup
 
 PHONE_RX = re.compile(r"\(\d{3}\)\s*\d{3}-\d{4}")
 ROOM_RX = re.compile(r"\bRoom\s+[A-Za-z0-9\-]+", re.I)
@@ -29,15 +30,6 @@ def _validate_email_domain(email: str) -> bool:
             return True
     
     return False
-
-
-def _soup(session: requests.Session, url: str) -> BeautifulSoup:
-    """Get the soup of the page."""
-    r = session.get(url, timeout=20, headers={
-        "User-Agent": "legis-scraper/0.1"
-    })
-    r.raise_for_status()
-    return BeautifulSoup(r.text, "html.parser")
 
 
 def _get_legislator_email(session: requests.Session, url: str) -> str:

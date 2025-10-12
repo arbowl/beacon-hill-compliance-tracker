@@ -9,19 +9,11 @@ import requests  # type: ignore
 from bs4 import BeautifulSoup
 
 from components.models import Hearing, BillAtHearing
+from collectors.utils import soup as _soup
 
 
 HREF_HEARING_RE = re.compile(r"/Events/Hearings/Detail/(\d+)$", re.I)
 HREF_BILL_RE = re.compile(r"/Bills/\d+/(H|S)\d+", re.I)
-
-
-def _soup(session: requests.Session, url: str) -> BeautifulSoup:
-    """Get the soup of the page."""
-    r = session.get(url, timeout=20, headers={
-        "User-Agent": "legis-scraper/0.1"
-    })
-    r.raise_for_status()
-    return BeautifulSoup(r.text, "html.parser")
 
 
 def _parse_event_date(soup: BeautifulSoup) -> date | None:

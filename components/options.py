@@ -6,6 +6,7 @@ up, but for now it's good enough.
 
 from components.utils import Cache
 from components.committees import get_committees
+from components.sender import IngestClient
 
 
 def get_committee_selection(
@@ -162,3 +163,20 @@ def print_options_summary(
     print(f"Committees: {', '.join(committee_ids)}")
     print(f"Hearing limit: {limit_hearings}")
     print(f"Check extensions: {check_extensions}")
+
+
+def submit_data(committees: list[str]) -> None:
+    input("Send data to remote server? (y/n)")
+    if input().strip().lower() not in ['y', 'yes']:
+        return
+    print("Sending data...")
+    client = IngestClient(
+        base_url="",
+        signing_key_id="",
+        signing_key_secret="",
+    )
+    client.upload_file("cache.json", kind="cache")
+    for committee in committees:
+        print("Sending committee:", committee)
+        client.upload_file(f"basic_{committee}.json", kind="basic")
+    print("Data submission complete.")

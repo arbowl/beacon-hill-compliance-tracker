@@ -7,10 +7,10 @@ from datetime import datetime, date
 from typing import Optional
 
 import requests  # type: ignore
-from bs4 import BeautifulSoup
 
 from components.models import BillAtHearing, BillStatus
 from components.utils import Cache, compute_deadlines
+from collectors.utils import soup as _soup
 
 # Common phrases on bill history when a committee moves a bill
 _REPORTED_PATTERNS = [
@@ -28,15 +28,6 @@ _DATE_PATTERNS = [
     (re.compile(r"\b(\d{1,2}/\d{1,2}/\d{4})\b"), "%m/%d/%Y"),
     (re.compile(r"\b([A-Za-z]+ \d{1,2}, \d{4})\b"), "%B %d, %Y"),
 ]
-
-
-def _soup(session: requests.Session, url: str) -> BeautifulSoup:
-    """Get the soup of the page."""
-    r = session.get(url, timeout=20, headers={
-        "User-Agent": "legis-scraper/0.1"
-    })
-    r.raise_for_status()
-    return BeautifulSoup(r.text, "html.parser")
 
 
 def _reported_out_from_bill_page(

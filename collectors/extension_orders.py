@@ -4,24 +4,16 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, date
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from urllib.parse import urljoin
 
 import requests  # type: ignore
 from bs4 import BeautifulSoup
 
+from collectors.utils import soup as _soup
 from components.models import ExtensionOrder
 if TYPE_CHECKING:
     from components.utils import Cache
-
-
-def _soup(session: requests.Session, url: str) -> BeautifulSoup:
-    """Get the soup of the page."""
-    r = session.get(url, timeout=20, headers={
-        "User-Agent": "legis-scraper/0.1"
-    })
-    r.raise_for_status()
-    return BeautifulSoup(r.text, "html.parser")
 
 
 def _extract_extension_date(text: str) -> Optional[date]:
@@ -65,20 +57,21 @@ def _extract_committee_from_text(text: str) -> Optional[str]:
     ]
     for pattern in committee_patterns:
         match = re.search(pattern, text, re.I)
-        if match:
-            committee_name = match.group(1).strip()
-            # Map common committee names to IDs (this could be expanded)
-            committee_mapping = {
-                'Telecommunications, Utilities, and Energy': 'J33',
-                'Environment and Natural Resources': 'J16',
-                'Education': 'J37',
-                'Housing': 'J39',
-                'Transportation': 'J40',
-                'Economic Development and Emerging Technologies': 'J41',
-                'Public Health': 'J42',
-                # Add more mappings as needed
-            }
-            return committee_mapping.get(committee_name)
+        if not match:
+            continue
+        committee_name = match.group(1).strip()
+        # Map common committee names to IDs (this could be expanded)
+        committee_mapping = {
+            'Telecommunications, Utilities, and Energy': 'J33',
+            'Environment and Natural Resources': 'J16',
+            'Education': 'J37',
+            'Housing': 'J39',
+            'Transportation': 'J40',
+            'Economic Development and Emerging Technologies': 'J41',
+            'Public Health': 'J42',
+            # Add more mappings as needed
+        }
+        return committee_mapping.get(committee_name)
     return None
 
 
@@ -96,7 +89,7 @@ def _extract_bill_id_from_order_url(order_url: str) -> Optional[str]:
     return None
 
 
-def _extract_bill_numbers_from_text(text: str) -> List[str]:
+def _extract_bill_numbers_from_text(text: str) -> list[str]:
     """Extract bill numbers from extension order text.
     Looks for patterns like:
     - "House document numbered 357" -> "H357"
@@ -142,15 +135,16 @@ def _extract_bill_numbers_from_text(text: str) -> List[str]:
                 doc_numbers = [doc_numbers_str.strip()]
             # Create bill IDs for each document number
             for doc_number in doc_numbers:
-                if doc_number.isdigit():
-                    bill_id = f"{prefix}{doc_number}"
-                    bill_numbers.append(bill_id)
+                if not doc_number.isdigit():
+                    continue
+                bill_id = f"{prefix}{doc_number}"
+                bill_numbers.append(bill_id)
     return bill_numbers
 
 
 def _parse_extension_order_page(
     session: requests.Session, _base_url: str, order_url: str
-) -> List[ExtensionOrder]:
+) -> list[ExtensionOrder]:
     """Parse a single extension order page to extract details for all bills
     mentioned.
     """
@@ -217,7 +211,7 @@ def _parse_extension_order_page(
 
 def collect_all_extension_orders(
     base_url: str, cache: Optional[Cache] = None
-) -> List[ExtensionOrder]:
+) -> list[ExtensionOrder]:
     """Collect all extension orders from the Massachusetts Legislature website.
     """
     extension_orders = []
@@ -351,14 +345,14 @@ def collect_all_extension_orders(
 
 
 def get_extension_orders_for_bill(
-    extension_orders: List[ExtensionOrder], bill_id: str
-) -> List[ExtensionOrder]:
+    extension_orders: list[ExtensionOrder], bill_id: str
+) -> list[ExtensionOrder]:
     """Get all extension orders for a specific bill."""
     return [eo for eo in extension_orders if eo.bill_id == bill_id]
 
 
 def get_latest_extension_date(
-    extension_orders: List[ExtensionOrder], bill_id: str
+    extension_orders: list[ExtensionOrder], bill_id: str
 ) -> Optional[date]:
     """Get the latest extension date for a specific bill."""
     bill_extensions = get_extension_orders_for_bill(extension_orders, bill_id)

@@ -7,7 +7,8 @@ from components.options import (
     get_committee_selection,
     get_hearing_limit,
     get_extension_check_preference,
-    print_options_summary
+    print_options_summary,
+    submit_data
 )
 from collectors.extension_orders import collect_all_extension_orders
 from components.utils import Cache
@@ -72,6 +73,7 @@ def main():
             extension_lookup=extension_lookup,
             write_json=True
         )
+    submit_data(committee_ids)
     input("Collection complete! Press Enter to exit.")
 
 

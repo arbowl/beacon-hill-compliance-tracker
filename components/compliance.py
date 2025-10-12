@@ -15,17 +15,19 @@ NOTICE_REQUIREMENT_START_DATE = date(2025, 6, 26)
 
 class ComplianceState(str, Enum):
     """Compliance states for bills."""
-    COMPLIANT = "compliant"
-    NON_COMPLIANT = "non-compliant"
-    INCOMPLETE = "incomplete"
-    UNKNOWN = "unknown"
+
+    COMPLIANT = "Compliant"
+    NON_COMPLIANT = "Non-Compliant"
+    INCOMPLETE = "Incomplete"
+    UNKNOWN = "Unknown"
 
 
 class NoticeStatus(str, Enum):
     """Notice compliance status for hearings."""
-    IN_RANGE = "in_range"      # ≥ 10 days notice
-    OUT_OF_RANGE = "out_of_range"  # < 10 days notice
-    MISSING = "missing"        # no announcement found
+
+    IN_RANGE = "In range"
+    OUT_OF_RANGE = "Out of range"
+    MISSING = "Missing"
 
 
 @dataclass(frozen=True)
@@ -40,6 +42,11 @@ class BillCompliance:  # pylint: disable=too-many-instance-attributes
     status: BillStatus
     state: ComplianceState
     reason: Optional[str] = None
+
+    def __post_init__(self):
+        """Convert StrEnums to their string values"""
+        if isinstance(self.state, ComplianceState):
+            object.__setattr__(self, "state", self.state.value)
 
 
 def classify(
@@ -90,7 +97,7 @@ def classify(
             summary=summary,
             votes=votes,
             status=status,
-            state=ComplianceState.NON_COMPLIANT.value,  # type: ignore
+            state=ComplianceState.NON_COMPLIANT,
             reason=(f"Insufficient notice: {gap_days} days "
                     f"(minimum {min_notice_days})"),
         )
@@ -109,7 +116,7 @@ def classify(
                 summary=summary,
                 votes=votes,
                 status=status,
-                state=ComplianceState.UNKNOWN.value,  # type: ignore
+                state=ComplianceState.UNKNOWN,
                 reason="No hearing announcement found and no other evidence",
             )
         else:
@@ -120,7 +127,7 @@ def classify(
                 summary=summary,
                 votes=votes,
                 status=status,
-                state=ComplianceState.NON_COMPLIANT.value,  # type: ignore
+                state=ComplianceState.NON_COMPLIANT,
                 reason="No hearing announcement found",
             )
 
@@ -140,7 +147,7 @@ def classify(
         present_count = sum([reported_out, votes_present, summary_present])
 
         if present_count == 3:
-            state, reason = ComplianceState.COMPLIANT.value, (
+            state, reason = ComplianceState.COMPLIANT, (
                 f"All requirements met: reported out, votes posted, "
                 f"summaries posted, {notice_desc}"
             )
@@ -148,14 +155,14 @@ def classify(
             missing = _get_missing_requirements(
                 reported_out, votes_present, summary_present
             )
-            state, reason = ComplianceState.INCOMPLETE.value, (
+            state, reason = ComplianceState.INCOMPLETE, (
                 f"One requirement missing: {missing}, {notice_desc}"
             )
         else:  # present_count == 0 or 1
             missing = _get_missing_requirements(
                 reported_out, votes_present, summary_present
             )
-            state, reason = ComplianceState.NON_COMPLIANT.value, (
+            state, reason = ComplianceState.NON_COMPLIANT, (
                 f"Factors: {missing}, {notice_desc}"
             )
 
