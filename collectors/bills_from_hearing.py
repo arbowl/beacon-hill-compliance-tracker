@@ -9,7 +9,7 @@ import requests  # type: ignore
 from bs4 import BeautifulSoup
 
 from components.models import Hearing, BillAtHearing
-from collectors.utils import soup as _soup
+from components.interfaces import ParserInterface
 
 
 HREF_HEARING_RE = re.compile(r"/Events/Hearings/Detail/(\d+)$", re.I)
@@ -63,7 +63,7 @@ def list_committee_hearings(  # pylint: disable=too-many-locals
     url = urljoin(base_url, f"/Committees/Detail/{committee_id}/Hearings")
     out: List[Hearing] = []
     with requests.Session() as s:
-        soup = _soup(s, url)
+        soup = ParserInterface._soup(s, url)
         # Any link to an event detail looks like /Events/Hearings/Detail/<id>
         for a in soup.select('a[href*="/Events/Hearings/Detail/"]'):
             href = a.get("href", "")
@@ -78,7 +78,7 @@ def list_committee_hearings(  # pylint: disable=too-many-locals
             status = " ".join(row.get_text(" ", strip=True).split()) if row else ""
             # Visit the detail page to get the canonical date and bill list
             detail_url = urljoin(base_url, f"/Events/Hearings/Detail/{hid}")
-            detail = _soup(s, detail_url)
+            detail = ParserInterface._soup(s, detail_url)
             dt = _parse_event_date(detail)
             # crude status extraction from list page row text
             status_flag = (
@@ -108,7 +108,7 @@ def extract_bills_from_hearing(
     :contentReference[oaicite:3]{index=3}
     """
     with requests.Session() as s:
-        soup = _soup(s, hearing.url)
+        soup = ParserInterface._soup(s, hearing.url)
         bills: List[BillAtHearing] = []
         # Any anchor that links to /Bills/<session>/<H|S><number>
         for a in soup.select('a[href*="/Bills/"]'):

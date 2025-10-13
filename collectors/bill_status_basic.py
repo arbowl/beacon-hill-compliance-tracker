@@ -10,7 +10,7 @@ import requests  # type: ignore
 
 from components.models import BillAtHearing, BillStatus
 from components.utils import Cache, compute_deadlines
-from collectors.utils import soup as _soup
+from components.interfaces import ParserInterface
 
 # Common phrases on bill history when a committee moves a bill
 _REPORTED_PATTERNS = [
@@ -36,20 +36,42 @@ def _reported_out_from_bill_page(
     """Heuristic: scan the bill page text/history for 'reported' phrases and
     grab a nearby date. Good enough for a baseline.
     """
-    soup = _soup(session, bill_url)
-    text = soup.get_text(" ", strip=True)
-    reported = any(re.search(pat, text, re.I) for pat in _REPORTED_PATTERNS)
+    soup = ParserInterface._soup(session, bill_url)
+
+    # Look through table rows and only inspect the Action column (typically
+    # the 3rd <td>). This avoids accidental matches elsewhere on the page
+    # (e.g., presenter text or other descriptive paragraphs).
+    rows = soup.find_all('tr')  # type: ignore
+    reported = False
+    matched_date: Optional[date] = None
+
+    for row in rows:
+        cells = row.find_all(['td', 'th'])  # type: ignore
+        if len(cells) < 3:
+            continue
+
+        action_text = cells[2].get_text(" ", strip=True)
+        if any(re.search(pat, action_text, re.I) for pat in _REPORTED_PATTERNS):
+            reported = True
+
+            # Try to parse a date from the first cell of the same row; prefer
+            # the newest date if multiple matches are found.
+            date_cell = cells[0].get_text(" ", strip=True)
+            for rx, fmt in _DATE_PATTERNS:
+                m = rx.search(date_cell)
+                if m:
+                    try:
+                        parsed = datetime.strptime(m.group(1), fmt).date()
+                    except Exception:  # pylint: disable=broad-exception-caught
+                        continue
+                    if matched_date is None or parsed > matched_date:
+                        matched_date = parsed
+                    break
+
     if not reported:
         return False, None
-    # Try to pull the closest/last date on the page as an approximation
-    last_date: Optional[date] = None
-    for rx, fmt in _DATE_PATTERNS:
-        for m in rx.finditer(text):
-            try:
-                last_date = datetime.strptime(m.group(1), fmt).date()
-            except Exception:  # pylint: disable=broad-exception-caught
-                continue
-    return True, last_date
+
+    return True, matched_date
 
 
 def _hearing_announcement_from_bill_page(
@@ -67,7 +89,7 @@ def _hearing_announcement_from_bill_page(
     
     Returns (announcement_date, scheduled_hearing_date) or (None, None).
     """
-    soup = _soup(session, bill_url)
+    soup = ParserInterface._soup(session, bill_url)
     
     # Look for table rows in the bill history
     rows = soup.find_all('tr')  # type: ignore
@@ -139,7 +161,7 @@ def get_bill_title(session: requests.Session, bill_url: str) -> str | None:
     appears in text that starts with "An Act", "An Resolve", or "A Resolve".
     """
 
-    soup = _soup(session, bill_url)
+    soup = ParserInterface._soup(session, bill_url)
 
     # 0. Find the H2 whose parent is the main content area (col-md-8 container)
     # The bill title is consistently in an H2 whose parent div has Bootstrap

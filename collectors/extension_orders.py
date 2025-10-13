@@ -10,7 +10,7 @@ from urllib.parse import urljoin
 import requests  # type: ignore
 from bs4 import BeautifulSoup
 
-from collectors.utils import soup as _soup
+from components.interfaces import ParserInterface
 from components.models import ExtensionOrder
 if TYPE_CHECKING:
     from components.utils import Cache
@@ -149,7 +149,7 @@ def _parse_extension_order_page(
     mentioned.
     """
     try:
-        soup = _soup(session, order_url)
+        soup = ParserInterface._soup(session, order_url)
         text = soup.get_text(" ", strip=True)
         # Extract extension date
         extension_date = _extract_extension_date(text)
