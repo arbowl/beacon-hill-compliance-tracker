@@ -101,14 +101,36 @@ def classify(
             reason=(f"Insufficient notice: {gap_days} days "
                     f"(minimum {min_notice_days})"),
         )
+    # Compute presence flags and counts
+    reported_out = effective_reported_out
+    votes_present = votes.present
+    summary_present = summary.present
+
+    present_count = sum([reported_out, votes_present, summary_present])
+
+    # If all requirements are present, treat as COMPLIANT immediately
+    if present_count == 3:
+        reason = (
+            "All requirements met: reported out, votes posted, summaries posted"
+        )
+        if notice_desc:
+            reason = f"{reason}, {notice_desc}"
+
+        return BillCompliance(
+            bill_id=bill_id,
+            committee_id=committee_id,
+            hearing_date=status.hearing_date,
+            summary=summary,
+            votes=votes,
+            status=status,
+            state=ComplianceState.COMPLIANT,
+            reason=reason,
+        )
 
     # Handle missing notice cases
     if notice_status == NoticeStatus.MISSING:
-        # Check if there's any other compliance evidence
-        has_evidence = (effective_reported_out or votes.present or
-                        summary.present)
-
-        if not has_evidence:
+        # If there's no evidence at all, this is unknown; otherwise non-compliant
+        if present_count == 0:
             return BillCompliance(
                 bill_id=bill_id,
                 committee_id=committee_id,
@@ -132,39 +154,28 @@ def classify(
             )
 
     # Notice is adequate (IN_RANGE), proceed with normal compliance logic
-
-    # Check if we're before the deadline
+    # If we're still before the effective deadline, it's unknown (unless fully compliant)
     if today <= status.effective_deadline:
-        state, reason = ComplianceState.UNKNOWN.value, (
-            f"Before deadline, {notice_desc}"
+        return BillCompliance(
+            bill_id=bill_id,
+            committee_id=committee_id,
+            hearing_date=status.hearing_date,
+            summary=summary,
+            votes=votes,
+            status=status,
+            state=ComplianceState.UNKNOWN,
+            reason=(f"Before deadline, {notice_desc}"),
         )
-    else:
-        # After deadline - check all requirements
-        reported_out = effective_reported_out
-        votes_present = votes.present
-        summary_present = summary.present
 
-        present_count = sum([reported_out, votes_present, summary_present])
-
-        if present_count == 3:
-            state, reason = ComplianceState.COMPLIANT, (
-                f"All requirements met: reported out, votes posted, "
-                f"summaries posted, {notice_desc}"
-            )
-        elif present_count == 2:
-            missing = _get_missing_requirements(
-                reported_out, votes_present, summary_present
-            )
-            state, reason = ComplianceState.INCOMPLETE, (
-                f"One requirement missing: {missing}, {notice_desc}"
-            )
-        else:  # present_count == 0 or 1
-            missing = _get_missing_requirements(
-                reported_out, votes_present, summary_present
-            )
-            state, reason = ComplianceState.NON_COMPLIANT, (
-                f"Factors: {missing}, {notice_desc}"
-            )
+    # After deadline - check remaining requirements
+    if present_count == 2:
+        missing = _get_missing_requirements(reported_out, votes_present, summary_present)
+        state = ComplianceState.INCOMPLETE
+        reason = f"One requirement missing: {missing}, {notice_desc}"
+    else:  # present_count == 0 or 1
+        missing = _get_missing_requirements(reported_out, votes_present, summary_present)
+        state = ComplianceState.NON_COMPLIANT
+        reason = f"Factors: {missing}, {notice_desc}"
 
     return BillCompliance(
         bill_id=bill_id,
