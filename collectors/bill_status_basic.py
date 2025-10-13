@@ -21,6 +21,7 @@ _REPORTED_PATTERNS = [
     r"\breported, referred to\b",
     r"\bstudy\b",
     r"\baccompan\b",
+    r"\bdischarge\b",
 ]
 
 # Dates often appear like "8/11/2025" or "June 4, 2025" in history notes
