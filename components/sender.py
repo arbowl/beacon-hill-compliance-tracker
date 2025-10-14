@@ -1,5 +1,4 @@
-
-"""ingest_client.py
+"""ingest_client.py - FIXED VERSION
 A small, importable client for uploading either a cache.json (how it was found)
 or a basic/report JSON (what was found) to a receiver API.
 
@@ -7,18 +6,22 @@ Usage:
 
     from ingest_client import IngestClient, detect_kind, infer_committee_id
 
-    client = IngestClient(base_url="https://receiver.example.com", api_key="TOKEN")
+    client = IngestClient(
+        base_url="http://172.17.43.95:5000/",
+        signing_key_id="",
+        signing_key_secret="",
+    )
 
     # 1) Let the client auto-detect from filename + content
-    client.upload_file("/path/to/cache.json")                # -> POST /ingest/cache
-    client.upload_file("/path/to/basic_J14.json")           # -> POST /ingest/basic (committee_id inferred as J14)
+    client.upload_file("/path/to/cache.json")                # -> POST /ingest (no committee_id)
+    client.upload_file("/path/to/basic_J14.json")           # -> POST /ingest?committee_id=J14
 
     # 2) Or force the type and/or committee id
-    client.upload_file("/path/to/foo.json", kind="cache")  # -> POST /ingest/cache
-    client.upload_file("/path/to/foo.json", kind="basic", committee_id="J14")  # -> POST /ingest/basic
+    client.upload_file("/path/to/foo.json", kind="cache")  # -> POST /ingest
+    client.upload_file("/path/to/foo.json", kind="basic", committee_id="J14")  # -> POST /ingest?committee_id=J14
 
 Notes:
-- 'basic' uploads expect a list of items. The client wraps them as {committee_id, run_id, items}.
+- 'basic' uploads expect a list of items. The client sends them directly as JSON array.
 - committee_id can be inferred from filenames like 'basic_J14.json' or 'basic-J14-2025.json'.
 - You can batch large 'basic' lists with batch_size.
 """
@@ -157,7 +160,8 @@ class IngestClient:
             A dict with 'endpoint' and 'results' (list per batch or single).
         """
         if not os.path.exists(path):
-            raise FileNotFoundError(path)
+            print(f"File not found: {path}")
+            return
 
         with open(path, "r", encoding="utf-8") as f:
             payload = json.load(f)
@@ -173,11 +177,11 @@ class IngestClient:
             if not isinstance(items, list):
                 raise ValueError("Expected a list of items for basic/report uploads.")
 
-            cid = committee_id or payload.get("committee_id") or infer_committee_id(path)
+            cid = committee_id or infer_committee_id(path)
             if not cid:
                 raise ValueError("committee_id is required for basic/report uploads and could not be inferred from filename.")
 
-            rid = run_id or payload.get("run_id") or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            rid = run_id or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             return self._upload_basic(cid, items, rid, batch_size=batch_size, dry_run=dry_run)
 
         raise ValueError(f"Unsupported kind: {kind}")
@@ -185,7 +189,8 @@ class IngestClient:
     # --- Internals ---
 
     def _upload_cache(self, cache_payload: dict[str, Any], dry_run: bool = False) -> dict[str, Any]:
-        path = "/ingest/cache"
+        # FIXED: Use /ingest endpoint without committee_id parameter
+        path = "/ingest"
         url = self.base_url + path
         extra = self._signed_headers("POST", path, cache_payload)
         headers = {**self.headers, **extra}
@@ -205,18 +210,31 @@ class IngestClient:
         batch_size: int = 0,
         dry_run: bool = False,
     ) -> dict[str, Any]:
-        path = "/ingest/basic"
+        # FIXED: Use /ingest endpoint with committee_id parameter
+        path = "/ingest"
         url = self.base_url + path
-        extra = self._signed_headers("POST", path, items)
-        headers = {**self.headers, **extra}
         results: list[dict[str, Any]] = []
         batches = _chunked(items, batch_size) if batch_size and batch_size > 0 else [items]
+        
         for idx, batch in enumerate(batches, start=1):
-            body = {"committee_id": committee_id, "run_id": run_id, "items": batch}
+            # FIXED: Send items directly as JSON array, not wrapped in {committee_id, run_id, items}
+            extra = self._signed_headers("POST", path, batch)
+            headers = {**self.headers, **extra}
+            
+            # FIXED: Add committee_id as query parameter
+            params = {"committee_id": committee_id}
+            
             if dry_run:
-                results.append({"status": 0, "batch": idx, "dry_run": True, "payload_preview": json.dumps(body)[:4000]})
+                results.append({
+                    "status": 0, 
+                    "batch": idx, 
+                    "dry_run": True, 
+                    "payload_preview": json.dumps(batch)[:4000],
+                    "url": f"{url}?committee_id={committee_id}"
+                })
                 continue
-            resp = self.session.post(url, json=body, headers=headers)
+                
+            resp = self.session.post(url, json=batch, headers=headers, params=params)
             results.append(_safe_json(resp))
 
-        return {"endpoint": url, "results": results}
+        return {"endpoint": f"{url}?committee_id={committee_id}", "results": results}
