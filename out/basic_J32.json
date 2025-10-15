@@ -13,9 +13,9 @@
     "summary_url": "https://malegislature.gov/Download/DownloadDocument/24540/H4257%20Summary.pdf",
     "votes_present": true,
     "votes_url": "https://malegislature.gov/Events/DownloadDocument?attachmentId=24605&Title=Votes%20of%20House%20Committee%20Members%2C%20H4257&fileExtension=.pdf",
-    "state": "compliant",
+    "state": "Compliant",
     "reason": "All requirements met: reported out, votes posted, summaries posted, adequate notice (11 days)",
-    "notice_status": "in_range",
+    "notice_status": "In range",
     "notice_gap_days": 11,
     "announcement_date": "2025-07-10",
     "scheduled_hearing_date": "2025-07-21"

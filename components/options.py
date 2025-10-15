@@ -4,6 +4,8 @@ This file is ugly and needs guard clauses to clean the if-statements
 up, but for now it's good enough.
 """
 
+from os import getenv
+
 from components.utils import Cache
 from components.committees import get_committees
 from components.sender import IngestClient
@@ -171,9 +173,9 @@ def submit_data(committees: list[str]) -> None:
         return
     print("Sending data...")
     client = IngestClient(
-        base_url="",
-        signing_key_id="",
-        signing_key_secret="",
+        base_url="http://192.168.0.170:5173/",
+        signing_key_id=getenv("SIGNING_ID", ""),
+        signing_key_secret=getenv("SIGNING_SECRET"),
     )
     client.upload_file("cache.json", kind="cache")
     for committee in committees:
