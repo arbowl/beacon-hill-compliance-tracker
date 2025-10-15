@@ -168,17 +168,18 @@ def print_options_summary(
 
 
 def submit_data(committees: list[str]) -> None:
-    input("Send data to remote server? (y/n)")
-    if input().strip().lower() not in ['y', 'yes']:
+    if input(
+        "Send data to remote server? (y/n)"
+    ).strip().lower() not in ['y', 'yes']:
         return
     print("Sending data...")
     client = IngestClient(
-        base_url="http://192.168.0.170:5173/",
+        base_url="http://192.168.0.170:5000/",
         signing_key_id=getenv("SIGNING_ID", ""),
         signing_key_secret=getenv("SIGNING_SECRET"),
     )
-    client.upload_file("cache.json", kind="cache")
+    print(client.upload_file("cache.json", kind="cache"))
     for committee in committees:
         print("Sending committee:", committee)
-        client.upload_file(f"basic_{committee}.json", kind="basic")
+        print(client.upload_file(f"out/basic_{committee}.json", kind="basic"))
     print("Data submission complete.")

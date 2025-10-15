@@ -1,6 +1,7 @@
 """ Fetches committee data from the Massachusetts Legislature website.
 """
 
+from components.committees import get_committees
 from components.runner import run_basic_compliance
 from components.interfaces import Config
 from components.options import (
@@ -18,6 +19,11 @@ def main():
     """Entry point for the compliance pipeline"""
     cache = Cache()
     config = Config("config.yaml")
+    submit_data(
+        [committee.id for committee in get_committees(
+            config.base_url, config.include_chambers
+        )]
+    )
     if config.collect_input:
         # Get interactive inputs
         committee_ids = get_committee_selection(
