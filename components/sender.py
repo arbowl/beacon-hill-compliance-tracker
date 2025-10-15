@@ -202,39 +202,27 @@ class IngestClient:
         resp = self.session.post(url, json=cache_payload, headers=headers)
         return {"endpoint": url, "results": [_safe_json(resp)]}
 
-    def _upload_basic(
-        self,
-        committee_id: str,
-        items: list[dict[str, Any]],
-        run_id: str,
-        batch_size: int = 0,
-        dry_run: bool = False,
-    ) -> dict[str, Any]:
-        # FIXED: Use /ingest endpoint with committee_id parameter
-        path = "/ingest"
-        url = self.base_url + path
-        results: list[dict[str, Any]] = []
-        batches = _chunked(items, batch_size) if batch_size and batch_size > 0 else [items]
-        
-        for idx, batch in enumerate(batches, start=1):
-            # FIXED: Send items directly as JSON array, not wrapped in {committee_id, run_id, items}
-            extra = self._signed_headers("POST", path, batch)
+        def _upload_basic(
+            self,
+            committee_id: str,
+            items: list[dict[str, Any]],
+            run_id: str,
+            batch_size: int = 0,
+            dry_run: bool = False,
+        ) -> dict[str, Any]:
+            path = "/ingest/basic"
+            url = self.base_url + path
+            extra = self._signed_headers("POST", path, items)
             headers = {**self.headers, **extra}
-            
-            # FIXED: Add committee_id as query parameter
-            params = {"committee_id": committee_id}
-            
-            if dry_run:
-                results.append({
-                    "status": 0, 
-                    "batch": idx, 
-                    "dry_run": True, 
-                    "payload_preview": json.dumps(batch)[:4000],
-                    "url": f"{url}?committee_id={committee_id}"
-                })
-                continue
-                
-            resp = self.session.post(url, json=batch, headers=headers, params=params)
-            results.append(_safe_json(resp))
+            results: list[dict[str, Any]] = []
+            batches = _chunked(items, batch_size) if batch_size and batch_size > 0 else [items]
+            for idx, batch in enumerate(batches, start=1):
+                body = {"committee_id": committee_id, "run_id": run_id, "items": batch}
+                if dry_run:
+                    results.append({"status": 0, "batch": idx, "dry_run": True, "payload_preview": json.dumps(body)[:4000]})
+                    continue
+                resp = self.session.post(url, json=body, headers=headers)
+                results.append(_safe_json(resp))
+    
+            return {"endpoint": url, "results": results}
 
-        return {"endpoint": f"{url}?committee_id={committee_id}", "results": results}
