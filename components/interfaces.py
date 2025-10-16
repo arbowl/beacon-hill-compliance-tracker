@@ -82,9 +82,10 @@ class ParserInterface(ABC):
         else:
             return BeautifulSoup("", "html.parser")
 
+    @classmethod
     @abstractmethod
     def discover(
-        self, base_url: str, row: BillAtHearing
+        cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover potential documents for parsing.
 
@@ -96,9 +97,10 @@ class ParserInterface(ABC):
             DiscoveryResult if a document is found, else None
         """
 
+    @classmethod
     @abstractmethod
     def parse(
-        self, base_url: str, candidate: ParserInterface.DiscoveryResult
+        cls, base_url: str, candidate: ParserInterface.DiscoveryResult
     ) -> dict[str, Any]:
         """Parse the discovered document.
 

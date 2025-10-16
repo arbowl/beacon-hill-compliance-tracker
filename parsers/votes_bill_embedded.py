@@ -43,7 +43,7 @@ class VotesBillEmbeddedParser(ParserInterface):
         """Discover the votes."""
         print(f"Trying {cls.__name__}...")
         with requests.Session() as s:
-            soup = cls._soup(s, bill.bill_url)
+            soup = cls._soup(s, f"{bill.bill_url}/CommitteeVote")
             # 1) Look for site-specific committee vote panels by class name
             # Example seen in HTML: div.panel.panel-primary committeeVote
             panels = soup.find_all("div", class_=lambda c: c and "committeeVote" in c)
