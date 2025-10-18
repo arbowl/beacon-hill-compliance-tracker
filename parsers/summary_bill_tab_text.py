@@ -22,7 +22,6 @@ class SummaryBillTabTextParser(ParserInterface):
         soup: BeautifulSoup, base_url: str
     ) -> Optional[str]:
         """Find the summary tab link."""
-        # Look for <a> with "Summary" text in the bill page tabs
         for a in soup.select("a[href]"):
             if re.search(r"\bsummary\b", a.get_text(strip=True), re.I):
                 return str(urljoin(base_url, str(a["href"])))
@@ -31,7 +30,6 @@ class SummaryBillTabTextParser(ParserInterface):
     @staticmethod
     def _extract_summary_content(text: str) -> Optional[str]:
         """Extract the actual summary content from the page text."""
-        # Look for common summary patterns
         summary_patterns = [
             (r"Bill Section by Section Summary[^–]*–\s*(.+?)"
             r"(?=\n\n|\n[A-Z]+\s*:|$)"),
@@ -42,34 +40,26 @@ class SummaryBillTabTextParser(ParserInterface):
             match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
             if match:
                 summary_text = match.group(1).strip()
-                # Clean up the text - remove extra whitespace and common page elements
                 summary_text = re.sub(r'\s+', ' ', summary_text)
-                # Remove common navigation elements that might be included
                 nav_pattern = (r'(Skip to Content|Menu Toggle|Sign in|'
                             r'MyLegislature).*?(?=Bill|Summary)')
                 summary_text = re.sub(nav_pattern, '', summary_text,
                                     flags=re.DOTALL | re.IGNORECASE)
-                # Only return if we found substantial content
                 if len(summary_text) > 50:
                     return summary_text
-        # If no specific pattern matches, try to find content after common headers
         headers = ["Bill Section by Section Summary", "Summary", "Bill Summary"]
         for header in headers:
             if header in text:
                 start = text.find(header)
-                # Look for the actual content after the header
                 content_start = start + len(header)
-                # Skip past any dashes or colons
                 while (content_start < len(text) and
                         text[content_start] in "–-: "):
                     content_start += 1
-                # Extract content until we hit another major section or end
                 remaining_text = text[content_start:]
-                # Find the end of the summary (look for next major section or end)
                 end_patterns = [
-                    r'\n[A-Z][A-Z\s]+\s*:',  # Next section header
-                    r'\n\n[A-Z][A-Z\s]+$',   # End of document
-                    r'\n\s*$',               # End of text
+                    r'\n[A-Z][A-Z\s]+\s*:',
+                    r'\n\n[A-Z][A-Z\s]+$',
+                    r'\n\s*$',
                 ]
                 end_pos = len(remaining_text)
                 for pattern in end_patterns:
@@ -90,8 +80,25 @@ class SummaryBillTabTextParser(ParserInterface):
         print(f"Trying {cls.__name__}...")
         bill_url = bill.bill_url
         with requests.Session() as s:
-            soup = cls._soup(s, bill_url)
-            # Try inline summary content first
+            soup = cls._soup(s, f"{bill_url}/PrimarySponsorSummary")
+            tab_panel = soup.find("div", attrs={
+                "aria-labelledby": re.compile("PrimarySponsorSummary",
+                                              re.I)
+            })
+            if tab_panel:
+                text = " ".join(tab_panel.get_text(" ", strip=True).split())
+                if text:
+                    # Extract actual summary content, not just tab text
+                    full_text = cls._extract_summary_content(text)
+                    if full_text:
+                        preview = (full_text[:500] +
+                                   ("..." if len(full_text) > 500 else ""))
+                        return ParserInterface.DiscoveryResult(
+                            preview,
+                            full_text,
+                            f"{bill_url}/PrimarySponsorSummary",
+                            0.95,
+                        )
             summary_div = soup.find(
                 id=re.compile("Summary", re.I)
             ) or soup.find(
@@ -100,29 +107,25 @@ class SummaryBillTabTextParser(ParserInterface):
             if summary_div:
                 text = " ".join(summary_div.get_text(" ", strip=True).split())
                 if text:
-                    # Extract the actual summary content, not just the tab text
                     full_text = cls._extract_summary_content(text)
                     if full_text:
-                        preview = (full_text[:500] + ("..." if len(full_text) > 500
-                                                    else ""))
+                        preview = (full_text[:500] +
+                                   ("..." if len(full_text) > 500 else ""))
                         return ParserInterface.DiscoveryResult(
                             preview,
                             full_text,
-                            bill_url,
+                            f"{bill_url}/PrimarySponsorSummary",
                             0.7,
                         )
-
-            # Fallback: follow summary tab link
             tab_link = cls._find_summary_tab_link(soup, base_url)
             if tab_link:
                 tab_soup = cls._soup(s, tab_link)
                 text = " ".join(tab_soup.get_text(" ", strip=True).split())
                 if text:
-                    # Extract the actual summary content from the tab page
                     full_text = cls._extract_summary_content(text)
                     if full_text:
-                        preview = (full_text[:500] + ("..." if len(full_text) > 500
-                                                    else ""))
+                        preview = (full_text[:500] +
+                                   ("..." if len(full_text) > 500 else ""))
                         return ParserInterface.DiscoveryResult(
                             preview,
                             full_text,
@@ -131,11 +134,9 @@ class SummaryBillTabTextParser(ParserInterface):
                         )
         return None
 
-
+    @staticmethod
     def parse(
         _base_url: str, candidate: ParserInterface.DiscoveryResult
     ) -> dict:
         """Parse the summary."""
-        # Return the URL we confirmed; later we can store the actual text
-        # if desired
         return {"source_url": candidate.source_url}
