@@ -1,8 +1,9 @@
 """ Utility functions for the Massachusetts Legislature website. """
 
 import json
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
+import textwrap
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 from typing import Optional, Any, Literal
@@ -18,9 +19,11 @@ _DEFAULT_PATH = Path("cache.json")
 class Cache:
     """Cache for the parser results."""
 
-    def __init__(self, path: Path = _DEFAULT_PATH):
+    def __init__(self, path: Path = _DEFAULT_PATH, auto_save: bool = True):
         self.path = path
         self._data: dict[str, Any] = {}
+        self.auto_save = auto_save
+        self.unsaved_changes = False
         if path.exists():
             try:
                 self._data = json.loads(path.read_text(encoding="utf-8"))
@@ -28,7 +31,20 @@ class Cache:
                 self._data = {}
 
     def save(self) -> None:
-        """Save the cache to the file."""
+        """Save the cache to the file (respects auto_save flag)."""
+        if self.auto_save:
+            self._write_to_disk()
+        else:
+            self.unsaved_changes = True
+
+    def force_save(self) -> None:
+        """Force write cache to disk, regardless of auto_save setting."""
+        if self.unsaved_changes or self.auto_save:
+            self._write_to_disk()
+            self.unsaved_changes = False
+
+    def _write_to_disk(self) -> None:
+        """Internal method to write cache data to disk."""
         self.path.write_text(
             json.dumps(self._data, indent=2), encoding="utf-8"
         )
@@ -115,7 +131,7 @@ class Cache:
         slot["extensions"] = {
             "extension_date": extension_date,
             "extension_url": extension_url,
-            "updated_at": datetime.utcnow().isoformat(
+            "updated_at": datetime.now(timezone.utc).isoformat(
                 timespec="seconds"
             ) + "Z",
         }
@@ -129,23 +145,20 @@ class Cache:
         return None
 
     def set_hearing_announcement(
-        self, 
-        bill_id: str, 
-        announcement_date: Optional[str], 
+        self,
+        bill_id: str,
+        announcement_date: Optional[str],
         scheduled_hearing_date: Optional[str],
         bill_url: Optional[str] = None
     ) -> None:
         """Set hearing announcement data for a bill."""
         slot = self._slot(bill_id)
-        
-        # Set bill_url as top-level field if provided
         if bill_url:
             slot["bill_url"] = bill_url
-            
         slot["hearing_announcement"] = {
             "announcement_date": announcement_date,
             "scheduled_hearing_date": scheduled_hearing_date,
-            "updated_at": datetime.utcnow().isoformat(
+            "updated_at": datetime.now(timezone.utc).isoformat(
                 timespec="seconds"
             ) + "Z",
         }
@@ -197,10 +210,6 @@ class Cache:
         }
         self.save()
 
-    # ---------------------------------------------------------------------
-    # Bill title helpers
-    # ---------------------------------------------------------------------
-
     def get_title(self, bill_id: str) -> Optional[str]:
         """Return cached bill title (or None)."""
         entry = self._slot(bill_id).get("title")
@@ -238,15 +247,11 @@ class Cache:
         content = self.path.read_text(encoding="utf-8")
         return keyword.lower() in content.lower()
 
-    # ---------------------------------------------------------------------
-    # Committee bill tracking
-    # ---------------------------------------------------------------------
-
     def add_bill_to_committee(
         self, committee_id: str, bill_id: str
     ) -> None:
         """Track which bills belong to each committee.
-        
+
         Args:
             committee_id: Committee ID (e.g., "J37")
             bill_id: Bill ID (e.g., "H3444")
@@ -256,8 +261,6 @@ class Cache:
             "bills": [],
             "bill_count": 0
         })
-        
-        # Add bill if not already tracked
         if bill_id not in committee_data["bills"]:
             committee_data["bills"].append(bill_id)
             committee_data["bill_count"] = len(committee_data["bills"])
@@ -265,13 +268,13 @@ class Cache:
                 datetime.utcnow().isoformat(timespec="seconds") + "Z"
             )
             self.save()
-    
+
     def get_committee_bills(self, committee_id: str) -> list[str]:
         """Get all bills for a committee.
-        
+
         Args:
             committee_id: Committee ID (e.g., "J37")
-            
+
         Returns:
             List of bill IDs
         """
@@ -279,44 +282,35 @@ class Cache:
         committee_data = committee_bills.get(committee_id, {})
         return committee_data.get("bills", [])
 
-    # ---------------------------------------------------------------------
-    # Committee-level parser tracking
-    # ---------------------------------------------------------------------
-
     def get_committee_parsers(
         self, committee_id: str, parser_type: str
     ) -> list[str]:
         """Return list of parser modules that have worked for this committee.
-        
+
         Returns them ordered by:
         1. Recent streak (if >= 2 consecutive successes)
         2. Total success count
-        
+
         This allows the system to detect when a committee shifts their
         document practices to a new parser.
         """
         committee_data = self._data.setdefault(
             "committee_parsers", {}
         ).get(committee_id, {})
-        
         parser_stats = committee_data.get(parser_type, {})
         if not parser_stats:
             return []
-        
-        # Sort by:
-        # Primary: has active streak >= 2 (recent pattern)
-        # Secondary: total count (historical success)
-        def sort_key(item):
-            module_name, stats = item
+
+        def _sort_key(item: tuple[str, dict]) -> tuple[int, int]:
+            _, stats = item
             streak = stats.get("current_streak", 0)
             count = stats.get("count", 0)
-            # Parsers with streak >= 2 get priority boost
             has_active_streak = 1 if streak >= 2 else 0
             return (has_active_streak, count)
-        
+
         sorted_parsers = sorted(
             parser_stats.items(),
-            key=sort_key,
+            key=_sort_key,
             reverse=True
         )
         return [module_name for module_name, _ in sorted_parsers]
@@ -325,7 +319,7 @@ class Cache:
         self, committee_id: str, parser_type: str, module_name: str
     ) -> None:
         """Record that a parser successfully worked for a committee.
-        
+
         Tracks success count, streak, and timestamps. Streaks detect when
         a committee shifts to consistently using a different parser.
         """
@@ -334,11 +328,7 @@ class Cache:
         )
         committee_data = committee_parsers.setdefault(committee_id, {})
         parser_type_data = committee_data.setdefault(parser_type, {})
-        
-        # Get the last successful parser for this committee+type
         last_parser = committee_data.get(f"{parser_type}_last_parser")
-        
-        # Initialize entry if new
         if module_name not in parser_type_data:
             parser_type_data[module_name] = {
                 "count": 0,
@@ -347,28 +337,18 @@ class Cache:
                     timespec="seconds"
                 ) + "Z",
             }
-        
-        # Update count and timestamp
         parser_type_data[module_name]["count"] += 1
         parser_type_data[module_name]["last_used"] = (
             datetime.utcnow().isoformat(timespec="seconds") + "Z"
         )
-        
-        # Update streaks:
-        # - If same as last parser, increment its streak
-        # - If different, reset all other parsers' streaks
         if last_parser == module_name:
-            # Continue the streak
             parser_type_data[module_name]["current_streak"] += 1
         else:
-            # New parser - reset all streaks and start fresh
             for parser_key in parser_type_data:
                 if isinstance(parser_type_data[parser_key], dict):
                     parser_type_data[parser_key]["current_streak"] = 0
             parser_type_data[module_name]["current_streak"] = 1
-            # Remember this as the new last parser
             committee_data[f"{parser_type}_last_parser"] = module_name
-        
         self.save()
 
 
@@ -482,26 +462,20 @@ def ask_yes_no_console(
     Console-based yes/no confirmation dialog.
     Returns True for Yes, False for No.
     """
-    # Create header
     header = "=" * 64
     if bill_id:
         title = f"PARSER CONFIRMATION - Bill {bill_id}"
     else:
         title = "PARSER CONFIRMATION"
-    
     print(f"\n{header}")
     print(f"{title}")
     print(f"{header}")
     print(f"Looking for: {doc_type.title()}")
     print()
     print(prompt)
-    
     if url:
         print(f"\nURL: {url}")
-    
     print(f"{header}")
-    
-    # Get user input with validation
     while True:
         try:
             choice = input("Use this? (y/n): ").strip().lower()
@@ -527,48 +501,34 @@ def ask_yes_no_with_preview_console(
     """
     Console-based yes/no confirmation with text preview.
     """
-    # Create header
     header = "=" * 64
     if bill_id:
         full_title = f"PARSER CONFIRMATION - Bill {bill_id}"
     else:
         full_title = title
-    
     print(f"\n{header}")
     print(f"{full_title}")
     print(f"{header}")
     print(f"Looking for: {doc_type.title()}")
     print()
     print(heading)
-    
     if url:
         print(f"\nURL: {url}")
-    
-    # Display preview with proper wrapping
     print("\nPreview:")
     print("-" * 64)
-    
-    # Wrap text to 80 columns for better readability
-    import textwrap
     wrapped_lines = []
     for line in preview_text.split('\n'):
         if line.strip():
             wrapped_lines.extend(textwrap.wrap(line, width=80))
         else:
             wrapped_lines.append('')
-    
-    # Show first 20 lines to avoid overwhelming the console
     display_lines = wrapped_lines[:20]
     for line in display_lines:
         print(line)
-    
     if len(wrapped_lines) > 20:
         print(f"\n... ({len(wrapped_lines) - 20} more lines)")
-    
     print("-" * 64)
     print(f"{header}")
-    
-    # Get user input with validation
     while True:
         try:
             choice = input("Use this? (y/n): ").strip().lower()
@@ -615,13 +575,14 @@ def ask_yes_no_with_llm_fallback(
     url: Optional[str] = None,
     doc_type: str = "document",
     bill_id: Optional[str] = None,
-    config: Optional[dict] = None
+    config: Optional[Config] = None
 ) -> bool:
     """
     Ask for yes/no confirmation with LLM fallback.
 
     First tries to use LLM if enabled and available.
-    If LLM returns "unsure", "no", or is unavailable (None), falls back to human dialog.  # noqa: E501
+    If LLM returns "unsure", "no", or is unavailable (None),
+    falls back to human dialog.  # noqa: E501
 
     Args:
         prompt: The prompt text to show
@@ -635,27 +596,25 @@ def ask_yes_no_with_llm_fallback(
     """
     if config and bill_id:
         content = prompt if not url else f"{prompt}\n\n{url}"
-        llm_decision = ask_llm_decision(content, doc_type, bill_id, config)
+        llm_decision = ask_llm_decision(
+            content, doc_type, bill_id, config
+        )
         if llm_decision == "yes":
             return True
         if llm_decision == "no":
             return False
-        # For "unsure", or None (unavailable), fall back to manual review
         if llm_decision in ["unsure", None]:
             if llm_decision is None:
                 print(
                     f"LLM unavailable for {doc_type} {bill_id}, "
                     "falling back to manual review"
                 )
-            # Route to appropriate UI based on popup_review setting
-            use_popups = config.get("popup_review", True)
+            use_popups = config.popup_review
             if use_popups:
                 return ask_yes_no(prompt, url, doc_type, bill_id)
             else:
                 return ask_yes_no_console(prompt, url, doc_type, bill_id)
-    
-    # Route to appropriate UI based on popup_review setting
-    use_popups = config.get("popup_review", True) if config else True
+    use_popups = config.popup_review if config else True
     if use_popups:
         return ask_yes_no(prompt, url, doc_type, bill_id)
     else:
@@ -670,13 +629,14 @@ def ask_yes_no_with_preview_and_llm_fallback(
     url: str | None = None,
     doc_type: str = "document",
     bill_id: Optional[str] = None,
-    config: Optional[dict] = None
+    config: Optional[Config] = None
 ) -> bool:
     """
     Ask for yes/no confirmation with preview and LLM fallback.
 
     First tries to use LLM if enabled and available.
-    If LLM returns "unsure", "no", or is unavailable (None), falls back to human dialog.  # noqa: E501
+    If LLM returns "unsure", "no", or is unavailable (None),
+    falls back to human dialog.  # noqa: E501
 
     Args:
         title: Dialog title
@@ -707,7 +667,7 @@ def ask_yes_no_with_preview_and_llm_fallback(
                     "falling back to manual review"
                 )
             # Route to appropriate UI based on popup_review setting
-            use_popups = config.get("popup_review", True)
+            use_popups = config.popup_review
             if use_popups:
                 return ask_yes_no_with_preview(
                     title, heading, preview_text, url, doc_type, bill_id
@@ -716,9 +676,7 @@ def ask_yes_no_with_preview_and_llm_fallback(
                 return ask_yes_no_with_preview_console(
                     title, heading, preview_text, url, doc_type, bill_id
                 )
-    
-    # Route to appropriate UI based on popup_review setting
-    use_popups = config.get("popup_review", True) if config else True
+    use_popups = config.popup_review if config else True
     if use_popups:
         return ask_yes_no_with_preview(
             title, heading, preview_text, url, doc_type, bill_id
