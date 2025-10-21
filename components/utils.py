@@ -46,7 +46,7 @@ class Cache:
     def _write_to_disk(self) -> None:
         """Internal method to write cache data to disk."""
         self.path.write_text(
-            json.dumps(self._data, indent=2), encoding="utf-8"
+            json.dumps(self._data, separators=(',', ':')), encoding="utf-8"
         )
 
     def get_parser(self, bill_id: str, kind: str) -> Optional[str]:
@@ -848,3 +848,4 @@ def get_extension_order_url(
             continue
 
     return latest_url
+
