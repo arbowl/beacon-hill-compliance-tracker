@@ -17,6 +17,7 @@ from parsers.summary_hearing_docs_pdf import SummaryHearingDocsPdfParser
 from parsers.summary_hearing_pdf import SummaryHearingPdfParser
 from parsers.summary_committee_docx import SummaryCommitteeDocxParser
 from parsers.summary_hearing_docs_pdf_content import SummaryHearingDocsPdfContentParser
+from parsers.summary_hearing_docs_docx import SummaryHearingDocsDocxParser
 from parsers.votes_bill_embedded import VotesBillEmbeddedParser
 from parsers.votes_bill_pdf import VotesBillPdfParser
 from parsers.votes_committee_documents import VotesCommitteeDocumentsParser
@@ -40,6 +41,7 @@ SUMMARY_REGISTRY: dict[str, ParserInterface] = {
         SummaryHearingPdfParser,
         SummaryHearingDocsPdfContentParser,
         SummaryCommitteeDocxParser,
+        SummaryHearingDocsDocxParser,
     ]
 }
 VOTES_REGISTRY: dict[str, ParserInterface] = {
@@ -585,3 +587,4 @@ def resolve_votes_for_bill(
         parser_module=None,
         needs_review=False,
     )
+
