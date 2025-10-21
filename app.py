@@ -1,4 +1,4 @@
-""" Fetches committee data from the Massachusetts Legislature website.
+"""Fetches committee data from the Massachusetts Legislature website.
 """
 
 from components.committees import get_committees
@@ -21,13 +21,13 @@ def main():
     config = Config("config.yaml")
     submit_data(
         [committee.id for committee in get_committees(
-            config.base_url, config.include_chambers
+            config.base_url, tuple(config.include_chambers)
         )]
     )
     if config.collect_input:
         # Get interactive inputs
         committee_ids = get_committee_selection(
-            config.base_url, config.include_chambers
+            config.base_url, tuple(config.include_chambers)
         )
         limit_hearings = get_hearing_limit()
         check_extensions = get_extension_check_preference(cache)
