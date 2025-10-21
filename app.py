@@ -11,13 +11,13 @@ from components.options import (
     print_options_summary,
     submit_data
 )
-from collectors.extension_orders import collect_all_extension_orders
 from components.utils import Cache
+from collectors.extension_orders import collect_all_extension_orders
 
 
 def main():
     """Entry point for the compliance pipeline"""
-    cache = Cache()
+    cache = Cache(auto_save=False)
     config = Config("config.yaml")
     submit_data(
         [committee.id for committee in get_committees(
@@ -36,7 +36,8 @@ def main():
             limit_hearings,
             check_extensions
         )
-        confirm = input("\nProceed with these settings? (y/n): ").strip().lower()
+        prompt = "\nProceed with these settings? (y/n): "
+        confirm = input(prompt).strip().lower()
         if confirm not in ['y', 'yes']:
             print("Aborted.")
             return
@@ -46,8 +47,6 @@ def main():
             config.runner.limit_hearings,
             config.runner.check_extensions
         )
-    
-    # Collect all extension orders once at the beginning if enabled
     extension_lookup: dict[str, list] = {}
     if check_extensions:
         print("Collecting all extension orders...")
@@ -55,16 +54,14 @@ def main():
             config.base_url, cache
         )
         print(f"Found {len(all_extension_orders)} total extension orders")
-
-        # Create lookup dictionary for quick access
         for eo in all_extension_orders:
             if eo.bill_id not in extension_lookup:
                 extension_lookup[eo.bill_id] = []
             extension_lookup[eo.bill_id].append(eo)
+        cache.force_save()
+        print("Cache saved after extension order collection")
     else:
         print("Extension checking disabled - using cached data only")
-
-    # Process each committee
     for committee_id in committee_ids:
         print(f"\n{'='*60}")
         print(f"Processing Committee: {committee_id}")
@@ -79,6 +76,10 @@ def main():
             extension_lookup=extension_lookup,
             write_json=True
         )
+        cache.force_save()
+        print(f"Cache saved after processing committee {committee_id}")
+    cache.force_save()
+    print("Final cache save completed")
     submit_data(committee_ids)
     input("Collection complete! Press Enter to exit.")
 
