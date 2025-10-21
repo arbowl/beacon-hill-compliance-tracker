@@ -2,6 +2,7 @@
 """
 
 import re
+from functools import lru_cache
 from urllib.parse import urljoin
 from typing import Iterable, Set
 
@@ -52,11 +53,13 @@ def _extract_from_listing(
         yield Committee(id=cid, name=name, chamber=chamber, url=detail_url)
 
 
+@lru_cache(maxsize=None)
 def get_committees(
-    base_url: str, include_chambers: Iterable[str]
+    base_url: str, include_chambers: tuple[str, ...]
 ) -> list[Committee]:
     """
     Return all committees for the specified chambers (Joint/House only).
+    Cached to avoid redundant network calls (use tuple for hashability).
     """
     committees: list[Committee] = []
     with requests.Session() as s:
