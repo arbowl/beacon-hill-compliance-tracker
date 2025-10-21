@@ -134,13 +134,13 @@ class SummaryHearingDocsDocxParser(ParserInterface):
                     continue
                 if not DOCX_RX.search(href):
                     continue
-                text = " ".join(a.get_text(strip=True).split())
+                docx_url = urljoin(base_url, href)
+                text = cls._extract_docx_text(docx_url)
                 title_param = cls._title_from_href(href)
                 bill_id = cls._norm_bill_id(bill.bill_id)
                 if cls._looks_like_summary_for_bill(
                     text, title_param, bill_id
                 ):
-                    docx_url = urljoin(base_url, href)
                     preview = (
                         f"Found '{title_param or text}' in hearing "
                         f"Documents for {bill.bill_id}"

@@ -82,7 +82,7 @@ def classify(
             announce_date = status.announcement_date
             notice_desc = (
                 f"exempt from notice requirement "
-                f"(announced {announce_date}, before 6/26/2025)"
+                f"(announced {announce_date}, before 2025-06-26)"
             )
         else:
             notice_desc = f"adequate notice ({gap_days} days)"
