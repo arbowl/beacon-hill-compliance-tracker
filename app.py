@@ -68,7 +68,7 @@ def main():
         print(f"{'='*60}")
         run_basic_compliance(
             base_url=config.base_url,
-            include_chambers=config.include_chambers,
+            include_chambers=tuple(config.include_chambers),
             committee_id=committee_id,
             limit_hearings=limit_hearings,
             cfg=config,
