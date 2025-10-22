@@ -122,9 +122,9 @@ def extract_bills_from_hearing(
                 bill_id=bill_id,
                 bill_label=label,
                 bill_url=bill_url,
+                committee_id=hearing.committee_id,
                 hearing_id=hearing.id,
                 hearing_date=hearing.date,
-                committee_id=hearing.committee_id,
                 hearing_url=hearing.url
             ))
         # De-dupe within a single hearing in case a bill appears twice

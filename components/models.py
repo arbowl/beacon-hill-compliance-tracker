@@ -37,31 +37,29 @@ class Hearing:
 @dataclass(frozen=True)
 class BillAtHearing:
     """A bill at a hearing in the Massachusetts Legislature."""
-
-    bill_id: str         # canonical like "H73", "S197"
-    bill_label: str      # display label as shown (e.g., "H. 73", "S.197 C")
+    bill_id: str
+    bill_label: str
     bill_url: str
-    hearing_id: str
-    hearing_date: date
     committee_id: str
-    hearing_url: str
+    hearing_id: Optional[str] = None
+    hearing_date: Optional[date] = None
+    hearing_url: Optional[str] = None
 
 
 @dataclass(frozen=True)
-class BillStatus:  # pylint: disable=too-many-instance-attributes
+class BillStatus:
     """A bill status in the Massachusetts Legislature."""
-
     bill_id: str
     committee_id: str
-    hearing_date: date
-    deadline_60: date
-    deadline_90: date
+    hearing_date: Optional[date]
+    deadline_60: Optional[date]
+    deadline_90: Optional[date]
     reported_out: bool
-    reported_date: Optional[date]  # when we can parse it
-    extension_until: Optional[date]  # None for now; we’ll fill later
-    effective_deadline: date  # min(90, extension_until or 60)
-    announcement_date: Optional[date] = None  # when hearing was announced
-    scheduled_hearing_date: Optional[date] = None  # hearing date from announce
+    reported_date: Optional[date]
+    extension_until: Optional[date]
+    effective_deadline: Optional[date]
+    announcement_date: Optional[date] = None
+    scheduled_hearing_date: Optional[date] = None
 
 
 @dataclass(frozen=True)

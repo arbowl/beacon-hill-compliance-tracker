@@ -19,6 +19,7 @@ from components.utils import Cache
 from components.models import DeferredReviewSession, ExtensionOrder
 from components.review import conduct_batch_review, apply_review_results
 from collectors.bills_from_hearing import get_bills_for_committee
+from collectors.bills_from_committee_tab import get_all_committee_bills
 from collectors.bill_status_basic import build_status_row
 from collectors.bill_status_basic import get_bill_title
 from collectors.committee_contact_info import get_committee_contact
@@ -104,27 +105,38 @@ def run_basic_compliance(
     # 1.5) get committee contact info
     print("Collecting committee contact information...")
     contact = get_committee_contact(base_url, committee, cache)
-
-    # 2) bill rows from first N hearings
-    rows = get_bills_for_committee(
+    print("\nPhase 1: Collecting bills from Hearings tab...")
+    hearing_bills = get_bills_for_committee(
         base_url, committee.id, limit_hearings=limit_hearings
     )
+    print(f"Found {len(hearing_bills)} bills with hearings")
+    print("\nPhase 2: Collecting all bills from Bills tab...")
+    all_bills = get_all_committee_bills(base_url, committee.id)
+    print(f"Found {len(all_bills)} total bills assigned to committee")
+    hearing_bill_ids = {b.bill_id for b in hearing_bills}
+    non_hearing_bills = [
+        b for b in all_bills if b.bill_id not in hearing_bill_ids
+    ]
+    print(f"Found {len(non_hearing_bills)} bills without hearings")
+    rows = hearing_bills + non_hearing_bills
     if not rows:
-        print("No bill-hearing rows found")
+        print("No bills found")
         return
-    print(
-        f"Found {len(rows)} bill-hearing rows "
-        f"(first {limit_hearings} hearing(s))"
-    )
+    print(f"\nProcessing {len(rows)} total bills...")
+    print(f"  - {len(hearing_bills)} with hearings")
+    print(f"  - {len(non_hearing_bills)} without hearings")
 
     # 3) Initialize deferred review session if needed
     deferred_session = None
     if cfg.review_mode == "deferred":
         deferred_session = DeferredReviewSession(
-            session_id="",  # Will be auto-generated
+            session_id="",
             committee_id=committee_id
         )
-        print("Deferred review mode enabled - confirmations will be collected for batch review.")
+        print(
+            "Deferred review mode enabled - "
+            "confirmations will be collected for batch review."
+        )
 
     # 4) per-bill: status → summary → votes → classify
     results = []
@@ -134,24 +146,20 @@ def run_basic_compliance(
     print(f"\nProcessing {total_bills} bills...")
 
     for i, r in enumerate(rows, 1):
-        # Update progress indicator
         _update_progress(i - 1, total_bills, r.bill_id, start_time)
-        
-        # Track this bill for the committee
         cache.add_bill_to_committee(r.committee_id, r.bill_id)
-        
-        # Get extension data for this bill if available
         extension_until = None
         if r.bill_id in extension_lookup:
-            # Get the latest extension date for this bill
             latest_extension = max(
                 extension_lookup[r.bill_id], key=lambda x: x.extension_date
             )
             if latest_extension.is_date_fallback:
-                # If this is a date fallback, calculate 30 days from hearing
-                extension_until = r.hearing_date + timedelta(days=90)  # 60+30
-                print(f"  Using 30-day fallback extension: "
-                      f"{extension_until}")
+                if r.hearing_date:
+                    extension_until = r.hearing_date + timedelta(days=90)
+                    print(
+                        f"  Using 30-day fallback extension: "
+                        f"{extension_until}"
+                    )
             else:
                 extension_until = latest_extension.extension_date
         elif not cfg.runner.check_extensions:
@@ -163,21 +171,27 @@ def run_basic_compliance(
                     cached_date = datetime.fromisoformat(
                         cached_extension["extension_date"]
                     ).date()
-                    # Check if this is a fallback date (1900-01-01)
                     if cached_date == date(1900, 1, 1):
-                        # Use 30-day fallback
-                        extension_until = (r.hearing_date +
-                                           timedelta(days=90))  # 60+30
-                        print(f"  Using cached 30-day fallback extension: "
-                              f"{extension_until}")
+                        if r.hearing_date:
+                            extension_until = (
+                                r.hearing_date + timedelta(days=90)
+                            )
+                            print(
+                                f"  Using cached 30-day fallback: "
+                                f"{extension_until}"
+                            )
                     else:
                         extension_until = cached_date
                 except (ValueError, KeyError):
                     extension_until = None
 
         status = build_status_row(base_url, r, cache, extension_until)
-        summary = resolve_summary_for_bill(base_url, cfg, cache, r, deferred_session)
-        votes = resolve_votes_for_bill(base_url, cfg, cache, r, deferred_session)
+        summary = resolve_summary_for_bill(
+            base_url, cfg, cache, r, deferred_session
+        )
+        votes = resolve_votes_for_bill(
+            base_url, cfg, cache, r, deferred_session
+        )
         comp = classify(r.bill_id, r.committee_id, status, summary, votes)
 
         # Fetch bill title (one request; tolerant to failure)
@@ -191,21 +205,25 @@ def run_basic_compliance(
             except Exception:  # pylint: disable=broad-exception-caught
                 bill_title = None
 
-        # console line (moved after progress update)
+        hearing_str = (
+            str(status.hearing_date) if status.hearing_date else "N/A"
+        )
+        d60_str = str(status.deadline_60) if status.deadline_60 else "N/A"
+        eff_str = (
+            str(status.effective_deadline)
+            if status.effective_deadline else "N/A"
+        )
         print(
-            f"\n{r.bill_id:<6} heard {status.hearing_date} "
-            f"→ D60 {status.deadline_60} / Eff {status.effective_deadline} | "
+            f"\n{r.bill_id:<6} heard {hearing_str} "
+            f"→ D60 {d60_str} / Eff {eff_str} | "
             f"Reported: {'Y' if status.reported_out else 'N'} | "
             f"Summary: {'Y' if summary.present else 'N'} | "
             f"Votes: {'Y' if votes.present else 'N'} | "
             f"{comp.state.upper()} — {comp.reason}"
         )
 
-        # pack for artifacts
         extension_order_url = None
         extension_date = None
-
-        # Use pre-collected extension data if available
         if r.bill_id in extension_lookup:
             latest_extension = max(
                 extension_lookup[r.bill_id], key=lambda x: x.extension_date
@@ -214,7 +232,6 @@ def run_basic_compliance(
             extension_date = latest_extension.extension_date
             print(f"  Found extension: {extension_date}")
         elif not cfg.runner.check_extensions:
-            # If extension checking is disabled, use cached data if available
             cached_extension = cache.get_extension(r.bill_id)
             if cached_extension:
                 extension_order_url = cached_extension["extension_url"]
@@ -224,10 +241,7 @@ def run_basic_compliance(
                 print(f"  No extension found for {r.bill_id}")
         else:
             print(f"  No extension found for {r.bill_id}")
-
-        # Calculate notice gap for reporting
         notice_status, gap_days = compute_notice_status(status)
-        
         results.append({
             "bill_id": r.bill_id,
             "bill_title": bill_title,
@@ -246,23 +260,35 @@ def run_basic_compliance(
             "reason": comp.reason,
             "notice_status": notice_status,
             "notice_gap_days": gap_days,
-            "announcement_date": (str(status.announcement_date) 
-                                  if status.announcement_date else None),
-            "scheduled_hearing_date": (str(status.scheduled_hearing_date)
-                                       if status.scheduled_hearing_date 
-                                       else None),
+            "announcement_date": (
+                str(status.announcement_date)
+                if status.announcement_date else None
+            ),
+            "scheduled_hearing_date": (
+                str(status.scheduled_hearing_date)
+                if status.scheduled_hearing_date else None
+            ),
         })
     _update_progress(total_bills, total_bills, "Complete", start_time)
     print()
-    if cfg.review_mode == "deferred" and deferred_session and deferred_session.confirmations:
-        print("\nProcessing complete. Conducting batch review session...")
-        review_results = conduct_batch_review(deferred_session, cfg, cache)
+    if (cfg.review_mode == "deferred" and deferred_session and
+            deferred_session.confirmations):
+        print("\nProcessing complete. Conducting batch review...")
+        review_results = conduct_batch_review(
+            deferred_session, cfg, cache
+        )
         apply_review_results(review_results, deferred_session, cache)
         if cfg.deferred_review.reprocess_after_review:
             print("\nRe-processing bills with confirmed parsers...")
-            print("Re-processing skipped - using tentative results with confirmed cache entries.")
+            print(
+                "Re-processing skipped - using tentative results "
+                "with confirmed cache entries."
+            )
     elif cfg.review_mode == "deferred":
-        print("\nNo confirmations needed - all parsers were auto-accepted or cached.")
+        print(
+            "\nNo confirmations needed - all parsers were "
+            "auto-accepted or cached."
+        )
 
     # 5) artifacts (JSON + HTML)
     if write_json:

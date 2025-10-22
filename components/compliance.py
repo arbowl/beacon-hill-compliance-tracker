@@ -31,12 +31,11 @@ class NoticeStatus(str, Enum):
 
 
 @dataclass(frozen=True)
-class BillCompliance:  # pylint: disable=too-many-instance-attributes
+class BillCompliance:
     """A bill compliance in the Massachusetts Legislature."""
-
     bill_id: str
     committee_id: str
-    hearing_date: date
+    hearing_date: Optional[date]
     summary: SummaryInfo
     votes: VoteInfo
     status: BillStatus
@@ -68,6 +67,20 @@ def classify(
     - Senate bills: only check summaries and votes (no deadline enforcement)
     - House bills: check reported-out, summaries, votes within deadlines
     """
+    if status.hearing_date is None:
+        return BillCompliance(
+            bill_id=bill_id,
+            committee_id=committee_id,
+            hearing_date=None,
+            summary=summary,
+            votes=votes,
+            status=status,
+            state=ComplianceState.INCOMPLETE,
+            reason=(
+                "No hearing scheduled - "
+                "cannot evaluate deadline compliance"
+            ),
+        )
     today = date.today()
 
     # First, check notice compliance (applies to all bills)
@@ -108,10 +121,10 @@ def classify(
 
     present_count = sum([reported_out, votes_present, summary_present])
 
-    # If all requirements are present, treat as COMPLIANT immediately
     if present_count == 3:
         reason = (
-            "All requirements met: reported out, votes posted, summaries posted"
+            "All requirements met: "
+            "reported out, votes posted, summaries posted"
         )
         if notice_desc:
             reason = f"{reason}, {notice_desc}"
@@ -139,7 +152,10 @@ def classify(
                 votes=votes,
                 status=status,
                 state=ComplianceState.UNKNOWN,
-                reason="No hearing announcement found and no other evidence",
+                reason=(
+                    "No hearing announcement found "
+                    "and no other evidence"
+                ),
             )
         else:
             return BillCompliance(
@@ -153,9 +169,7 @@ def classify(
                 reason="No hearing announcement found",
             )
 
-    # Notice is adequate (IN_RANGE), proceed with normal compliance logic
-    # If we're still before the effective deadline, it's unknown (unless fully compliant)
-    if today <= status.effective_deadline:
+    if status.effective_deadline and today <= status.effective_deadline:
         return BillCompliance(
             bill_id=bill_id,
             committee_id=committee_id,
@@ -167,13 +181,16 @@ def classify(
             reason=(f"Before deadline, {notice_desc}"),
         )
 
-    # After deadline - check remaining requirements
     if present_count == 2:
-        missing = _get_missing_requirements(reported_out, votes_present, summary_present)
+        missing = _get_missing_requirements(
+            reported_out, votes_present, summary_present
+        )
         state = ComplianceState.INCOMPLETE
         reason = f"One requirement missing: {missing}, {notice_desc}"
-    else:  # present_count == 0 or 1
-        missing = _get_missing_requirements(reported_out, votes_present, summary_present)
+    else:
+        missing = _get_missing_requirements(
+            reported_out, votes_present, summary_present
+        )
         state = ComplianceState.NON_COMPLIANT
         reason = f"Factors: {missing}, {notice_desc}"
 

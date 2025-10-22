@@ -394,20 +394,21 @@ def get_next_first_wednesday_december(from_date: date) -> date:
 
 
 def compute_deadlines(
-    hearing_date: date,
+    hearing_date: Optional[date],
     extension_until: Optional[date] = None,
     bill_id: Optional[str] = None
-) -> tuple[date, date, date]:
+) -> tuple[Optional[date], Optional[date], Optional[date]]:
     """Return (deadline_60, deadline_90, effective_deadline).
 
     Args:
-        hearing_date: Date of the hearing
+        hearing_date: Date of the hearing (None if no hearing scheduled)
         extension_until: Optional extension date
         bill_id: Bill identifier (e.g., "H73", "S197") - used to determine
                  if Senate bill rules apply
 
     Returns:
         Tuple of (deadline_60, deadline_90, effective_deadline)
+        Returns (None, None, None) if no hearing_date provided
 
     Rules:
         - House bills: 60 days from hearing + optional 30-day extension
@@ -415,24 +416,18 @@ def compute_deadlines(
         - Senate bills: First Wednesday in December + optional 30-day
           extension
     """
-    # Check if this is a Senate bill
+    if hearing_date is None:
+        return None, None, None
     is_senate_bill = bill_id and bill_id.upper().startswith('S')
-
     if is_senate_bill:
-        # Senate bills: first Wednesday in December
         d60 = get_next_first_wednesday_december(hearing_date)
-        d90 = d60 + timedelta(days=30)  # Extension adds 30 days
+        d90 = d60 + timedelta(days=30)
     else:
-        # House bills: 60 days from hearing
         d60 = hearing_date + timedelta(days=60)
         d90 = hearing_date + timedelta(days=90)
-
     if not extension_until:
         return d60, d90, d60
-
-    # Extension logic
     effective = min(extension_until, d90)
-    # Guard against bogus early dates; if earlier than default, keep default.
     effective = max(effective, d60)
     return d60, d90, effective
 

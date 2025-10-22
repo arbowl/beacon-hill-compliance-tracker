@@ -150,16 +150,18 @@ def write_basic_html(
             if r['votes_present'] and r.get('votes_url')
             else ("Yes" if r['votes_present'] else "—")
         )
-        # Make effective deadline a hyperlink if there's an extension order
-        effective_deadline = r['effective_deadline']
-        if r.get('extension_order_url'):
+        hearing_date = r['hearing_date'] if r['hearing_date'] else "N/A"
+        deadline_60 = r['deadline_60'] if r['deadline_60'] else "N/A"
+        effective_deadline = (
+            r['effective_deadline']
+            if r['effective_deadline'] else "N/A"
+        )
+        if r.get('extension_order_url') and r['effective_deadline']:
             effective_deadline = (
                 f"<a href='{r['extension_order_url']}' target='_blank'>"
                 f"{r['effective_deadline']}</a>"
             )
         rep = "Yes" if r['reported_out'] else "No"
-        
-        # Format notice gap information
         notice_gap = "—"
         notice_class = ""
         if r.get('notice_gap_days') is not None:
@@ -174,14 +176,13 @@ def write_basic_html(
         elif r.get('notice_status') == 'missing':
             notice_gap = "Missing"
             notice_class = "warn"
-        
         lines.append(
             f"<tr>"
             f"<td><a href='{r['bill_url']}' target='_blank'>{r['bill_id']}</a>"
             f"</td>"
             f"<td>{r.get('bill_title','—')}</td>"
-            f"<td>{r['hearing_date']}</td>"
-            f"<td>{r['deadline_60']}</td>"
+            f"<td>{hearing_date}</td>"
+            f"<td>{deadline_60}</td>"
             f"<td>{effective_deadline}</td>"
             f"<td class='{notice_class}'>{notice_gap}</td>"
             f"<td>{rep}</td>"
