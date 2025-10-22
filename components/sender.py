@@ -96,7 +96,8 @@ def _wrap_timeout(fn, timeout: int):
 def _safe_json(resp: requests.Response) -> dict[str, Any]:
     try:
         return {"ok": resp.ok, "status": resp.status_code, "body": resp.json()}
-    except Exception:
+    except Exception as e:
+        print(e)
         return {"ok": resp.ok, "status": resp.status_code, "text": resp.text[:2000]}
 
 
@@ -128,7 +129,10 @@ class IngestClient:
         if not (self.signing_key_id and self.signing_key_secret):
             return {}
         ts = str(int(time.time()))
-        body_hash = hashlib.sha256(json.dumps(body, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
+        body_hash = hashlib.sha256(
+            json.dumps(body, separators=(",", ":"),
+            ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
         msg = f"{ts}.{method.upper()}.{path}.{body_hash}".encode("utf-8")
         sig = hmac.new(self.signing_key_secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
         return {
@@ -161,43 +165,43 @@ class IngestClient:
         """
         if not os.path.exists(path):
             print(f"File not found: {path}")
-            return
-
+            return {}
         with open(path, "r", encoding="utf-8") as f:
             payload = json.load(f)
-
         kind = kind or detect_kind(path)
-
         if kind == "cache":
             return self._upload_cache(payload, dry_run=dry_run)
-
         if kind == "basic":
-            # items array may be the file itself or wrapped as {items:[...]}
             items = payload if isinstance(payload, list) else payload.get("items", [])
             if not isinstance(items, list):
                 raise ValueError("Expected a list of items for basic/report uploads.")
-
             cid = committee_id or infer_committee_id(path)
             if not cid:
-                raise ValueError("committee_id is required for basic/report uploads and could not be inferred from filename.")
-
+                raise ValueError(
+                    "committee_id is required for basic/report" \
+                    "uploads and could not be inferred from filename."
+                )
             rid = run_id or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-            return self._upload_basic(cid, items, rid, batch_size=batch_size, dry_run=dry_run)
-
+            return self._upload_basic(
+                cid, items, rid, batch_size=batch_size, dry_run=dry_run
+            )
         raise ValueError(f"Unsupported kind: {kind}")
 
-    # --- Internals ---
-
-    def _upload_cache(self, cache_payload: dict[str, Any], dry_run: bool = False) -> dict[str, Any]:
-        # FIXED: Use /ingest endpoint without committee_id parameter
-        path = "/ingest"
+    def _upload_cache(
+        self, cache_payload: dict[str, Any], dry_run: bool = False
+    ) -> dict[str, Any]:
+        path = "/ingest/cache"
         url = self.base_url + path
         extra = self._signed_headers("POST", path, cache_payload)
         headers = {**self.headers, **extra}
         if dry_run:
             return {
                 "endpoint": url,
-                "results": [{"status": 0, "dry_run": True, "payload_preview": json.dumps(cache_payload)[:4000]}],
+                "results": [{
+                    "status": 0,
+                    "dry_run": True,
+                    "payload_preview": json.dumps(cache_payload)[:4000]
+                }],
             }
         resp = self.session.post(url, json=cache_payload, headers=headers)
         return {"endpoint": url, "results": [_safe_json(resp)]}
@@ -219,10 +223,12 @@ class IngestClient:
             extra = self._signed_headers("POST", path, body)
             headers = {**self.headers, **extra}
             if dry_run:
-                results.append({"status": 0, "batch": idx, "dry_run": True, "payload_preview": json.dumps(body)[:4000]})
+                results.append({"status": 0,
+                    "batch": idx,
+                    "dry_run": True,
+                    "payload_preview": json.dumps(body)[:4000]
+                })
                 continue
             resp = self.session.post(url, json=body, headers=headers)
             results.append(_safe_json(resp))
-
         return {"endpoint": url, "results": results}
-

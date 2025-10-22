@@ -28,7 +28,7 @@ class DecayingUrlCache:
     """
 
     # Configuration constants
-    MAX_MEMORY_MB = 100
+    MAX_MEMORY_MB = 512
     EVICTION_THRESHOLD = 0.9  # Start evicting at 90% of max
     EVICTION_TARGET = 0.7     # Evict down to 70% of max
 

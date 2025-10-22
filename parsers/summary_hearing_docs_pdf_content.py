@@ -9,13 +9,13 @@ import PyPDF2  # type: ignore
 import requests  # type: ignore
 
 from components.models import BillAtHearing
-from components.interfaces import ParserInterface
+from components.interfaces import ParserInterface, DecayingUrlCache
 
 DL_PATH_RX = re.compile(r"/Events/DownloadDocument", re.I)
 PDF_RX = re.compile(r"\.pdf($|\?)", re.I)
 
 # Global cache for PDF content by hearing URL
-_HEARING_PDF_CACHE = {}
+_HEARING_PDF_CACHE = DecayingUrlCache()
 
 
 class SummaryHearingDocsPdfContentParser(ParserInterface):

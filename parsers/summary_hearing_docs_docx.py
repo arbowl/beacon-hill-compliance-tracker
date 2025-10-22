@@ -136,6 +136,7 @@ class SummaryHearingDocsDocxParser(ParserInterface):
                     continue
                 docx_url = urljoin(base_url, href)
                 text = cls._extract_docx_text(docx_url)
+                text = text if text else ""
                 title_param = cls._title_from_href(href)
                 bill_id = cls._norm_bill_id(bill.bill_id)
                 if cls._looks_like_summary_for_bill(
