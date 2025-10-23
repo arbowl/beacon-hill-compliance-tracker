@@ -41,8 +41,10 @@ class DecayingUrlCache:
         size_bytes: int
 
     def __init__(self) -> None:
+        import threading
         self._cache: dict[str, DecayingUrlCache._CacheEntry] = {}
         self._total_size_bytes: int = 0
+        self._lock = threading.RLock()  # Reentrant lock for nested calls
 
     def _get_size(self, value: str) -> int:
         """Calculate size of a string in bytes."""
@@ -97,26 +99,28 @@ class DecayingUrlCache:
 
     def __getitem__(self, key: str) -> str:
         """Get value from cache, updating hit count and access time."""
-        entry = self._cache[key]
-        entry.hit_count += 1
-        entry.last_access_time = time.time()
-        return entry.value
+        with self._lock:
+            entry = self._cache[key]
+            entry.hit_count += 1
+            entry.last_access_time = time.time()
+            return entry.value
 
     def __setitem__(self, key: str, value: str) -> None:
         """Set value in cache, triggering eviction if needed."""
-        size = self._get_size(value)
-        if key in self._cache:
-            old_entry = self._cache[key]
-            self._total_size_bytes -= old_entry.size_bytes
-        self._cache[key] = DecayingUrlCache._CacheEntry(
-            value=value,
-            hit_count=1,
-            last_access_time=time.time(),
-            size_bytes=size
-        )
-        self._total_size_bytes += size
-        if self._should_evict():
-            self._evict()
+        with self._lock:
+            size = self._get_size(value)
+            if key in self._cache:
+                old_entry = self._cache[key]
+                self._total_size_bytes -= old_entry.size_bytes
+            self._cache[key] = DecayingUrlCache._CacheEntry(
+                value=value,
+                hit_count=1,
+                last_access_time=time.time(),
+                size_bytes=size
+            )
+            self._total_size_bytes += size
+            if self._should_evict():
+                self._evict()
 
 
 _URL_CACHE = DecayingUrlCache()
@@ -401,3 +405,19 @@ bill_id: {bill_id}
     def audit_log(self) -> Config.AuditLog:
         """LLM records decisions here."""
         return Config.AuditLog(self.config)
+
+    class Threading:
+        """Threading configuration."""
+
+        def __init__(self, config: dict[str, str | dict[str, str]]) -> None:
+            self.threading = config.get("threading", {})
+
+        @property
+        def max_workers(self) -> int:
+            """Number of concurrent threads for bill processing."""
+            return int(self.threading.get("max_workers", 8))
+
+    @property
+    def threading(self) -> Config.Threading:
+        """Threading configuration."""
+        return Config.Threading(self.config)

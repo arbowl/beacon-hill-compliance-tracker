@@ -1,5 +1,6 @@
 """A parser for when the summary is on the bill's Summary tab."""
 
+import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin
@@ -9,6 +10,8 @@ from bs4 import BeautifulSoup
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+
+logger = logging.getLogger(__name__)
 
 
 class SummaryBillTabTextParser(ParserInterface):
@@ -77,7 +80,7 @@ class SummaryBillTabTextParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the summary."""
-        print(f"Trying {cls.__name__}...")
+        logger.debug("Trying %s...", cls.__name__)
         bill_url = bill.bill_url
         with requests.Session() as s:
             soup = cls._soup(s, f"{bill_url}/PrimarySponsorSummary")

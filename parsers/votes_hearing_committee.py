@@ -1,16 +1,19 @@
 """A parser for committee member vote documents on hearing pages."""
 
+import io
+import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin
 
+import PyPDF2
 import requests  # type: ignore
 from bs4 import BeautifulSoup
-import PyPDF2
-import io
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+
+logger = logging.getLogger(__name__)
 
 VOTE_DOC_PATTERNS = [
     r"committee.*members.*votes",
@@ -53,7 +56,7 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
                     return full_text
                     
         except Exception as e:
-            print(f"Warning: Could not extract text from PDF {pdf_url}: {e}")
+            logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
             return None
         
         return None
@@ -79,7 +82,7 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover committee vote documents on the hearing page."""
-        print(f"Trying {cls.__name__}...")
+        logger.debug("Trying %s...", cls.__name__)
         with requests.Session() as s:
             # Get the hearing page
             soup = cls._soup(s, bill.hearing_url)

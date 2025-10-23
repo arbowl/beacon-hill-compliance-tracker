@@ -1,10 +1,17 @@
 """ Pipeline for resolving the summary for a bill. """
 
 from enum import IntEnum
+import logging
 from typing import Optional
 
 from components.interfaces import ParserInterface, Config
-from components.models import BillAtHearing, SummaryInfo, VoteInfo, DeferredConfirmation, DeferredReviewSession
+from components.models import (
+    BillAtHearing,
+    SummaryInfo,
+    VoteInfo,
+    DeferredConfirmation,
+    DeferredReviewSession
+)
 from components.utils import (
     Cache,
     ask_yes_no_with_llm_fallback,
@@ -16,13 +23,19 @@ from parsers.summary_committee_pdf import SummaryCommitteePdfParser
 from parsers.summary_hearing_docs_pdf import SummaryHearingDocsPdfParser
 from parsers.summary_hearing_pdf import SummaryHearingPdfParser
 from parsers.summary_committee_docx import SummaryCommitteeDocxParser
-from parsers.summary_hearing_docs_pdf_content import SummaryHearingDocsPdfContentParser
+from parsers.summary_hearing_docs_pdf_content import (
+    SummaryHearingDocsPdfContentParser
+)
 from parsers.summary_hearing_docs_docx import SummaryHearingDocsDocxParser
 from parsers.votes_bill_embedded import VotesBillEmbeddedParser
 from parsers.votes_bill_pdf import VotesBillPdfParser
 from parsers.votes_committee_documents import VotesCommitteeDocumentsParser
 from parsers.votes_docx import VotesDocxParser
-from parsers.votes_hearing_committee import VotesHearingCommitteeDocumentsParser
+from parsers.votes_hearing_committee import (
+    VotesHearingCommitteeDocumentsParser
+)
+
+logger = logging.getLogger(__name__)
 
 
 class ParserTier(IntEnum):
@@ -164,7 +177,7 @@ def resolve_summary_for_bill(
     if cached_result and cache.is_confirmed(
         row.bill_id, ParserInterface.ParserType.SUMMARY.value
     ):
-        print("Found summary in cache; skipping summary search...")
+        logger.debug("Found summary in cache; skipping summary search...")
         return SummaryInfo.from_dict(cached_result)
     # 1) If we have a confirmed parser, run it silently and return.
     summary_has_parser: Optional[str] = cache.get_parser(
@@ -384,7 +397,7 @@ def resolve_votes_for_bill(
     if cached_result and cache.is_confirmed(
         row.bill_id, ParserInterface.ParserType.VOTES.value
     ):
-        print("Found votes in cache; skipping votes search...")
+        logger.debug("Found votes in cache; skipping votes search...")
         return VoteInfo.from_dict(cached_result)
     votes_has_parser = cache.get_parser(
         row.bill_id, ParserInterface.ParserType.VOTES.value

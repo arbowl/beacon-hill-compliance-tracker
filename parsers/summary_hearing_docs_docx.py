@@ -1,6 +1,7 @@
 """A parser for DOCX summaries on the hearing's Documents tab."""
 
 import io
+import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin, urlparse, parse_qs, unquote
@@ -10,6 +11,8 @@ from docx import Document
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+
+logger = logging.getLogger(__name__)
 
 DL_PATH_RX = re.compile(r"/Events/DownloadDocument", re.I)
 DOCX_RX = re.compile(r"\.docx($|\?)", re.I)
@@ -90,8 +93,7 @@ class SummaryHearingDocsDocxParser(ParserInterface):
                     full_text = re.sub(r'\s+', ' ', full_text).strip()
                     return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
-            msg = f"Warning: Could not extract text from DOCX {docx_url}: {e}"
-            print(msg)
+            logger.warning("Could not extract text from DOCX %s: %s", docx_url, e)
             return None
         return None
 
@@ -120,7 +122,7 @@ class SummaryHearingDocsDocxParser(ParserInterface):
         Probe hearing 'Documents' tab for DOCX summary for this bill.
         Returns {"preview","source_url","confidence"} or None.
         """
-        print(f"Trying {cls.__name__}...")
+        logger.debug("Trying %s...", cls.__name__)
         hearing_docs_url = bill.hearing_url
         with requests.Session() as s:
             soup = cls._soup(s, hearing_docs_url)
