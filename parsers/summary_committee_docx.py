@@ -1,5 +1,7 @@
 """A parser for DOCX files in the Committee Summary tab."""
 
+import io
+import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin
@@ -7,10 +9,11 @@ from urllib.parse import urljoin
 import requests  # type: ignore
 from bs4 import BeautifulSoup
 from docx import Document
-import io
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+
+logger = logging.getLogger(__name__)
 
 
 class SummaryCommitteeDocxParser(ParserInterface):
@@ -55,7 +58,7 @@ class SummaryCommitteeDocxParser(ParserInterface):
                     full_text = re.sub(r'\s+', ' ', full_text).strip()
                     return full_text
         except Exception as e:
-            print(f"Warning: Could not extract text from DOCX {docx_url}: {e}")
+            logger.warning("Could not extract text from DOCX %s: %s", docx_url, e)
             return None
         return None
 
@@ -93,7 +96,7 @@ class SummaryCommitteeDocxParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the Committee Summary DOCX."""
-        print(f"Trying {cls.__name__}...")
+        logger.debug("Trying %s...", cls.__name__)
         # Navigate to the Committee Summary tab
         committee_summary_url = f"{bill.bill_url}/CommitteeSummary"
         with requests.Session() as s:

@@ -1,16 +1,19 @@
 """A parser for vote documents in committee Documents tabs."""
 
+import io
+import logging
 import re
 from typing import Optional, List, Dict, Any
 from urllib.parse import urljoin
 
+import PyPDF2
 import requests  # type: ignore
 from bs4 import BeautifulSoup
-import PyPDF2
-import io
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+
+logger = logging.getLogger(__name__)
 
 
 class VotesCommitteeDocumentsParser(ParserInterface):
@@ -44,7 +47,7 @@ class VotesCommitteeDocumentsParser(ParserInterface):
                     return full_text
                     
         except Exception as e:
-            print(f"Warning: Could not extract text from PDF {pdf_url}: {e}")
+            logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
             return None
         
         return None
@@ -168,7 +171,7 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover vote documents in committee Documents tab."""
-        print(f"Trying {cls.__name__}...")
+        logger.debug("Trying %s...", cls.__name__)
         # Construct committee Documents URL
         # Format: /Committees/Detail/{committee_id}/194/Documents
         committee_documents_url = f"{base_url}/Committees/Detail/{bill.committee_id}/194/Documents"

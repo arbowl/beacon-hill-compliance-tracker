@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, List, TYPE_CHECKING, Any
 import uuid
 
 if TYPE_CHECKING:
@@ -225,15 +225,19 @@ class DeferredReviewSession:
     committee_id: str
     confirmations: List[DeferredConfirmation] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.utcnow)
+    _lock: Any = field(default=None, init=False, repr=False)
     
     def __post_init__(self):
         """Generate session ID if not provided."""
+        import threading
+        object.__setattr__(self, '_lock', threading.Lock())
         if not self.session_id:
             object.__setattr__(self, 'session_id', str(uuid.uuid4())[:8])
     
     def add_confirmation(self, confirmation: DeferredConfirmation) -> None:
-        """Add a confirmation to the session."""
-        self.confirmations.append(confirmation)
+        """Add a confirmation to the session (thread-safe)."""
+        with self._lock:
+            self.confirmations.append(confirmation)
     
     def get_summary_count(self) -> int:
         """Get count of summary confirmations."""

@@ -1,5 +1,7 @@
 """A parser for DOCX files containing vote records."""
 
+import io
+import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin
@@ -7,10 +9,11 @@ from urllib.parse import urljoin
 import requests  # type: ignore
 from bs4 import BeautifulSoup
 from docx import Document
-import io
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+
+logger = logging.getLogger(__name__)
 
 class VotesDocxParser(ParserInterface):
 
@@ -43,7 +46,7 @@ class VotesDocxParser(ParserInterface):
                     return full_text
                     
         except Exception as e:
-            print(f"Warning: Could not extract text from DOCX {docx_url}: {e}")
+            logger.warning("Could not extract text from DOCX %s: %s", docx_url, e)
             return None
         
         return None
@@ -98,7 +101,7 @@ class VotesDocxParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover vote DOCX files."""
-        print(f"Trying {cls.__name__}...")
+        logger.debug("Trying %s...", cls.__name__)
         # Try multiple locations where vote DOCX files might be found
         locations_to_check = [
             # Committee Documents tab

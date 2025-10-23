@@ -1,5 +1,6 @@
 """ Parser for summary PDFs on hearing pages. """
 
+import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin
@@ -9,6 +10,8 @@ from bs4 import BeautifulSoup
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+
+logger = logging.getLogger(__name__)
 
 
 PDF_RX = re.compile(r"\.pdf($|\?)", re.I)
@@ -49,7 +52,7 @@ class SummaryHearingPdfParser(ParserInterface):
         """Quick probe. Return a Candidate 
         or None if nothing plausible is found.
         """
-        print(f"Trying {cls.__name__}...")
+        logger.debug("Trying %s...", cls.__name__)
         with requests.Session() as s:
             soup = cls._soup(s, bill.hearing_url)
             # Prefer the hearing detail page URL; derive it from known pattern:

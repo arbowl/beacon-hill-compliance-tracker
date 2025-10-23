@@ -1,6 +1,7 @@
 """A parser for when the summary is on the hearing's Documents tab."""
 
 import io
+import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin, urlparse, parse_qs, unquote
@@ -10,6 +11,8 @@ import requests  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+
+logger = logging.getLogger(__name__)
 
 DL_PATH_RX = re.compile(r"/Events/DownloadDocument", re.I)
 PDF_RX = re.compile(r"\.pdf($|\?)", re.I)
@@ -88,7 +91,7 @@ class SummaryHearingDocsPdfParser(ParserInterface):
                     return full_text
 
         except Exception as e:
-            print(f"Warning: Could not extract text from PDF {pdf_url}: {e}")
+            logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
             return None
 
         return None
@@ -126,7 +129,7 @@ class SummaryHearingDocsPdfParser(ParserInterface):
         Probe the hearing 'Documents' tab for a Summary PDF that matches this bill.
         Returns {"preview","source_url","confidence"} or None.
         """
-        print(f"Trying {cls.__name__}...")
+        logger.debug("Trying %s...", cls.__name__)
         # We rely on hearing_url (added in step 2 tweak)
         hearing_docs_url = bill.hearing_url  # docs are here (tabbed content)
         with requests.Session() as s:
@@ -152,14 +155,12 @@ class SummaryHearingDocsPdfParser(ParserInterface):
                 
                 # Debug logging for troubleshooting (only for specific bill patterns)
                 if text and "summary" in text.lower() and bill.bill_id in ["H.2244", "H.2250", "H.2251"]:
-                    print(f"DEBUG: Found potential summary link for {bill.bill_id}:")
-                    print(f"  Link text: '{text}'")
-                    print(f"  Title param: '{title_param}'")
-                    print(f"  Normalized bill ID: '{bill_id}'")
-                    print(f"  Normalized link text: '{cls._norm_bill_id(text)}'")
-                    print(f"  Normalized title: '{cls._norm_bill_id(title_param)}'")
-                    print(f"  Matches: {cls._looks_like_summary_for_bill(text, title_param, bill_id)}")
-                    print()
+                    logger.debug(
+                        "Found potential summary link for %s: text='%s', "
+                        "title='%s', matches=%s",
+                        bill.bill_id, text, title_param,
+                        cls._looks_like_summary_for_bill(text, title_param, bill_id)
+                    )
                 
                 if cls._looks_like_summary_for_bill(text, title_param, bill_id):
                     pdf_url = urljoin(base_url, href)
@@ -196,10 +197,11 @@ class SummaryHearingDocsPdfParser(ParserInterface):
                         re.search(r"\breport\b", title_param, re.I)):
 
                     if bill.bill_id in ["H.2244", "H.2250", "H.2251"]:
-                        print(f"DEBUG: Second pass - Found potential summary PDF for {bill.bill_id}:")
-                        print(f"  Link text: '{text}'")
-                        print(f"  Title param: '{title_param}'")
-                        print(f"  Attempting to download and parse PDF content...")
+                        logger.debug(
+                            "Second pass - Found potential summary PDF for %s: "
+                            "text='%s', title='%s'",
+                            bill.bill_id, text, title_param
+                        )
 
                     pdf_url = urljoin(base_url, href)
 

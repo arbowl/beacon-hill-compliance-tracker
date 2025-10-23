@@ -1,6 +1,7 @@
 """Parser that downloads PDFs from hearing Documents tab and checks content."""
 
 import io
+import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin, urlparse, parse_qs, unquote
@@ -10,6 +11,8 @@ import requests  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface, DecayingUrlCache
+
+logger = logging.getLogger(__name__)
 
 DL_PATH_RX = re.compile(r"/Events/DownloadDocument", re.I)
 PDF_RX = re.compile(r"\.pdf($|\?)", re.I)
@@ -71,7 +74,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
                     return full_text
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            print(f"Warning: Could not extract text from PDF {pdf_url}: {e}")
+            logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
             return None
 
         return None
@@ -183,7 +186,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
                 title_param = pdf_info["title"]
                 text = pdf_info["text"]
 
-                print(f"Downloading PDF: {title_param or text}")
+                logger.debug("Downloading PDF: %s", title_param or text)
 
                 # Download and parse the PDF content
                 pdf_text = cls._extract_pdf_text(pdf_url)
@@ -223,8 +226,10 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
             title_param = pdf_info["title"]
             link_text = pdf_info["link_text"]
 
-            print(f"Searching cached PDF for {bill_id}: "
-                f"{title_param or link_text}")
+            logger.debug(
+                "Searching cached PDF for %s: %s",
+                bill_id, title_param or link_text
+            )
 
             # Check if this PDF contains summary content for our bill
             summary_snippet = cls._pdf_contains_summary_for_bill(pdf_text, bill_id)
@@ -256,16 +261,18 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
         Uses caching to avoid re-downloading PDFs for bills from the same hearing.
         Returns {"preview","source_url","confidence"} or None.
         """
-        print(f"Trying {cls.__name__}...")
+        logger.debug("Trying %s...", cls.__name__)
         hearing_docs_url = bill.hearing_url
         # Check if we've already processed this hearing
         if hearing_docs_url not in _HEARING_PDF_CACHE:
-            print(f"First time processing hearing {hearing_docs_url} - "
-                f"downloading all PDFs...")
+            logger.debug(
+                "First time processing hearing %s - downloading all PDFs",
+                hearing_docs_url
+            )
             _HEARING_PDF_CACHE[hearing_docs_url] = cls._download_hearing_pdfs(
                 hearing_docs_url, base_url)
         else:
-            print(f"Using cached PDFs for hearing {hearing_docs_url}")
+            logger.debug("Using cached PDFs for hearing %s", hearing_docs_url)
 
         # Search cached PDFs for this specific bill
         cached_pdfs = _HEARING_PDF_CACHE[hearing_docs_url]

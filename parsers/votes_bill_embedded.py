@@ -1,5 +1,6 @@
 """A parser for when the votes are on the bill's embedded table."""
 
+import logging
 from typing import Optional
 
 import requests  # type: ignore
@@ -7,6 +8,8 @@ from bs4 import BeautifulSoup
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+
+logger = logging.getLogger(__name__)
 
 
 class VotesBillEmbeddedParser(ParserInterface):
@@ -41,7 +44,7 @@ class VotesBillEmbeddedParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the votes."""
-        print(f"Trying {cls.__name__}...")
+        logger.debug("Trying %s...", cls.__name__)
         with requests.Session() as s:
             soup = cls._soup(s, f"{bill.bill_url}/CommitteeVote")
             # 1) Look for site-specific committee vote panels by class name

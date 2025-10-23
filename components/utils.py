@@ -4,6 +4,7 @@ import json
 from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
 import textwrap
+import threading
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 from typing import Optional, Any, Literal
@@ -25,6 +26,7 @@ class Cache:
         self.auto_save = auto_save
         self.unsaved_changes = False
         self._committee_bills_cache: dict[str, set[str]] = {}
+        self._lock = threading.RLock()  # Reentrant lock for nested calls
         if path.exists():
             try:
                 self._data = json.loads(path.read_text(encoding="utf-8"))
@@ -37,16 +39,18 @@ class Cache:
 
     def save(self) -> None:
         """Save the cache to the file (respects auto_save flag)."""
-        if self.auto_save:
-            self._write_to_disk()
-        else:
-            self.unsaved_changes = True
+        with self._lock:
+            if self.auto_save:
+                self._write_to_disk()
+            else:
+                self.unsaved_changes = True
 
     def force_save(self) -> None:
         """Force write cache to disk, regardless of auto_save setting."""
-        if self.unsaved_changes or self.auto_save:
-            self._write_to_disk()
-            self.unsaved_changes = False
+        with self._lock:
+            if self.unsaved_changes or self.auto_save:
+                self._write_to_disk()
+                self.unsaved_changes = False
 
     def _write_to_disk(self) -> None:
         """Internal method to write cache data to disk."""
@@ -80,15 +84,16 @@ class Cache:
         self, bill_id: str, kind: str, module_name: str, *, confirmed: bool
     ) -> None:
         """Set module + confirmation flag in the new schema."""
-        slot = self._slot(bill_id)
-        slot[kind] = {
-            "module": module_name,
-            "confirmed": bool(confirmed),
-            "updated_at": datetime.utcnow().isoformat(
-                timespec="seconds"
-            ) + "Z",
-        }
-        self.save()
+        with self._lock:
+            slot = self._slot(bill_id)
+            slot[kind] = {
+                "module": module_name,
+                "confirmed": bool(confirmed),
+                "updated_at": datetime.utcnow().isoformat(
+                    timespec="seconds"
+                ) + "Z",
+            }
+            self.save()
 
     def get_result(self, bill_id: str, kind: str) -> Optional[dict]:
         """Return cached result data for a bill/kind (or None)."""
@@ -107,16 +112,17 @@ class Cache:
         confirmed: bool
     ) -> None:
         """Set result data + module + confirmation flag in the new schema."""
-        slot = self._slot(bill_id)
-        slot[kind] = {
-            "module": module_name,
-            "confirmed": bool(confirmed),
-            "result": result_data,
-            "updated_at": datetime.utcnow().isoformat(
-                timespec="seconds"
-            ) + "Z",
-        }
-        self.save()
+        with self._lock:
+            slot = self._slot(bill_id)
+            slot[kind] = {
+                "module": module_name,
+                "confirmed": bool(confirmed),
+                "result": result_data,
+                "updated_at": datetime.utcnow().isoformat(
+                    timespec="seconds"
+                ) + "Z",
+            }
+            self.save()
 
     def _slot(self, bill_id: str) -> dict[str, Any]:
         return self._data.setdefault(
@@ -134,15 +140,16 @@ class Cache:
         self, bill_id: str, extension_date: str, extension_url: str
     ) -> None:
         """Set extension data for a bill."""
-        slot = self._slot(bill_id)
-        slot["extensions"] = {
-            "extension_date": extension_date,
-            "extension_url": extension_url,
-            "updated_at": datetime.now(timezone.utc).isoformat(
-                timespec="seconds"
-            ) + "Z",
-        }
-        self.save()
+        with self._lock:
+            slot = self._slot(bill_id)
+            slot["extensions"] = {
+                "extension_date": extension_date,
+                "extension_url": extension_url,
+                "updated_at": datetime.now(timezone.utc).isoformat(
+                    timespec="seconds"
+                ) + "Z",
+            }
+            self.save()
 
     def get_hearing_announcement(self, bill_id: str) -> Optional[dict]:
         """Return cached hearing announcement data for a bill (or None)."""
@@ -159,24 +166,26 @@ class Cache:
         bill_url: Optional[str] = None
     ) -> None:
         """Set hearing announcement data for a bill."""
-        slot = self._slot(bill_id)
-        if bill_url:
-            slot["bill_url"] = bill_url
-        slot["hearing_announcement"] = {
-            "announcement_date": announcement_date,
-            "scheduled_hearing_date": scheduled_hearing_date,
-            "updated_at": datetime.now(timezone.utc).isoformat(
-                timespec="seconds"
-            ) + "Z",
-        }
-        self.save()
+        with self._lock:
+            slot = self._slot(bill_id)
+            if bill_url:
+                slot["bill_url"] = bill_url
+            slot["hearing_announcement"] = {
+                "announcement_date": announcement_date,
+                "scheduled_hearing_date": scheduled_hearing_date,
+                "updated_at": datetime.now(timezone.utc).isoformat(
+                    timespec="seconds"
+                ) + "Z",
+            }
+            self.save()
 
     def clear_hearing_announcement(self, bill_id: str) -> None:
         """Clear cached hearing announcement data for a bill."""
-        slot = self._slot(bill_id)
-        if "hearing_announcement" in slot:
-            del slot["hearing_announcement"]
-            self.save()
+        with self._lock:
+            slot = self._slot(bill_id)
+            if "hearing_announcement" in slot:
+                del slot["hearing_announcement"]
+                self.save()
 
     def get_bill_url(self, bill_id: str) -> Optional[str]:
         """Return cached bill URL for a bill (or None)."""
@@ -184,20 +193,22 @@ class Cache:
 
     def set_bill_url(self, bill_id: str, bill_url: str) -> None:
         """Set bill URL for a bill."""
-        slot = self._slot(bill_id)
-        slot["bill_url"] = bill_url
-        self.save()
+        with self._lock:
+            slot = self._slot(bill_id)
+            slot["bill_url"] = bill_url
+            self.save()
 
     def add_bill_with_extensions(self, bill_id: str) -> None:
         """Add a bill to cache with extensions field for fallback cases."""
-        slot = self._slot(bill_id)
-        slot["extensions"] = {
-            "is_fallback": True,
-            "updated_at": datetime.utcnow().isoformat(
-                timespec="seconds"
-            ) + "Z",
-        }
-        self.save()
+        with self._lock:
+            slot = self._slot(bill_id)
+            slot["extensions"] = {
+                "is_fallback": True,
+                "updated_at": datetime.utcnow().isoformat(
+                    timespec="seconds"
+                ) + "Z",
+            }
+            self.save()
 
     def get_committee_contact(self, committee_id: str) -> Optional[dict]:
         """Return cached committee contact info (or None)."""
@@ -207,15 +218,16 @@ class Cache:
         self, committee_id: str, contact_data: dict
     ) -> None:
         """Set committee contact data in cache."""
-        if "committee_contacts" not in self._data:
-            self._data["committee_contacts"] = {}
-        self._data["committee_contacts"][committee_id] = {
-            **contact_data,
-            "updated_at": datetime.utcnow().isoformat(
-                timespec="seconds"
-            ) + "Z",
-        }
-        self.save()
+        with self._lock:
+            if "committee_contacts" not in self._data:
+                self._data["committee_contacts"] = {}
+            self._data["committee_contacts"][committee_id] = {
+                **contact_data,
+                "updated_at": datetime.utcnow().isoformat(
+                    timespec="seconds"
+                ) + "Z",
+            }
+            self.save()
 
     def get_title(self, bill_id: str) -> Optional[str]:
         """Return cached bill title (or None)."""
@@ -228,14 +240,15 @@ class Cache:
 
     def set_title(self, bill_id: str, title: str) -> None:
         """Cache the given title for a bill."""
-        slot = self._slot(bill_id)
-        slot["title"] = {
-            "value": title,
-            "updated_at": (
-                datetime.utcnow().isoformat(timespec="seconds") + "Z"
-            ),
-        }
-        self.save()
+        with self._lock:
+            slot = self._slot(bill_id)
+            slot["title"] = {
+                "value": title,
+                "updated_at": (
+                    datetime.utcnow().isoformat(timespec="seconds") + "Z"
+                ),
+            }
+            self.save()
 
     @staticmethod
     def _wrap_mod(module_name: str) -> dict[str, Any]:
@@ -263,23 +276,24 @@ class Cache:
             committee_id: Committee ID (e.g., "J37")
             bill_id: Bill ID (e.g., "H3444")
         """
-        # Use in-memory set cache for O(1) lookups (avoids O(n²) list scans)
-        if committee_id not in self._committee_bills_cache:
-            self._committee_bills_cache[committee_id] = set()
-        # O(1) set lookup instead of O(n) list scan
-        if bill_id not in self._committee_bills_cache[committee_id]:
-            self._committee_bills_cache[committee_id].add(bill_id)
-            committee_bills = self._data.setdefault("committee_bills", {})
-            committee_data = committee_bills.setdefault(committee_id, {
-                "bills": [],
-                "bill_count": 0
-            })
-            committee_data["bills"].append(bill_id)
-            committee_data["bill_count"] = len(committee_data["bills"])
-            committee_data["last_updated"] = (
-                datetime.utcnow().isoformat(timespec="seconds") + "Z"
-            )
-            self.save()
+        with self._lock:
+            # Use in-memory set cache for O(1) lookups (avoids O(n²) list scans)
+            if committee_id not in self._committee_bills_cache:
+                self._committee_bills_cache[committee_id] = set()
+            # O(1) set lookup instead of O(n) list scan
+            if bill_id not in self._committee_bills_cache[committee_id]:
+                self._committee_bills_cache[committee_id].add(bill_id)
+                committee_bills = self._data.setdefault("committee_bills", {})
+                committee_data = committee_bills.setdefault(committee_id, {
+                    "bills": [],
+                    "bill_count": 0
+                })
+                committee_data["bills"].append(bill_id)
+                committee_data["bill_count"] = len(committee_data["bills"])
+                committee_data["last_updated"] = (
+                    datetime.utcnow().isoformat(timespec="seconds") + "Z"
+                )
+                self.save()
 
     def get_committee_bills(self, committee_id: str) -> list[str]:
         """Get all bills for a committee.
@@ -335,33 +349,34 @@ class Cache:
         Tracks success count, streak, and timestamps. Streaks detect when
         a committee shifts to consistently using a different parser.
         """
-        committee_parsers = self._data.setdefault(
-            "committee_parsers", {}
-        )
-        committee_data = committee_parsers.setdefault(committee_id, {})
-        parser_type_data = committee_data.setdefault(parser_type, {})
-        last_parser = committee_data.get(f"{parser_type}_last_parser")
-        if module_name not in parser_type_data:
-            parser_type_data[module_name] = {
-                "count": 0,
-                "current_streak": 0,
-                "first_seen": datetime.utcnow().isoformat(
-                    timespec="seconds"
-                ) + "Z",
-            }
-        parser_type_data[module_name]["count"] += 1
-        parser_type_data[module_name]["last_used"] = (
-            datetime.utcnow().isoformat(timespec="seconds") + "Z"
-        )
-        if last_parser == module_name:
-            parser_type_data[module_name]["current_streak"] += 1
-        else:
-            for parser_key in parser_type_data:
-                if isinstance(parser_type_data[parser_key], dict):
-                    parser_type_data[parser_key]["current_streak"] = 0
-            parser_type_data[module_name]["current_streak"] = 1
-            committee_data[f"{parser_type}_last_parser"] = module_name
-        self.save()
+        with self._lock:
+            committee_parsers = self._data.setdefault(
+                "committee_parsers", {}
+            )
+            committee_data = committee_parsers.setdefault(committee_id, {})
+            parser_type_data = committee_data.setdefault(parser_type, {})
+            last_parser = committee_data.get(f"{parser_type}_last_parser")
+            if module_name not in parser_type_data:
+                parser_type_data[module_name] = {
+                    "count": 0,
+                    "current_streak": 0,
+                    "first_seen": datetime.utcnow().isoformat(
+                        timespec="seconds"
+                    ) + "Z",
+                }
+            parser_type_data[module_name]["count"] += 1
+            parser_type_data[module_name]["last_used"] = (
+                datetime.utcnow().isoformat(timespec="seconds") + "Z"
+            )
+            if last_parser == module_name:
+                parser_type_data[module_name]["current_streak"] += 1
+            else:
+                for parser_key in parser_type_data:
+                    if isinstance(parser_type_data[parser_key], dict):
+                        parser_type_data[parser_key]["current_streak"] = 0
+                parser_type_data[module_name]["current_streak"] = 1
+                committee_data[f"{parser_type}_last_parser"] = module_name
+            self.save()
 
 
 def get_next_first_wednesday_december(from_date: date) -> date:

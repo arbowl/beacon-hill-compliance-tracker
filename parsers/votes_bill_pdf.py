@@ -1,15 +1,18 @@
 """A parser for when the votes are on the bill's PDF."""
 
+import io
+import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin
 
-import requests  # type: ignore
 import PyPDF2
-import io
+import requests  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+
+logger = logging.getLogger(__name__)
 
 PDF_RX = re.compile(r"\.pdf($|\?)", re.I)
 VOTE_HINTS = [r"\bvote\b", r"\bvoting\b", r"\brecorded vote\b", r"\broll[- ]?call\b"]
@@ -47,7 +50,7 @@ class VotesBillPdfParser(ParserInterface):
                     return full_text
                     
         except Exception as e:
-            print(f"Warning: Could not extract text from PDF {pdf_url}: {e}")
+            logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
             return None
         
         return None
@@ -57,7 +60,7 @@ class VotesBillPdfParser(ParserInterface):
         cls, base_url: str, bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the votes."""
-        print(f"Trying {cls.__name__}...")
+        logger.debug("Trying %s...", cls.__name__)
         with requests.Session() as s:
             soup = cls._soup(s, bill.bill_url)
             for a in soup.find_all("a", href=True):
