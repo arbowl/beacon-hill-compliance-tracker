@@ -1657,5 +1657,26 @@
     "notice_gap_days": 13,
     "announcement_date": "2025-07-09",
     "scheduled_hearing_date": "2025-07-22"
+  },
+  {
+    "bill_id": "S2649",
+    "bill_title": "An Act relative to host community agreements",
+    "bill_url": "https://malegislature.gov/Bills/194/S2649/Bills/Joint",
+    "hearing_date": "None",
+    "deadline_60": "None",
+    "effective_deadline": "None",
+    "extension_order_url": null,
+    "extension_date": null,
+    "reported_out": false,
+    "summary_present": false,
+    "summary_url": null,
+    "votes_present": false,
+    "votes_url": null,
+    "state": "Unknown",
+    "reason": "No hearing scheduled - cannot evaluate deadline compliance",
+    "notice_status": "Missing",
+    "notice_gap_days": null,
+    "announcement_date": null,
+    "scheduled_hearing_date": null
   }
 ]

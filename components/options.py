@@ -174,7 +174,7 @@ def submit_data(committees: list[str]) -> None:
         return
     print("Sending data...")
     client = IngestClient(
-        base_url="https://beaconhilltracker.org/",
+        base_url="https://beacon-hill-tracker.onrender.com/",
         signing_key_id=getenv("SIGNING_ID", ""),
         signing_key_secret=getenv("SIGNING_SECRET"),
     )

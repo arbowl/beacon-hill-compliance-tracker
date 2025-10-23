@@ -75,7 +75,7 @@ def classify(
             summary=summary,
             votes=votes,
             status=status,
-            state=ComplianceState.INCOMPLETE,
+            state=ComplianceState.UNKNOWN,
             reason=(
                 "No hearing scheduled - "
                 "cannot evaluate deadline compliance"

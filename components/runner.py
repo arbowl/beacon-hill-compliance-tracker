@@ -233,7 +233,7 @@ def run_basic_compliance(
             print(f"  Found extension: {extension_date}")
         elif not cfg.runner.check_extensions:
             cached_extension = cache.get_extension(r.bill_id)
-            if cached_extension:
+            if cached_extension and "extension_url" in cached_extension:
                 extension_order_url = cached_extension["extension_url"]
                 extension_date = cached_extension["extension_date"]
                 print(f"  Found cached extension: {extension_date}")
