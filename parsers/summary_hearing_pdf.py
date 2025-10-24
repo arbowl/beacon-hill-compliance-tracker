@@ -5,7 +5,6 @@ import re
 from typing import Optional
 from urllib.parse import urljoin
 
-import requests
 from bs4 import BeautifulSoup
 
 from components.models import BillAtHearing
@@ -53,27 +52,26 @@ class SummaryHearingPdfParser(ParserInterface):
         or None if nothing plausible is found.
         """
         logger.debug("Trying %s...", cls.__name__)
-        with requests.Session() as s:
-            soup = cls._soup(s, bill.hearing_url)
-            # Prefer the hearing detail page URL; derive it from known pattern:
-            # we stored only IDs in BillAtHearing, so reconstruct if needed:
-            hearing_url = f"{base_url}/Events/Hearings/Detail/{bill.hearing_id}"
-            soup = cls._soup(s, hearing_url)
+        soup = cls._soup(bill.hearing_url)
+        # Prefer the hearing detail page URL; derive it from known pattern:
+        # we stored only IDs in BillAtHearing, so reconstruct if needed:
+        hearing_url = f"{base_url}/Events/Hearings/Detail/{bill.hearing_id}"
+        soup = cls._soup(hearing_url)
 
-            pdf_url = cls._find_candidate_pdf(soup, base_url)
-            if not pdf_url:
-                return None
+        pdf_url = cls._find_candidate_pdf(soup, base_url)
+        if not pdf_url:
+            return None
 
-            preview = (
-                "Possible summary PDF found on hearing documents"
-                f"for {bill.bill_id}"
-            )
-            return ParserInterface.DiscoveryResult(
-                preview,
-                "",
-                pdf_url,
-                0.8
-            )
+        preview = (
+            "Possible summary PDF found on hearing documents"
+            f"for {bill.bill_id}"
+        )
+        return ParserInterface.DiscoveryResult(
+            preview,
+            "",
+            pdf_url,
+            0.8
+        )
 
     @staticmethod
     def parse(

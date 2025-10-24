@@ -7,8 +7,6 @@ from typing import Optional
 from urllib.parse import urljoin
 
 import PyPDF2
-import requests  # type: ignore
-from bs4 import BeautifulSoup
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
@@ -34,27 +32,25 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
     def _extract_pdf_text(pdf_url: str) -> Optional[str]:
         """Extract text content from a PDF URL."""
         try:
-            with requests.Session() as s:
-                response = s.get(pdf_url, timeout=30, headers={"User-Agent": "legis-scraper/0.1"})
-                response.raise_for_status()
+            content = ParserInterface._fetch_binary(pdf_url, timeout=30)
+            
+            # Read PDF from memory
+            pdf_file = io.BytesIO(content)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            
+            # Extract text from all pages
+            text_content = []
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_content.append(page_text)
+            
+            if text_content:
+                full_text = "\n".join(text_content)
+                # Clean up the text - remove excessive whitespace
+                full_text = re.sub(r'\s+', ' ', full_text).strip()
+                return full_text
                 
-                # Read PDF from memory
-                pdf_file = io.BytesIO(response.content)
-                pdf_reader = PyPDF2.PdfReader(pdf_file)
-                
-                # Extract text from all pages
-                text_content = []
-                for page in pdf_reader.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text_content.append(page_text)
-                
-                if text_content:
-                    full_text = "\n".join(text_content)
-                    # Clean up the text - remove excessive whitespace
-                    full_text = re.sub(r'\s+', ' ', full_text).strip()
-                    return full_text
-                    
         except Exception as e:
             logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
             return None
@@ -83,70 +79,69 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover committee vote documents on the hearing page."""
         logger.debug("Trying %s...", cls.__name__)
-        with requests.Session() as s:
-            # Get the hearing page
-            soup = cls._soup(s, bill.hearing_url)
+        # Get the hearing page
+        soup = cls._soup(bill.hearing_url)
 
-            # Look for document links in the Documents section
-            # Based on the hearing page structure, documents are in a table
-            document_links = soup.find_all("a", href=True)
+        # Look for document links in the Documents section
+        # Based on the hearing page structure, documents are in a table
+        document_links = soup.find_all("a", href=True)
 
-            for link in document_links:
-                if not hasattr(link, 'get'):
-                    continue
-                href = link.get("href", "")
-                if not isinstance(href, str):
-                    continue
-                link_text = " ".join(link.get_text(strip=True).split())
+        for link in document_links:
+            if not hasattr(link, 'get'):
+                continue
+            href = link.get("href", "")
+            if not isinstance(href, str):
+                continue
+            link_text = " ".join(link.get_text(strip=True).split())
 
-                # Check if this looks like a PDF document
-                if not re.search(r"\.pdf($|\?)", href, re.I):
-                    continue
+            # Check if this looks like a PDF document
+            if not re.search(r"\.pdf($|\?)", href, re.I):
+                continue
 
-                # Get the title parameter if it exists
-                title_param = ""
-                if "Title=" in href:
-                    # Extract title from URL parameter
-                    title_match = re.search(r"Title=([^&]+)", href)
-                    if title_match:
-                        title_param = title_match.group(1)
+            # Get the title parameter if it exists
+            title_param = ""
+            if "Title=" in href:
+                # Extract title from URL parameter
+                title_match = re.search(r"Title=([^&]+)", href)
+                if title_match:
+                    title_param = title_match.group(1)
 
-                # Check if this looks like a vote document for our bill
-                if cls._looks_like_vote_document(link_text, title_param):
-                    # Check if it's specifically for our bill
-                    full_text = f"{link_text} {title_param}".lower()
-                    bill_pattern = re.escape(bill.bill_id.lower())
-                    if re.search(bill_pattern, full_text):
-                        pdf_url = urljoin(base_url, href)
-                        
-                        # Try to extract text from the PDF for preview
-                        pdf_text = cls._extract_pdf_text(pdf_url)
-                        
-                        if pdf_text:
-                            # Create preview with PDF content
-                            preview = (f"Committee vote document found for "
-                                    f"{bill.bill_id}: {link_text or title_param}")
-                            if len(pdf_text) > 200:
-                                preview += f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
-                            else:
-                                preview += f"\n\nPDF Content:\n{pdf_text}"
-                            
-                            return ParserInterface.DiscoveryResult(
-                                preview,
-                                pdf_text,
-                                pdf_url,
-                                0.95,  # High confidence with bill match and text extraction
-                            )
+            # Check if this looks like a vote document for our bill
+            if cls._looks_like_vote_document(link_text, title_param):
+                # Check if it's specifically for our bill
+                full_text = f"{link_text} {title_param}".lower()
+                bill_pattern = re.escape(bill.bill_id.lower())
+                if re.search(bill_pattern, full_text):
+                    pdf_url = urljoin(base_url, href)
+                    
+                    # Try to extract text from the PDF for preview
+                    pdf_text = cls._extract_pdf_text(pdf_url)
+                    
+                    if pdf_text:
+                        # Create preview with PDF content
+                        preview = (f"Committee vote document found for "
+                                f"{bill.bill_id}: {link_text or title_param}")
+                        if len(pdf_text) > 200:
+                            preview += f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
                         else:
-                            # Fallback to simple preview if text extraction fails
-                            preview = (f"Committee vote document found for "
-                                    f"{bill.bill_id}: {link_text or title_param} (text extraction failed)")
-                            return ParserInterface.DiscoveryResult(
-                                preview,
-                                "",
-                                pdf_url,
-                                0.9,
-                            )
+                            preview += f"\n\nPDF Content:\n{pdf_text}"
+                        
+                        return ParserInterface.DiscoveryResult(
+                            preview,
+                            pdf_text,
+                            pdf_url,
+                            0.95,  # High confidence with bill match and text extraction
+                        )
+                    else:
+                        # Fallback to simple preview if text extraction fails
+                        preview = (f"Committee vote document found for "
+                                f"{bill.bill_id}: {link_text or title_param} (text extraction failed)")
+                        return ParserInterface.DiscoveryResult(
+                            preview,
+                            "",
+                            pdf_url,
+                            0.9,
+                        )
 
         return None
 

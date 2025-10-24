@@ -5,7 +5,6 @@ import re
 from typing import Optional
 from urllib.parse import urljoin
 
-import requests  # type: ignore
 from bs4 import BeautifulSoup
 
 from components.models import BillAtHearing
@@ -82,59 +81,58 @@ class SummaryBillTabTextParser(ParserInterface):
         """Discover the summary."""
         logger.debug("Trying %s...", cls.__name__)
         bill_url = bill.bill_url
-        with requests.Session() as s:
-            soup = cls._soup(s, f"{bill_url}/PrimarySponsorSummary")
-            tab_panel = soup.find("div", attrs={
-                "aria-labelledby": re.compile("PrimarySponsorSummary",
-                                              re.I)
-            })
-            if tab_panel:
-                text = " ".join(tab_panel.get_text(" ", strip=True).split())
-                if text:
-                    # Extract actual summary content, not just tab text
-                    full_text = cls._extract_summary_content(text)
-                    if full_text:
-                        preview = (full_text[:500] +
-                                   ("..." if len(full_text) > 500 else ""))
-                        return ParserInterface.DiscoveryResult(
-                            preview,
-                            full_text,
-                            f"{bill_url}/PrimarySponsorSummary",
-                            0.95,
-                        )
-            summary_div = soup.find(
-                id=re.compile("Summary", re.I)
-            ) or soup.find(
-                "div", class_=re.compile("Summary", re.I)
-            )
-            if summary_div:
-                text = " ".join(summary_div.get_text(" ", strip=True).split())
-                if text:
-                    full_text = cls._extract_summary_content(text)
-                    if full_text:
-                        preview = (full_text[:500] +
-                                   ("..." if len(full_text) > 500 else ""))
-                        return ParserInterface.DiscoveryResult(
-                            preview,
-                            full_text,
-                            f"{bill_url}/PrimarySponsorSummary",
-                            0.7,
-                        )
-            tab_link = cls._find_summary_tab_link(soup, base_url)
-            if tab_link:
-                tab_soup = cls._soup(s, tab_link)
-                text = " ".join(tab_soup.get_text(" ", strip=True).split())
-                if text:
-                    full_text = cls._extract_summary_content(text)
-                    if full_text:
-                        preview = (full_text[:500] +
-                                   ("..." if len(full_text) > 500 else ""))
-                        return ParserInterface.DiscoveryResult(
-                            preview,
-                            full_text,
-                            tab_link,
-                            0.6,
-                        )
+        soup = cls._soup(f"{bill_url}/PrimarySponsorSummary")
+        tab_panel = soup.find("div", attrs={
+            "aria-labelledby": re.compile("PrimarySponsorSummary",
+                                          re.I)
+        })
+        if tab_panel:
+            text = " ".join(tab_panel.get_text(" ", strip=True).split())
+            if text:
+                # Extract actual summary content, not just tab text
+                full_text = cls._extract_summary_content(text)
+                if full_text:
+                    preview = (full_text[:500] +
+                               ("..." if len(full_text) > 500 else ""))
+                    return ParserInterface.DiscoveryResult(
+                        preview,
+                        full_text,
+                        f"{bill_url}/PrimarySponsorSummary",
+                        0.95,
+                    )
+        summary_div = soup.find(
+            id=re.compile("Summary", re.I)
+        ) or soup.find(
+            "div", class_=re.compile("Summary", re.I)
+        )
+        if summary_div:
+            text = " ".join(summary_div.get_text(" ", strip=True).split())
+            if text:
+                full_text = cls._extract_summary_content(text)
+                if full_text:
+                    preview = (full_text[:500] +
+                               ("..." if len(full_text) > 500 else ""))
+                    return ParserInterface.DiscoveryResult(
+                        preview,
+                        full_text,
+                        f"{bill_url}/PrimarySponsorSummary",
+                        0.7,
+                    )
+        tab_link = cls._find_summary_tab_link(soup, base_url)
+        if tab_link:
+            tab_soup = cls._soup(tab_link)
+            text = " ".join(tab_soup.get_text(" ", strip=True).split())
+            if text:
+                full_text = cls._extract_summary_content(text)
+                if full_text:
+                    preview = (full_text[:500] +
+                               ("..." if len(full_text) > 500 else ""))
+                    return ParserInterface.DiscoveryResult(
+                        preview,
+                        full_text,
+                        tab_link,
+                        0.6,
+                    )
         return None
 
     @staticmethod

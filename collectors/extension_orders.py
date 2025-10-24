@@ -143,13 +143,13 @@ def _extract_bill_numbers_from_text(text: str) -> list[str]:
 
 
 def _parse_extension_order_page(
-    session: requests.Session, _base_url: str, order_url: str
+    _base_url: str, order_url: str
 ) -> list[ExtensionOrder]:
     """Parse a single extension order page to extract details for all bills
     mentioned.
     """
     try:
-        soup = ParserInterface._soup(session, order_url)
+        soup = ParserInterface._soup(order_url)
         text = soup.get_text(" ", strip=True)
         # Extract extension date
         extension_date = _extract_extension_date(text)
@@ -301,7 +301,7 @@ def collect_all_extension_orders(
                             continue
                         # Parse the extension order page
                         order_results = _parse_extension_order_page(
-                            s, base_url, order_url
+                            base_url, order_url
                         )
                         for extension_order in order_results:
                             extension_orders.append(extension_order)

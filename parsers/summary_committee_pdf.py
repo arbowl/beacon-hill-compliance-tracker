@@ -7,7 +7,6 @@ from typing import Optional
 from urllib.parse import urljoin
 
 import PyPDF2
-import requests  # type: ignore
 from bs4 import BeautifulSoup
 
 from components.models import BillAtHearing
@@ -60,27 +59,25 @@ class SummaryCommitteePdfParser(ParserInterface):
     def _extract_pdf_text(pdf_url: str) -> Optional[str]:
         """Extract text content from a PDF URL."""
         try:
-            with requests.Session() as s:
-                response = s.get(pdf_url, timeout=30, headers={"User-Agent": "legis-scraper/0.1"})
-                response.raise_for_status()
+            content = ParserInterface._fetch_binary(pdf_url, timeout=30)
+            
+            # Read PDF from memory
+            pdf_file = io.BytesIO(content)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            
+            # Extract text from all pages
+            text_content = []
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_content.append(page_text)
+            
+            if text_content:
+                full_text = "\n".join(text_content)
+                # Clean up the text - remove excessive whitespace
+                full_text = re.sub(r'\s+', ' ', full_text).strip()
+                return full_text
                 
-                # Read PDF from memory
-                pdf_file = io.BytesIO(response.content)
-                pdf_reader = PyPDF2.PdfReader(pdf_file)
-                
-                # Extract text from all pages
-                text_content = []
-                for page in pdf_reader.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text_content.append(page_text)
-                
-                if text_content:
-                    full_text = "\n".join(text_content)
-                    # Clean up the text - remove excessive whitespace
-                    full_text = re.sub(r'\s+', ' ', full_text).strip()
-                    return full_text
-                    
         except Exception as e:
             # If PDF extraction fails, return None
             logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
@@ -97,34 +94,33 @@ class SummaryCommitteePdfParser(ParserInterface):
         # Navigate to the Committee Summary tab
         committee_summary_url = f"{bill.bill_url}/CommitteeSummary"
 
-        with requests.Session() as s:
-            soup = cls._soup(s, committee_summary_url)
+        soup = cls._soup(committee_summary_url)
 
-            pdf_url = cls._find_committee_summary_pdf(soup, base_url)
-            if not pdf_url:
-                return None
+        pdf_url = cls._find_committee_summary_pdf(soup, base_url)
+        if not pdf_url:
+            return None
 
-            # Try to extract text from the PDF for preview
-            pdf_text = cls._extract_pdf_text(pdf_url)
-            
-            if pdf_text:
-                # Use the extracted text as preview, truncated if too long
-                preview = pdf_text[:500] + ("..." if len(pdf_text) > 500 else "")
-                return ParserInterface.DiscoveryResult(
-                    preview,
-                    pdf_text,  # Full text for the preview dialog
-                    pdf_url,
-                    0.9,
-                )
-            else:
-                # Fallback to simple preview if text extraction fails
-                preview = f"Found Committee Summary PDF for {bill.bill_id} (text extraction failed)"
-                return ParserInterface.DiscoveryResult(
-                    preview,
-                    "",
-                    pdf_url,
-                    0.8,  # Lower confidence if we can't extract text
-                )
+        # Try to extract text from the PDF for preview
+        pdf_text = cls._extract_pdf_text(pdf_url)
+        
+        if pdf_text:
+            # Use the extracted text as preview, truncated if too long
+            preview = pdf_text[:500] + ("..." if len(pdf_text) > 500 else "")
+            return ParserInterface.DiscoveryResult(
+                preview,
+                pdf_text,  # Full text for the preview dialog
+                pdf_url,
+                0.9,
+            )
+        else:
+            # Fallback to simple preview if text extraction fails
+            preview = f"Found Committee Summary PDF for {bill.bill_id} (text extraction failed)"
+            return ParserInterface.DiscoveryResult(
+                preview,
+                "",
+                pdf_url,
+                0.8,  # Lower confidence if we can't extract text
+            )
 
 
     def parse(

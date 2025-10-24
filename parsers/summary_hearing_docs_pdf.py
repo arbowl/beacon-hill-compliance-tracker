@@ -7,7 +7,6 @@ from typing import Optional
 from urllib.parse import urljoin, urlparse, parse_qs, unquote
 
 import PyPDF2  # type: ignore
-import requests  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
@@ -67,28 +66,22 @@ class SummaryHearingDocsPdfParser(ParserInterface):
     def _extract_pdf_text(pdf_url: str) -> Optional[str]:
         """Extract text content from a PDF URL."""
         try:
-            with requests.Session() as s:
-                response = s.get(
-                    pdf_url,
-                    timeout=30,
-                    headers={"User-Agent": "legis-scraper/0.1"}
-                )
-                response.raise_for_status()
+            content = ParserInterface._fetch_binary(pdf_url, timeout=30)
 
-                # Read PDF from memory
-                pdf_file = io.BytesIO(response.content)
-                pdf_reader = PyPDF2.PdfReader(pdf_file)
+            # Read PDF from memory
+            pdf_file = io.BytesIO(content)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
 
-                # Extract text from all pages
-                text_content = []
-                for page in pdf_reader.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text_content.append(page_text)
+            # Extract text from all pages
+            text_content = []
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_content.append(page_text)
 
-                if text_content:
-                    full_text = "\n".join(text_content)
-                    return full_text
+            if text_content:
+                full_text = "\n".join(text_content)
+                return full_text
 
         except Exception as e:
             logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
@@ -132,95 +125,94 @@ class SummaryHearingDocsPdfParser(ParserInterface):
         logger.debug("Trying %s...", cls.__name__)
         # We rely on hearing_url (added in step 2 tweak)
         hearing_docs_url = bill.hearing_url  # docs are here (tabbed content)
-        with requests.Session() as s:
-            soup = cls._soup(s, hearing_docs_url)
+        soup = cls._soup(hearing_docs_url)
 
-            # First pass: Look for any link like /Events/DownloadDocument?...fileExtension=.pdf  # noqa: E501
-            # This is the original logic that checks link text and title parameters
-            for a in soup.find_all("a", href=True):
-                if not hasattr(a, 'get'):
-                    continue
-                href = a.get("href", "")
-                if not isinstance(href, str):
-                    continue
-                if not DL_PATH_RX.search(href):
-                    continue
-                if not PDF_RX.search(href):
-                    continue
+        # First pass: Look for any link like /Events/DownloadDocument?...fileExtension=.pdf  # noqa: E501
+        # This is the original logic that checks link text and title parameters
+        for a in soup.find_all("a", href=True):
+            if not hasattr(a, 'get'):
+                continue
+            href = a.get("href", "")
+            if not isinstance(href, str):
+                continue
+            if not DL_PATH_RX.search(href):
+                continue
+            if not PDF_RX.search(href):
+                continue
 
-                text = " ".join(a.get_text(strip=True).split())
-                title_param = cls._title_from_href(href)
+            text = " ".join(a.get_text(strip=True).split())
+            title_param = cls._title_from_href(href)
 
-                bill_id = cls._norm_bill_id(bill.bill_id)  # "H96"
-                
-                # Debug logging for troubleshooting (only for specific bill patterns)
-                if text and "summary" in text.lower() and bill.bill_id in ["H.2244", "H.2250", "H.2251"]:
+            bill_id = cls._norm_bill_id(bill.bill_id)  # "H96"
+            
+            # Debug logging for troubleshooting (only for specific bill patterns)
+            if text and "summary" in text.lower() and bill.bill_id in ["H.2244", "H.2250", "H.2251"]:
+                logger.debug(
+                    "Found potential summary link for %s: text='%s', "
+                    "title='%s', matches=%s",
+                    bill.bill_id, text, title_param,
+                    cls._looks_like_summary_for_bill(text, title_param, bill_id)
+                )
+            
+            if cls._looks_like_summary_for_bill(text, title_param, bill_id):
+                pdf_url = urljoin(base_url, href)
+                preview = (f"Found '{title_param or text}' in hearing "
+                        f"Documents for {bill.bill_id}")
+                return ParserInterface.DiscoveryResult(
+                    preview,
+                    "",
+                    pdf_url,
+                    0.95
+                )
+
+        # Second pass: Fallback - Download and parse PDF content
+        # This handles cases where the link text doesn't match but the PDF content does  # noqa: E501
+        for a in soup.find_all("a", href=True):
+            if not hasattr(a, 'get'):
+                continue
+            href = a.get("href", "")
+            if not isinstance(href, str):
+                continue
+            if not DL_PATH_RX.search(href):
+                continue
+            if not PDF_RX.search(href):
+                continue
+
+            # Check if this looks like it could be a summary document
+            text = " ".join(a.get_text(strip=True).split())
+            title_param = cls._title_from_href(href)
+
+            # Look for any PDF that might contain summaries (less strict criteria)
+            if (re.search(r"\bsummary\b", text, re.I) or
+                    re.search(r"\bsummary\b", title_param, re.I) or
+                    re.search(r"\breport\b", text, re.I) or
+                    re.search(r"\breport\b", title_param, re.I)):
+
+                if bill.bill_id in ["H.2244", "H.2250", "H.2251"]:
                     logger.debug(
-                        "Found potential summary link for %s: text='%s', "
-                        "title='%s', matches=%s",
-                        bill.bill_id, text, title_param,
-                        cls._looks_like_summary_for_bill(text, title_param, bill_id)
-                    )
-                
-                if cls._looks_like_summary_for_bill(text, title_param, bill_id):
-                    pdf_url = urljoin(base_url, href)
-                    preview = (f"Found '{title_param or text}' in hearing "
-                            f"Documents for {bill.bill_id}")
-                    return ParserInterface.DiscoveryResult(
-                        preview,
-                        "",
-                        pdf_url,
-                        0.95
+                        "Second pass - Found potential summary PDF for %s: "
+                        "text='%s', title='%s'",
+                        bill.bill_id, text, title_param
                     )
 
-            # Second pass: Fallback - Download and parse PDF content
-            # This handles cases where the link text doesn't match but the PDF content does  # noqa: E501
-            for a in soup.find_all("a", href=True):
-                if not hasattr(a, 'get'):
-                    continue
-                href = a.get("href", "")
-                if not isinstance(href, str):
-                    continue
-                if not DL_PATH_RX.search(href):
-                    continue
-                if not PDF_RX.search(href):
-                    continue
+                pdf_url = urljoin(base_url, href)
 
-                # Check if this looks like it could be a summary document
-                text = " ".join(a.get_text(strip=True).split())
-                title_param = cls._title_from_href(href)
-
-                # Look for any PDF that might contain summaries (less strict criteria)
-                if (re.search(r"\bsummary\b", text, re.I) or
-                        re.search(r"\bsummary\b", title_param, re.I) or
-                        re.search(r"\breport\b", text, re.I) or
-                        re.search(r"\breport\b", title_param, re.I)):
-
-                    if bill.bill_id in ["H.2244", "H.2250", "H.2251"]:
-                        logger.debug(
-                            "Second pass - Found potential summary PDF for %s: "
-                            "text='%s', title='%s'",
-                            bill.bill_id, text, title_param
+                # Download and parse the PDF content
+                pdf_text = cls._extract_pdf_text(pdf_url)
+                if pdf_text:
+                    # Look for our specific bill in the PDF content
+                    bill_summary_line = cls._find_bill_summary_in_pdf_text(
+                        pdf_text, bill.bill_id)
+                    if bill_summary_line:
+                        preview = (f"Found summary in PDF content: "
+                                f"'{bill_summary_line[:100]}...' "
+                                f"for {bill.bill_id}")
+                        return ParserInterface.DiscoveryResult(
+                            preview,
+                            pdf_text,
+                            pdf_url,
+                            0.85,  # Slightly lower confidence
                         )
-
-                    pdf_url = urljoin(base_url, href)
-
-                    # Download and parse the PDF content
-                    pdf_text = cls._extract_pdf_text(pdf_url)
-                    if pdf_text:
-                        # Look for our specific bill in the PDF content
-                        bill_summary_line = cls._find_bill_summary_in_pdf_text(
-                            pdf_text, bill.bill_id)
-                        if bill_summary_line:
-                            preview = (f"Found summary in PDF content: "
-                                    f"'{bill_summary_line[:100]}...' "
-                                    f"for {bill.bill_id}")
-                            return ParserInterface.DiscoveryResult(
-                                preview,
-                                pdf_text,
-                                pdf_url,
-                                0.85,  # Slightly lower confidence
-                            )
 
         return None
 

@@ -7,7 +7,6 @@ from typing import Optional, List, Dict, Any
 from urllib.parse import urljoin
 
 import PyPDF2
-import requests  # type: ignore
 from bs4 import BeautifulSoup
 
 from components.models import BillAtHearing
@@ -27,25 +26,23 @@ class VotesCommitteeDocumentsParser(ParserInterface):
     def _extract_pdf_text(pdf_url: str) -> Optional[str]:
         """Extract text content from a PDF URL."""
         try:
-            with requests.Session() as s:
-                response = s.get(pdf_url, timeout=30, headers={"User-Agent": "legis-scraper/0.1"})
-                response.raise_for_status()
+            content = ParserInterface._fetch_binary(pdf_url, timeout=30)
+            
+            # Read PDF from memory
+            pdf_file = io.BytesIO(content)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            
+            # Extract text from all pages
+            text_content = []
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_content.append(page_text)
+            
+            if text_content:
+                full_text = "\n".join(text_content)
+                return full_text
                 
-                # Read PDF from memory
-                pdf_file = io.BytesIO(response.content)
-                pdf_reader = PyPDF2.PdfReader(pdf_file)
-                
-                # Extract text from all pages
-                text_content = []
-                for page in pdf_reader.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text_content.append(page_text)
-                
-                if text_content:
-                    full_text = "\n".join(text_content)
-                    return full_text
-                    
         except Exception as e:
             logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
             return None
@@ -176,43 +173,42 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         # Format: /Committees/Detail/{committee_id}/194/Documents
         committee_documents_url = f"{base_url}/Committees/Detail/{bill.committee_id}/194/Documents"
         
-        with requests.Session() as s:
-            soup = cls._soup(s, committee_documents_url)
-            
-            pdf_url = cls._find_committee_documents_pdf(soup, base_url)
-            if not pdf_url:
-                return None
-            
-            # Extract text from PDF to check if it contains our bill
-            pdf_text = cls._extract_pdf_text(pdf_url)
-            if not pdf_text:
-                return None
-            
-            # Parse vote table to see if our bill is mentioned
-            vote_records = cls._parse_vote_table(pdf_text)
-            
-            # Look for our specific bill
-            bill_vote_record = None
-            for record in vote_records:
-                if record['bill_id'] == bill.bill_id:
-                    bill_vote_record = record
-                    break
-            
-            if bill_vote_record:
-                # Create a preview with the vote result and some context
-                preview = f"Found vote record for {bill.bill_id}: {bill_vote_record['vote_result']}"
-                if len(pdf_text) > 200:
-                    preview += f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
-                else:
-                    preview += f"\n\nPDF Content:\n{pdf_text}"
-                result = ParserInterface.DiscoveryResult(
-                    preview,
-                    pdf_text,
-                    pdf_url,
-                    0.9
-                )
-                cls._bill_vote_data[preview] = bill_vote_record
-                return result
+        soup = cls._soup(committee_documents_url)
+        
+        pdf_url = cls._find_committee_documents_pdf(soup, base_url)
+        if not pdf_url:
+            return None
+        
+        # Extract text from PDF to check if it contains our bill
+        pdf_text = cls._extract_pdf_text(pdf_url)
+        if not pdf_text:
+            return None
+        
+        # Parse vote table to see if our bill is mentioned
+        vote_records = cls._parse_vote_table(pdf_text)
+        
+        # Look for our specific bill
+        bill_vote_record = None
+        for record in vote_records:
+            if record['bill_id'] == bill.bill_id:
+                bill_vote_record = record
+                break
+        
+        if bill_vote_record:
+            # Create a preview with the vote result and some context
+            preview = f"Found vote record for {bill.bill_id}: {bill_vote_record['vote_result']}"
+            if len(pdf_text) > 200:
+                preview += f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
+            else:
+                preview += f"\n\nPDF Content:\n{pdf_text}"
+            result = ParserInterface.DiscoveryResult(
+                preview,
+                pdf_text,
+                pdf_url,
+                0.9
+            )
+            cls._bill_vote_data[preview] = bill_vote_record
+            return result
         return None
 
     @classmethod

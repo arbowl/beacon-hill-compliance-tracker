@@ -5,7 +5,6 @@ from datetime import datetime, date
 from typing import List
 from urllib.parse import urljoin
 
-import requests  # type: ignore
 from bs4 import BeautifulSoup
 
 from components.models import Hearing, BillAtHearing
@@ -62,38 +61,37 @@ def list_committee_hearings(  # pylint: disable=too-many-locals
     """
     url = urljoin(base_url, f"/Committees/Detail/{committee_id}/Hearings")
     out: List[Hearing] = []
-    with requests.Session() as s:
-        soup = ParserInterface._soup(s, url)
-        # Any link to an event detail looks like /Events/Hearings/Detail/<id>
-        for a in soup.select('a[href*="/Events/Hearings/Detail/"]'):
-            href = a.get("href", "")
-            m = HREF_HEARING_RE.search(href)
-            if not m:
-                continue
-            hid = m.group(1)
-            row = a.find_parent()  # nearby elements contain date/time/status
-            # Pull a short title/label (best-effort)
-            title = " ".join(a.get_text(strip=True).split())
-            # Find the whole row text to detect status + nearest date
-            status = " ".join(row.get_text(" ", strip=True).split()) if row else ""
-            # Visit the detail page to get the canonical date and bill list
-            detail_url = urljoin(base_url, f"/Events/Hearings/Detail/{hid}")
-            detail = ParserInterface._soup(s, detail_url)
-            dt = _parse_event_date(detail)
-            # crude status extraction from list page row text
-            status_flag = (
-                "Confirmed"
-                if re.search(r"\bConfirmed\b", status, re.I)
-                else ("Completed" if re.search(r"\bCompleted\b", status, re.I) else "")
-            )
-            out.append(Hearing(
-                id=hid,
-                committee_id=committee_id,
-                url=detail_url,
-                date=dt or datetime.min.date(),
-                status=status_flag,
-                title=title
-            ))
+    soup = ParserInterface._soup(url)
+    # Any link to an event detail looks like /Events/Hearings/Detail/<id>
+    for a in soup.select('a[href*="/Events/Hearings/Detail/"]'):
+        href = a.get("href", "")
+        m = HREF_HEARING_RE.search(href)
+        if not m:
+            continue
+        hid = m.group(1)
+        row = a.find_parent()  # nearby elements contain date/time/status
+        # Pull a short title/label (best-effort)
+        title = " ".join(a.get_text(strip=True).split())
+        # Find the whole row text to detect status + nearest date
+        status = " ".join(row.get_text(" ", strip=True).split()) if row else ""
+        # Visit the detail page to get the canonical date and bill list
+        detail_url = urljoin(base_url, f"/Events/Hearings/Detail/{hid}")
+        detail = ParserInterface._soup(detail_url)
+        dt = _parse_event_date(detail)
+        # crude status extraction from list page row text
+        status_flag = (
+            "Confirmed"
+            if re.search(r"\bConfirmed\b", status, re.I)
+            else ("Completed" if re.search(r"\bCompleted\b", status, re.I) else "")
+        )
+        out.append(Hearing(
+            id=hid,
+            committee_id=committee_id,
+            url=detail_url,
+            date=dt or datetime.min.date(),
+            status=status_flag,
+            title=title
+        ))
     # Sort oldest → newest (you can flip later)
     out.sort(key=lambda h: (h.date, h.id))
     return out
@@ -107,35 +105,34 @@ def extract_bills_from_hearing(
     Structure validated on real hearing detail pages (bill table + bill links).
     :contentReference[oaicite:3]{index=3}
     """
-    with requests.Session() as s:
-        soup = ParserInterface._soup(s, hearing.url)
-        bills: List[BillAtHearing] = []
-        # Any anchor that links to /Bills/<session>/<H|S><number>
-        for a in soup.select('a[href*="/Bills/"]'):
-            href = a.get("href", "")
-            if not HREF_BILL_RE.search(href):
-                continue
-            label = " ".join(a.get_text(strip=True).split())
-            bill_url = urljoin(base_url, href)
-            bill_id = _normalize_bill_id(label)
-            bills.append(BillAtHearing(
-                bill_id=bill_id,
-                bill_label=label,
-                bill_url=bill_url,
-                committee_id=hearing.committee_id,
-                hearing_id=hearing.id,
-                hearing_date=hearing.date,
-                hearing_url=hearing.url
-            ))
-        # De-dupe within a single hearing in case a bill appears twice
-        seen = set()
-        deduped: List[BillAtHearing] = []
-        for b in bills:
-            if (b.bill_id, b.hearing_id) in seen:
-                continue
-            seen.add((b.bill_id, b.hearing_id))
-            deduped.append(b)
-        return deduped
+    soup = ParserInterface._soup(hearing.url)
+    bills: List[BillAtHearing] = []
+    # Any anchor that links to /Bills/<session>/<H|S><number>
+    for a in soup.select('a[href*="/Bills/"]'):
+        href = a.get("href", "")
+        if not HREF_BILL_RE.search(href):
+            continue
+        label = " ".join(a.get_text(strip=True).split())
+        bill_url = urljoin(base_url, href)
+        bill_id = _normalize_bill_id(label)
+        bills.append(BillAtHearing(
+            bill_id=bill_id,
+            bill_label=label,
+            bill_url=bill_url,
+            committee_id=hearing.committee_id,
+            hearing_id=hearing.id,
+            hearing_date=hearing.date,
+            hearing_url=hearing.url
+        ))
+    # De-dupe within a single hearing in case a bill appears twice
+    seen = set()
+    deduped: List[BillAtHearing] = []
+    for b in bills:
+        if (b.bill_id, b.hearing_id) in seen:
+            continue
+        seen.add((b.bill_id, b.hearing_id))
+        deduped.append(b)
+    return deduped
 
 
 def get_bills_for_committee(

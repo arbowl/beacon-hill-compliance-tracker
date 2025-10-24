@@ -6,8 +6,6 @@ import re
 from datetime import datetime, date
 from typing import Optional
 
-import requests  # type: ignore
-
 from components.models import BillAtHearing, BillStatus
 from components.utils import Cache, compute_deadlines
 from components.interfaces import ParserInterface
@@ -32,12 +30,12 @@ _DATE_PATTERNS = [
 
 
 def _reported_out_from_bill_page(
-    session: requests.Session, bill_url: str
+    bill_url: str
 ) -> tuple[bool, Optional[date]]:
     """Heuristic: scan the bill page text/history for 'reported' phrases and
     grab a nearby date. Good enough for a baseline.
     """
-    soup = ParserInterface._soup(session, bill_url)
+    soup = ParserInterface._soup(bill_url)
 
     # Look through table rows and only inspect the Action column (typically
     # the 3rd <td>). This avoids accidental matches elsewhere on the page
@@ -76,21 +74,19 @@ def _reported_out_from_bill_page(
 
 
 def _hearing_announcement_from_bill_page(
-    session: requests.Session, 
     bill_url: str, 
     target_hearing_date: Optional[date] = None
 ) -> tuple[Optional[date], Optional[date]]:
     """Extract 'Hearing scheduled for ...' announcement.
     
     Args:
-        session: HTTP session
         bill_url: URL of the bill page
         target_hearing_date: If provided, find announcement for this date.
                            If None, find the earliest hearing announcement.
     
     Returns (announcement_date, scheduled_hearing_date) or (None, None).
     """
-    soup = ParserInterface._soup(session, bill_url)
+    soup = ParserInterface._soup(bill_url)
     
     # Look for table rows in the bill history
     rows = soup.find_all('tr')  # type: ignore
@@ -154,7 +150,7 @@ def _hearing_announcement_from_bill_page(
 # =============================================================================
 
 
-def get_bill_title(session: requests.Session, bill_url: str) -> str | None:
+def get_bill_title(bill_url: str) -> str | None:
     """Return the human-readable title of a bill (e.g., "An Act …") or None.
 
     The bill detail page typically shows the long title just below the header.
@@ -162,7 +158,7 @@ def get_bill_title(session: requests.Session, bill_url: str) -> str | None:
     appears in text that starts with "An Act", "An Resolve", or "A Resolve".
     """
 
-    soup = ParserInterface._soup(session, bill_url)
+    soup = ParserInterface._soup(bill_url)
 
     # 0. Find the H2 whose parent is the main content area (col-md-8 container)
     # The bill title is consistently in an H2 whose parent div has Bootstrap
@@ -235,12 +231,11 @@ def build_status_row(
                 pass
     else:
         # Not in cache, fetch from web and cache the result
-        with requests.Session() as s:
-            announce_date, sched_hearing = (
-                _hearing_announcement_from_bill_page(
-                    s, row.bill_url, row.hearing_date
-                )
+        announce_date, sched_hearing = (
+            _hearing_announcement_from_bill_page(
+                row.bill_url, row.hearing_date
             )
+        )
         
         # Cache the result (convert dates to strings)
         announce_date_str = str(announce_date) if announce_date else None
@@ -250,8 +245,7 @@ def build_status_row(
         )
     
     # Get reported out status (not cached yet)
-    with requests.Session() as s:
-        reported, rdate = _reported_out_from_bill_page(s, row.bill_url)
+    reported, rdate = _reported_out_from_bill_page(row.bill_url)
     return BillStatus(
         bill_id=row.bill_id,
         committee_id=row.committee_id,

@@ -6,7 +6,6 @@ import re
 from typing import Optional
 from urllib.parse import urljoin
 
-import requests  # type: ignore
 from bs4 import BeautifulSoup
 from docx import Document
 
@@ -26,37 +25,35 @@ class SummaryCommitteeDocxParser(ParserInterface):
     def _extract_docx_text(docx_url: str) -> Optional[str]:
         """Extract text content from a DOCX URL (paragraphs, tables, headers, footers)."""
         try:
-            with requests.Session() as s:
-                response = s.get(docx_url, timeout=30, headers={"User-Agent": "legis-scraper/0.1"})
-                response.raise_for_status()
-                docx_file = io.BytesIO(response.content)
-                doc = Document(docx_file)
-                parts = []
-                # Paragraphs
-                for p in doc.paragraphs:
-                    if p.text and p.text.strip():
-                        parts.append(p.text.strip())
-                # Tables
-                for table in doc.tables:
-                    for row in table.rows:
-                        for cell in row.cells:
-                            if cell.text and cell.text.strip():
-                                parts.append(cell.text.strip())
-                # Headers/Footers
-                for section in doc.sections:
-                    if section.header:
-                        for p in section.header.paragraphs:
-                            if p.text and p.text.strip():
-                                parts.append(p.text.strip())
-                    if section.footer:
-                        for p in section.footer.paragraphs:
-                            if p.text and p.text.strip():
-                                parts.append(p.text.strip())
-                docx_file.close()
-                if parts:
-                    full_text = " ".join(parts)
-                    full_text = re.sub(r'\s+', ' ', full_text).strip()
-                    return full_text
+            content = ParserInterface._fetch_binary(docx_url, timeout=30)
+            docx_file = io.BytesIO(content)
+            doc = Document(docx_file)
+            parts = []
+            # Paragraphs
+            for p in doc.paragraphs:
+                if p.text and p.text.strip():
+                    parts.append(p.text.strip())
+            # Tables
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        if cell.text and cell.text.strip():
+                            parts.append(cell.text.strip())
+            # Headers/Footers
+            for section in doc.sections:
+                if section.header:
+                    for p in section.header.paragraphs:
+                        if p.text and p.text.strip():
+                            parts.append(p.text.strip())
+                if section.footer:
+                    for p in section.footer.paragraphs:
+                        if p.text and p.text.strip():
+                            parts.append(p.text.strip())
+            docx_file.close()
+            if parts:
+                full_text = " ".join(parts)
+                full_text = re.sub(r'\s+', ' ', full_text).strip()
+                return full_text
         except Exception as e:
             logger.warning("Could not extract text from DOCX %s: %s", docx_url, e)
             return None
@@ -99,35 +96,34 @@ class SummaryCommitteeDocxParser(ParserInterface):
         logger.debug("Trying %s...", cls.__name__)
         # Navigate to the Committee Summary tab
         committee_summary_url = f"{bill.bill_url}/CommitteeSummary"
-        with requests.Session() as s:
-            soup = cls._soup(s, committee_summary_url)
-            docx_url = cls._find_committee_summary_docx(soup, base_url)
-            if not docx_url:
-                return None
-            # Try to extract text from the DOCX for preview
-            docx_text = cls._extract_docx_text(docx_url)
-            if docx_text:
-                # Use the extracted text as preview, truncated if too long
-                preview = f"Found Committee Summary DOCX for {bill.bill_id}"
-                if len(docx_text) > 200:
-                    preview += f"\n\nDOCX Content Preview:\n{docx_text[:500]}..."
-                else:
-                    preview += f"\n\nDOCX Content:\n{docx_text}"
-                return ParserInterface.DiscoveryResult(
-                    preview,
-                    docx_text,
-                    docx_url,
-                    0.9,
-                )
+        soup = cls._soup(committee_summary_url)
+        docx_url = cls._find_committee_summary_docx(soup, base_url)
+        if not docx_url:
+            return None
+        # Try to extract text from the DOCX for preview
+        docx_text = cls._extract_docx_text(docx_url)
+        if docx_text:
+            # Use the extracted text as preview, truncated if too long
+            preview = f"Found Committee Summary DOCX for {bill.bill_id}"
+            if len(docx_text) > 200:
+                preview += f"\n\nDOCX Content Preview:\n{docx_text[:500]}..."
             else:
-                # Fallback to simple preview if text extraction fails
-                preview = f"Found Committee Summary DOCX for {bill.bill_id} (text extraction failed)"
-                return ParserInterface.DiscoveryResult(
-                    preview,
-                    "",
-                    docx_url,
-                    0.8,  # Lower confidence if we can't extract text
-                )
+                preview += f"\n\nDOCX Content:\n{docx_text}"
+            return ParserInterface.DiscoveryResult(
+                preview,
+                docx_text,
+                docx_url,
+                0.9,
+            )
+        else:
+            # Fallback to simple preview if text extraction fails
+            preview = f"Found Committee Summary DOCX for {bill.bill_id} (text extraction failed)"
+            return ParserInterface.DiscoveryResult(
+                preview,
+                "",
+                docx_url,
+                0.8,  # Lower confidence if we can't extract text
+            )
 
     @staticmethod
     def parse(

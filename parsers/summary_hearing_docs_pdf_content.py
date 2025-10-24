@@ -7,7 +7,6 @@ from typing import Optional
 from urllib.parse import urljoin, urlparse, parse_qs, unquote
 
 import PyPDF2  # type: ignore
-import requests  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface, DecayingUrlCache
@@ -50,28 +49,22 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
     def _extract_pdf_text(pdf_url: str) -> Optional[str]:
         """Extract text content from a PDF URL."""
         try:
-            with requests.Session() as s:
-                response = s.get(
-                    pdf_url,
-                    timeout=30,
-                    headers={"User-Agent": "legis-scraper/0.1"}
-                )
-                response.raise_for_status()
+            content = ParserInterface._fetch_binary(pdf_url, timeout=30)
 
-                # Read PDF from memory
-                pdf_file = io.BytesIO(response.content)
-                pdf_reader = PyPDF2.PdfReader(pdf_file)
+            # Read PDF from memory
+            pdf_file = io.BytesIO(content)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
 
-                # Extract text from all pages
-                text_content = []
-                for page in pdf_reader.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text_content.append(page_text)
+            # Extract text from all pages
+            text_content = []
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text_content.append(page_text)
 
-                if text_content:
-                    full_text = "\n".join(text_content)
-                    return full_text
+            if text_content:
+                full_text = "\n".join(text_content)
+                return full_text
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
@@ -152,53 +145,52 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
         cls, hearing_docs_url: str, base_url: str
     ) -> list[dict]:
         """Download all PDFs from a hearing and return their content."""
-        with requests.Session() as s:
-            soup = cls._soup(s, hearing_docs_url)
+        soup = cls._soup(hearing_docs_url)
 
-            # Find all PDF download links
-            pdf_links = []
-            for a in soup.find_all("a", href=True):
-                if not hasattr(a, 'get'):
-                    continue
-                href = a.get("href", "")
-                if not isinstance(href, str):
-                    continue
-                if not DL_PATH_RX.search(href):
-                    continue
-                if not PDF_RX.search(href):
-                    continue
+        # Find all PDF download links
+        pdf_links = []
+        for a in soup.find_all("a", href=True):
+            if not hasattr(a, 'get'):
+                continue
+            href = a.get("href", "")
+            if not isinstance(href, str):
+                continue
+            if not DL_PATH_RX.search(href):
+                continue
+            if not PDF_RX.search(href):
+                continue
 
-                text = " ".join(a.get_text(strip=True).split())
-                title_param = cls._title_from_href(href)
-                pdf_url = urljoin(base_url, href)
+            text = " ".join(a.get_text(strip=True).split())
+            title_param = cls._title_from_href(href)
+            pdf_url = urljoin(base_url, href)
 
-                pdf_links.append({
+            pdf_links.append({
+                "url": pdf_url,
+                "text": text,
+                "title": title_param,
+                "href": href
+            })
+
+        # Download and extract text from all PDFs
+        cached_pdfs = []
+        for pdf_info in pdf_links:
+            pdf_url = pdf_info["url"]
+            title_param = pdf_info["title"]
+            text = pdf_info["text"]
+
+            logger.debug("Downloading PDF: %s", title_param or text)
+
+            # Download and parse the PDF content
+            pdf_text = cls._extract_pdf_text(pdf_url)
+            if pdf_text:
+                cached_pdfs.append({
                     "url": pdf_url,
-                    "text": text,
+                    "text": pdf_text,
                     "title": title_param,
-                    "href": href
+                    "link_text": text
                 })
 
-            # Download and extract text from all PDFs
-            cached_pdfs = []
-            for pdf_info in pdf_links:
-                pdf_url = pdf_info["url"]
-                title_param = pdf_info["title"]
-                text = pdf_info["text"]
-
-                logger.debug("Downloading PDF: %s", title_param or text)
-
-                # Download and parse the PDF content
-                pdf_text = cls._extract_pdf_text(pdf_url)
-                if pdf_text:
-                    cached_pdfs.append({
-                        "url": pdf_url,
-                        "text": pdf_text,
-                        "title": title_param,
-                        "link_text": text
-                    })
-
-            return cached_pdfs
+        return cached_pdfs
 
     @classmethod
     def _search_cached_pdfs_for_bill(

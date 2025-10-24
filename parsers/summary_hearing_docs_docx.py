@@ -6,7 +6,6 @@ import re
 from typing import Optional
 from urllib.parse import urljoin, urlparse, parse_qs, unquote
 
-import requests  # type: ignore
 from docx import Document
 
 from components.models import BillAtHearing
@@ -61,37 +60,31 @@ class SummaryHearingDocsDocxParser(ParserInterface):
     def _extract_docx_text(docx_url: str) -> Optional[str]:
         """Extract text content from a DOCX URL."""
         try:
-            with requests.Session() as s:
-                response = s.get(
-                    docx_url,
-                    timeout=30,
-                    headers={"User-Agent": "legis-scraper/0.1"}
-                )
-                response.raise_for_status()
-                docx_file = io.BytesIO(response.content)
-                doc = Document(docx_file)
-                parts = []
-                for p in doc.paragraphs:
-                    if p.text and p.text.strip():
-                        parts.append(p.text.strip())
-                for table in doc.tables:
-                    for row in table.rows:
-                        for cell in row.cells:
-                            if cell.text and cell.text.strip():
-                                parts.append(cell.text.strip())
-                for section in doc.sections:
-                    if section.header:
-                        for p in section.header.paragraphs:
-                            if p.text and p.text.strip():
-                                parts.append(p.text.strip())
-                    if section.footer:
-                        for p in section.footer.paragraphs:
-                            if p.text and p.text.strip():
-                                parts.append(p.text.strip())
-                if parts:
-                    full_text = " ".join(parts)
-                    full_text = re.sub(r'\s+', ' ', full_text).strip()
-                    return full_text
+            content = ParserInterface._fetch_binary(docx_url, timeout=30)
+            docx_file = io.BytesIO(content)
+            doc = Document(docx_file)
+            parts = []
+            for p in doc.paragraphs:
+                if p.text and p.text.strip():
+                    parts.append(p.text.strip())
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        if cell.text and cell.text.strip():
+                            parts.append(cell.text.strip())
+            for section in doc.sections:
+                if section.header:
+                    for p in section.header.paragraphs:
+                        if p.text and p.text.strip():
+                            parts.append(p.text.strip())
+                if section.footer:
+                    for p in section.footer.paragraphs:
+                        if p.text and p.text.strip():
+                            parts.append(p.text.strip())
+            if parts:
+                full_text = " ".join(parts)
+                full_text = re.sub(r'\s+', ' ', full_text).strip()
+                return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Could not extract text from DOCX %s: %s", docx_url, e)
             return None
@@ -124,72 +117,71 @@ class SummaryHearingDocsDocxParser(ParserInterface):
         """
         logger.debug("Trying %s...", cls.__name__)
         hearing_docs_url = bill.hearing_url
-        with requests.Session() as s:
-            soup = cls._soup(s, hearing_docs_url)
-            for a in soup.find_all("a", href=True):
-                if not hasattr(a, 'get'):
-                    continue
-                href = a.get("href", "")
-                if not isinstance(href, str):
-                    continue
-                if not DL_PATH_RX.search(href):
-                    continue
-                if not DOCX_RX.search(href):
-                    continue
+        soup = cls._soup(hearing_docs_url)
+        for a in soup.find_all("a", href=True):
+            if not hasattr(a, 'get'):
+                continue
+            href = a.get("href", "")
+            if not isinstance(href, str):
+                continue
+            if not DL_PATH_RX.search(href):
+                continue
+            if not DOCX_RX.search(href):
+                continue
+            docx_url = urljoin(base_url, href)
+            text = cls._extract_docx_text(docx_url)
+            text = text if text else ""
+            title_param = cls._title_from_href(href)
+            bill_id = cls._norm_bill_id(bill.bill_id)
+            if cls._looks_like_summary_for_bill(
+                text, title_param, bill_id
+            ):
+                preview = (
+                    f"Found '{title_param or text}' in hearing "
+                    f"Documents for {bill.bill_id}"
+                )
+                return ParserInterface.DiscoveryResult(
+                    preview,
+                    "",
+                    docx_url,
+                    0.95
+                )
+        for a in soup.find_all("a", href=True):
+            if not hasattr(a, 'get'):
+                continue
+            href = a.get("href", "")
+            if not isinstance(href, str):
+                continue
+            if not DL_PATH_RX.search(href):
+                continue
+            if not DOCX_RX.search(href):
+                continue
+            text = " ".join(a.get_text(strip=True).split())
+            title_param = cls._title_from_href(href)
+            if (re.search(r"\bsummary\b", text, re.I) or
+                    re.search(r"\bsummary\b", title_param, re.I) or
+                    re.search(r"\breport\b", text, re.I) or
+                    re.search(r"\breport\b", title_param, re.I)):
                 docx_url = urljoin(base_url, href)
-                text = cls._extract_docx_text(docx_url)
-                text = text if text else ""
-                title_param = cls._title_from_href(href)
-                bill_id = cls._norm_bill_id(bill.bill_id)
-                if cls._looks_like_summary_for_bill(
-                    text, title_param, bill_id
-                ):
-                    preview = (
-                        f"Found '{title_param or text}' in hearing "
-                        f"Documents for {bill.bill_id}"
-                    )
-                    return ParserInterface.DiscoveryResult(
-                        preview,
-                        "",
-                        docx_url,
-                        0.95
-                    )
-            for a in soup.find_all("a", href=True):
-                if not hasattr(a, 'get'):
-                    continue
-                href = a.get("href", "")
-                if not isinstance(href, str):
-                    continue
-                if not DL_PATH_RX.search(href):
-                    continue
-                if not DOCX_RX.search(href):
-                    continue
-                text = " ".join(a.get_text(strip=True).split())
-                title_param = cls._title_from_href(href)
-                if (re.search(r"\bsummary\b", text, re.I) or
-                        re.search(r"\bsummary\b", title_param, re.I) or
-                        re.search(r"\breport\b", text, re.I) or
-                        re.search(r"\breport\b", title_param, re.I)):
-                    docx_url = urljoin(base_url, href)
-                    docx_text = cls._extract_docx_text(docx_url)
-                    if docx_text:
-                        bill_summary_line = (
-                            cls._find_bill_summary_in_docx_text(
-                                docx_text, bill.bill_id
-                            )
+                docx_text = cls._extract_docx_text(docx_url)
+                if docx_text:
+                    bill_summary_line = (
+                        cls._find_bill_summary_in_docx_text(
+                            docx_text, bill.bill_id
                         )
-                        if bill_summary_line:
-                            preview = (
-                                f"Found summary in DOCX content: "
-                                f"'{bill_summary_line[:100]}...' "
-                                f"for {bill.bill_id}"
-                            )
-                            return ParserInterface.DiscoveryResult(
-                                preview,
-                                docx_text,
-                                docx_url,
-                                0.85,
-                            )
+                    )
+                    if bill_summary_line:
+                        preview = (
+                            f"Found summary in DOCX content: "
+                            f"'{bill_summary_line[:100]}...' "
+                            f"for {bill.bill_id}"
+                        )
+                        return ParserInterface.DiscoveryResult(
+                            preview,
+                            docx_text,
+                            docx_url,
+                            0.85,
+                        )
         return None
 
     @staticmethod

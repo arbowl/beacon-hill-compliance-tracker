@@ -6,7 +6,6 @@ import re
 from typing import Optional
 from urllib.parse import urljoin
 
-import requests  # type: ignore
 from bs4 import BeautifulSoup
 from docx import Document
 
@@ -25,26 +24,24 @@ class VotesDocxParser(ParserInterface):
     def _extract_docx_text(docx_url: str) -> Optional[str]:
         """Extract text content from a DOCX URL."""
         try:
-            with requests.Session() as s:
-                response = s.get(docx_url, timeout=30, headers={"User-Agent": "legis-scraper/0.1"})
-                response.raise_for_status()
+            content = ParserInterface._fetch_binary(docx_url, timeout=30)
+            
+            # Read DOCX from memory
+            docx_file = io.BytesIO(content)
+            doc = Document(docx_file)
+            
+            # Extract text from all paragraphs
+            text_content = []
+            for paragraph in doc.paragraphs:
+                if paragraph.text.strip():
+                    text_content.append(paragraph.text.strip())
+            
+            if text_content:
+                full_text = "\n".join(text_content)
+                # Clean up the text - remove excessive whitespace
+                full_text = re.sub(r'\s+', ' ', full_text).strip()
+                return full_text
                 
-                # Read DOCX from memory
-                docx_file = io.BytesIO(response.content)
-                doc = Document(docx_file)
-                
-                # Extract text from all paragraphs
-                text_content = []
-                for paragraph in doc.paragraphs:
-                    if paragraph.text.strip():
-                        text_content.append(paragraph.text.strip())
-                
-                if text_content:
-                    full_text = "\n".join(text_content)
-                    # Clean up the text - remove excessive whitespace
-                    full_text = re.sub(r'\s+', ' ', full_text).strip()
-                    return full_text
-                    
         except Exception as e:
             logger.warning("Could not extract text from DOCX %s: %s", docx_url, e)
             return None
@@ -112,34 +109,33 @@ class VotesDocxParser(ParserInterface):
             bill.hearing_url
         ]
         
-        with requests.Session() as s:
-            for location in locations_to_check:
-                try:
-                    soup = cls._soup(s, location)
-                    docx_urls = cls._find_docx_files(soup, base_url)
+        for location in locations_to_check:
+            try:
+                soup = cls._soup(location)
+                docx_urls = cls._find_docx_files(soup, base_url)
+                
+                for docx_url in docx_urls:
+                    # Extract text from DOCX
+                    docx_text = cls._extract_docx_text(docx_url)
                     
-                    for docx_url in docx_urls:
-                        # Extract text from DOCX
-                        docx_text = cls._extract_docx_text(docx_url)
+                    if docx_text and cls._looks_like_vote_docx(docx_text, bill.bill_id):
+                        # Create preview with DOCX content
+                        preview = f"Found vote DOCX for {bill.bill_id}"
+                        if len(docx_text) > 200:
+                            preview += f"\n\nDOCX Content Preview:\n{docx_text[:500]}..."
+                        else:
+                            preview += f"\n\nDOCX Content:\n{docx_text}"
                         
-                        if docx_text and cls._looks_like_vote_docx(docx_text, bill.bill_id):
-                            # Create preview with DOCX content
-                            preview = f"Found vote DOCX for {bill.bill_id}"
-                            if len(docx_text) > 200:
-                                preview += f"\n\nDOCX Content Preview:\n{docx_text[:500]}..."
-                            else:
-                                preview += f"\n\nDOCX Content:\n{docx_text}"
-                            
-                            return ParserInterface.DiscoveryResult(
-                                preview,
-                                docx_text,
-                                docx_url,
-                                0.85,
-                            )
-                            
-                except Exception as e:
-                    # If we can't access this location, continue to the next one
-                    continue
+                        return ParserInterface.DiscoveryResult(
+                            preview,
+                            docx_text,
+                            docx_url,
+                            0.85,
+                        )
+                        
+            except Exception as e:
+                # If we can't access this location, continue to the next one
+                continue
         
         return None
 

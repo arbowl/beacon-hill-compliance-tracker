@@ -10,12 +10,19 @@ from enum import Enum
 from typing import Optional, Any
 import sys
 import time
+import threading
+import logging
 
 from bs4 import BeautifulSoup
 import requests  # type: ignore
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from yaml import safe_load  # type: ignore
 
 from components.models import BillAtHearing
+
+# Setup logger
+logger = logging.getLogger(__name__)
 
 
 class DecayingUrlCache:
@@ -41,10 +48,9 @@ class DecayingUrlCache:
         size_bytes: int
 
     def __init__(self) -> None:
-        import threading
         self._cache: dict[str, DecayingUrlCache._CacheEntry] = {}
         self._total_size_bytes: int = 0
-        self._lock = threading.RLock()  # Reentrant lock for nested calls
+        self._lock = threading.RLock()
 
     def _get_size(self, value: str) -> int:
         """Calculate size of a string in bytes."""
@@ -126,6 +132,157 @@ class DecayingUrlCache:
 _URL_CACHE = DecayingUrlCache()
 
 
+_GLOBAL_SESSION: Optional[requests.Session] = None
+_SESSION_LOCK = threading.Lock()
+
+
+@dataclass
+class _PendingRequest:
+    """Tracks an in-flight HTTP request."""
+    event: threading.Event
+    result: Optional[str] = None
+    error: Optional[Exception] = None
+
+
+_PENDING_REQUESTS: dict[str, _PendingRequest] = {}
+_PENDING_LOCK = threading.RLock()
+
+
+_METRICS = {
+    "cache_hits": 0,
+    "cache_misses": 0,
+    "dedup_waits": 0,
+    "fetches": 0,
+}
+_METRICS_LOCK = threading.Lock()
+
+
+def _get_global_session() -> requests.Session:
+    """Get or create the global HTTP session with connection pooling."""
+    global _GLOBAL_SESSION
+    if _GLOBAL_SESSION is None:
+        with _SESSION_LOCK:
+            if _GLOBAL_SESSION is None:
+                session = requests.Session()
+                retry_strategy = Retry(
+                    total=3,
+                    backoff_factor=1,
+                    status_forcelist=[429, 500, 502, 503, 504],
+                    allowed_methods=["GET", "POST"]
+                )
+                adapter = HTTPAdapter(
+                    pool_connections=10,
+                    pool_maxsize=20,
+                    max_retries=retry_strategy,
+                    pool_block=False
+                )
+                session.mount("http://", adapter)
+                session.mount("https://", adapter)
+                session.headers.update({
+                    "User-Agent": "legis-scraper/0.1"
+                })
+                _GLOBAL_SESSION = session
+                logger.debug("Created global HTTP session")
+    return _GLOBAL_SESSION
+
+
+def _fetch_with_deduplication(url: str, timeout: int = 20) -> str:
+    """Fetch URL with request deduplication."""
+    if url in _URL_CACHE:
+        with _METRICS_LOCK:
+            _METRICS["cache_hits"] += 1
+        logger.debug(f"Cache hit: {url}")
+        return _URL_CACHE[url]
+    with _METRICS_LOCK:
+        _METRICS["cache_misses"] += 1
+    pending_request = None
+    should_fetch = False
+    with _PENDING_LOCK:
+        if url in _PENDING_REQUESTS:
+            pending_request = _PENDING_REQUESTS[url]
+            with _METRICS_LOCK:
+                _METRICS["dedup_waits"] += 1
+            logger.debug(f"Dedup wait: {url} (another thread fetching)")
+        else:
+            pending_request = _PendingRequest(event=threading.Event())
+            _PENDING_REQUESTS[url] = pending_request
+            should_fetch = True
+    if not should_fetch:
+        pending_request.event.wait(timeout=timeout + 5)
+        if pending_request.error:
+            raise pending_request.error
+        if pending_request.result:
+            return pending_request.result
+        should_fetch = True
+    if should_fetch:
+        try:
+            session = _get_global_session()
+            logger.debug(f"Fetching: {url}")
+            response = None
+            for attempt in range(5):
+                try:
+                    response = session.get(url, timeout=timeout)
+                    response.raise_for_status()
+                    break
+                except (requests.RequestException, requests.Timeout) as e:
+                    if attempt == 4:
+                        raise
+                    logger.debug(f"Retry {attempt + 1}/5 for {url}: {e}")
+                    continue
+            if response is None:
+                raise requests.RequestException(
+                    f"Failed to fetch {url} after 5 attempts"
+                )
+            result = response.text
+            _URL_CACHE[url] = result
+            with _METRICS_LOCK:
+                _METRICS["fetches"] += 1
+            with _PENDING_LOCK:
+                if url in _PENDING_REQUESTS:
+                    pending_request = _PENDING_REQUESTS.pop(url)
+                    pending_request.result = result
+                    pending_request.event.set()
+            return result
+        except Exception as e:
+            with _PENDING_LOCK:
+                if url in _PENDING_REQUESTS:
+                    pending_request = _PENDING_REQUESTS.pop(url)
+                    pending_request.error = e
+                    pending_request.event.set()
+            raise
+
+
+def _fetch_binary(url: str, timeout: int = 30) -> bytes:
+    """Fetch binary content (PDFs, images) via global session."""
+    session = _get_global_session()
+    response = session.get(url, timeout=timeout)
+    response.raise_for_status()
+    return response.content
+
+
+def get_metrics() -> dict[str, int]:
+    """Get connection pool metrics."""
+    with _METRICS_LOCK:
+        return _METRICS.copy()
+
+
+def reset_metrics() -> None:
+    """Reset metrics."""
+    with _METRICS_LOCK:
+        for key in _METRICS:
+            _METRICS[key] = 0
+
+
+def cleanup_session() -> None:
+    """Close the global session."""
+    global _GLOBAL_SESSION
+    with _SESSION_LOCK:
+        if _GLOBAL_SESSION:
+            _GLOBAL_SESSION.close()
+            _GLOBAL_SESSION = None
+            logger.debug("Closed global HTTP session")
+
+
 class ParserInterface(ABC):
     """Base interface that all parsers must implement."""
 
@@ -178,25 +335,19 @@ class ParserInterface(ABC):
             raise TypeError(f"{cls.__name__}.location must be a str")
 
     @staticmethod
-    def _soup(s: requests.Session, url: str) -> BeautifulSoup:
-        """Get the soup of the page (cached by URL)."""
-        if url in _URL_CACHE:
-            return BeautifulSoup(_URL_CACHE[url], "html.parser")
-        r = None
-        for _ in range(5):
-            try:
-                r = s.get(url, timeout=20, headers={
-                    "User-Agent": "legis-scraper/0.1"
-                })
-                r.raise_for_status()
-                break
-            except (requests.RequestException, requests.Timeout):
-                continue
-        if r is not None:
-            _URL_CACHE[url] = r.text
-            return BeautifulSoup(r.text, "html.parser")
-        else:
+    def _soup(url: str) -> BeautifulSoup:
+        """Get the soup of the page (cached by URL with deduplication)."""
+        try:
+            html = _fetch_with_deduplication(url, timeout=20)
+            return BeautifulSoup(html, "html.parser")
+        except Exception as e:
+            logger.debug(f"Failed to fetch {url}: {e}")
             return BeautifulSoup("", "html.parser")
+
+    @staticmethod
+    def _fetch_binary(url: str, timeout: int = 30) -> bytes:
+        """Fetch binary content (PDFs, images) via global session."""
+        return _fetch_binary(url, timeout)
 
     @classmethod
     @abstractmethod
@@ -296,7 +447,9 @@ class Config:
         @property
         def reprocess_after_review(self) -> bool:
             """Whether to reprocess after review."""
-            return bool(self.deferred_review.get("reprocess_after_review", True))
+            return bool(
+                self.deferred_review.get("reprocess_after_review", True)
+            )
 
         @property
         def show_confidence(self) -> bool:
@@ -354,13 +507,17 @@ bill_id: {bill_id}
     content: \"\"\"{content}\"\"\"
 
     Answer one word (yes/no/unsure) using these rules:
-    - Bill id massively increases confidence if present (H or S + number, with/without dot/space)
+    - Bill id massively increases confidence if present
+      (H or S + number, with/without dot/space)
     - Wrong bill id is a strong negative indicator
     - summary → must have:
         • "Summary" near it (case insensitive), OR
-        • a malegislature.gov link whose filename/title has bill id + "Summary", OR
-        • policy/topic-style prose (not navigation, login, or site boilerplate).
-    - vote record → look for ("vote"|"yea"|"nay"|"favorable"|"recommendation"|"committee")
+        • a malegislature.gov link whose filename/title has
+          bill id + "Summary", OR
+        • policy/topic-style prose (not navigation, login,
+          or site boilerplate).
+    - vote record → look for ("vote"|"yea"|"nay"|"favorable"|
+      "recommendation"|"committee")
     - Ignore boilerplate.
     Output exactly: yes|no|unsure."""))
             return prompt.strip()
