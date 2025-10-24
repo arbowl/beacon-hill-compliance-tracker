@@ -1,6 +1,8 @@
-# MA Rules - Massachusetts Legislative Committee Compliance Tracker
+Beacon Hill Compliance Tracker
 
 A Python tool for tracking compliance of Massachusetts legislative committees with their reporting deadlines. Designed to be simple, maintainable, and accessible for students or hobbyists to extend.
+
+The tool uses an API key to submit recorded data to a dashboard at https://beaconhilltracker.org/.
 
 ## Purpose
 
@@ -9,29 +11,26 @@ Massachusetts House and Joint committees are required to:
 2. **Take action on bills within 60 days of a hearing**, with at most one 30-day extension (capped at 90 days)
 3. **Post summaries and vote records** of their decisions
 
-This project automates the collection of that information and classifies each bill as **compliant**, **non-compliant**, **incomplete**, or **unknown**.
+This project automates the collection of that information and classifies each bill as **compliant**, **non-compliant**, **incomplete**, or **unknown**:
+- **Compliant:** All requirements satisfied.
+- **Incomplete:** Exactly one requirement missing.
+- **Non-compliant:** Two or more requirements missing.
+- **Unknown:** No disqualifying factors present, but not fully compliant (yet).
+
+The purpose of having an "incomplete" status is to highlight nearly-compliant bills for developers to hone in on potential errors stopping a bill from being recognized as compliant. However, it's trivial for dashboards to reinterpret the information gathered by this tool as is appropriate.
 
 ## Quick Start
 
 ### Setup
 
-1. **Clone and install dependencies:**
-   ```bash
-   git clone https://github.com/arbowl/beacon-hill-compliance-tracker
-   cd ma-rules
-   python -m venv venv
-   venv\Scripts\activate  # Windows
-   # or: source venv/bin/activate  # Linux/Mac
-   pip install -r requirements.txt
-   ```
-
-2. **Configure the target committee:**
-   Edit `config.yaml` to change the committee ID or other settings:
-   ```yaml
-   runner:
-     committee_id: "J33"     # Change to your target committee
-     limit_hearings: 1       # Start small for testing
-   ```
+```bash
+git clone https://github.com/arbowl/beacon-hill-compliance-tracker
+cd beacon-hill-compliance-tracker
+python -m venv venv
+venv\Scripts\activate  # Windows
+# or: source venv/bin/activate  # Linux/Mac
+pip install -r requirements.txt
+```
 
 ### Running
 
@@ -99,7 +98,7 @@ The design is deliberately modular and straightforward:
 
 ### Components
 
-The "components" folder can be thought of as the unique "employees" of this project. Each one has a different task. When a new task needs to be added to the project flow, add it here for organization.
+The `components/` folder contains the unique actions in the processing pipeline. Each one has a different task. When a new task needs to be added to the project flow, add it here for organization.
 
 - **`committees.py`**: Retrieves data related to ALL committees.
 - **`compliance.py`**: Rule engine that classifies bills based on deadlines, reported-out status, and document availability.
@@ -108,7 +107,10 @@ The "components" folder can be thought of as the unique "employees" of this proj
 - **`models.py`**: Think of this as "bundles of information", e.g. contact details, bill details, vote details, etc. The calculations and compliance checks are compiled using sets of this information. This file handles structure, not so much logic.
 - **`options.py`**: Allows the user to access an options menu (if enabled in config) and toggle various features at runtime
 - **`pipeline.py`**: Orchestrates discovery of summaries and votes using cost-ordered parsers. We rate each method based on how "expensive" it is so we can attempt the least "costly" methods first on unknown data sources, then cache the method which worked.
-- **`report.py`**: Handles saving completed datasets to disk in various formats (human-readable, machine-readable, etc.).
+- **`report.py`**: Handles saving completed datasets to disk in various formats (human-readable, machine-readable, etc.)
+- **`review.py`**: Batch review manager for handling low-confidence captures at the end of a run.
+- **`runner.py`**: Performs a full scan of a single committee start to finish.
+- **`sender.py`**: Sends collected info to the dashboard's API.
 - **`utils.py`**: Cache management, configuration loading, and UI helpers.
 
 ### Data Flow
@@ -121,11 +123,12 @@ The "components" folder can be thought of as the unique "employees" of this proj
 5. **Discover votes** using cost-ordered parsers
 6. **Classify compliance** for each bill
 7. **Generate outputs** (console logs, JSON data, HTML report)
+8. **Send to dashboard** via the API
 
 ## Folder Structure
 
 ```
-ma-rules/
+beacon-hill-compliance-tracker/
 ├── app.py                 # Main entry point
 ├── config.yaml           # Configuration file
 ├── cache.json            # Parser cache (auto-generated)
@@ -150,7 +153,7 @@ ma-rules/
 
 ## Adding Parsers
 
-Parsers are small, pluggable modules that discover and extract summaries or votes from specific locations. Each parser must implement two functions:
+Parsers are small, pluggable modules that discover and extract summaries or votes from specific locations. Each parser must inherit the `ParserInterface` class:
 
 ### Parser Interface
 
@@ -569,4 +572,5 @@ deferred_review:
 5. Submit a pull request
 
 The codebase is designed to be easily understood and extended by students, hobbyists, and grassroots organizations tracking legislative compliance.
+
 
