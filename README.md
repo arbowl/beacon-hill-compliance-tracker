@@ -38,33 +38,6 @@ pip install -r requirements.txt
 python app.py
 ```
 
-### Building Standalone Executable
-
-To create a standalone executable that can run without Python installed:
-
-**Option 1: Python script (cross-platform)**
-```bash
-python build.py
-```
-
-**Option 2: Windows batch file**
-```batch
-build.bat
-```
-
-The build process will:
-- Create a standalone executable using PyInstaller
-- Copy necessary config files (`config.yaml`, `requirements.txt`, `cache.json`)
-- Create an `out/` directory for generated reports
-- Package everything in a `release/` folder
-- Clean up temporary build files
-
-After building, run the executable with:
-```bash
-release/app.exe  # Windows
-release/app      # Linux/Mac
-```
-
 ## Outputs
 
 The tool generates two types of reports:
