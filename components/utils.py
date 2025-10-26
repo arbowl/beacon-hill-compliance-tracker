@@ -1,6 +1,7 @@
 """ Utility functions for the Massachusetts Legislature website. """
 
 import json
+import hashlib
 from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
 import textwrap
@@ -377,6 +378,271 @@ class Cache:
                 parser_type_data[module_name]["current_streak"] = 1
                 committee_data[f"{parser_type}_last_parser"] = module_name
             self.save()
+
+    def _ensure_document_cache_structure(self) -> None:
+        """Ensure document cache structure exists in cache data."""
+        if "document_cache" not in self._data:
+            self._data["document_cache"] = {
+                "by_url": {},
+                "by_content_hash": {},
+                "metadata": {
+                    "total_documents": 0,
+                    "total_size_bytes": 0,
+                    "last_cleanup": datetime.utcnow().isoformat(
+                        timespec="seconds"
+                    ) + "Z"
+                }
+            }
+
+    @staticmethod
+    def _compute_content_hash(content: bytes) -> str:
+        """Compute SHA256 hash of content."""
+        return hashlib.sha256(content).hexdigest()
+
+    @staticmethod
+    def _get_file_extension(content_type: str, url: str) -> str:
+        """Determine file extension from content type or URL."""
+        if "pdf" in content_type.lower():
+            return "pdf"
+        elif "wordprocessing" in content_type.lower() or "docx" in content_type.lower():
+            return "docx"
+        elif "msword" in content_type.lower() or "doc" in content_type.lower():
+            return "doc"
+        # Fallback: try to get extension from URL
+        if url.lower().endswith(".pdf"):
+            return "pdf"
+        elif url.lower().endswith(".docx"):
+            return "docx"
+        elif url.lower().endswith(".doc"):
+            return "doc"
+        # Default fallback
+        return "bin"
+
+    def get_cached_document(
+        self, url: str, config: Optional[Config] = None
+    ) -> Optional[dict]:
+        """Get cached document metadata if it exists and is valid."""
+        if not config or not config.document_cache.enabled:
+            return None
+        self._ensure_document_cache_structure()
+        cache_entry = self._data["document_cache"]["by_url"].get(url)
+        if not cache_entry:
+            return None
+        cached_file_path = Path(cache_entry.get("cached_file_path", ""))
+        if not cached_file_path.exists():
+            return None
+        last_validated = cache_entry.get("last_validated")
+        if last_validated:
+            try:
+                last_validated_dt = datetime.fromisoformat(
+                    last_validated.replace("Z", "+00:00")
+                )
+                age_days = (
+                    datetime.now(timezone.utc) - last_validated_dt
+                ).days
+                if age_days > config.document_cache.validate_after_days:
+                    return None
+            except (ValueError, AttributeError):
+                return None
+        return cache_entry
+
+    def cache_document(
+        self,
+        url: str,
+        content: bytes,
+        config: Config,
+        content_type: str = "application/octet-stream",
+        etag: Optional[str] = None,
+        last_modified: Optional[str] = None,
+        bill_id: Optional[str] = None,
+        document_purpose: Optional[str] = None
+    ) -> dict:
+        """Cache a document with content-addressed storage."""
+        with self._lock:
+            self._ensure_document_cache_structure()
+            content_hash = self._compute_content_hash(content)
+            file_ext = self._get_file_extension(content_type, url)
+            cache_dir = Path(config.document_cache.directory)
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            cached_file_path = cache_dir / f"{content_hash}.{file_ext}"
+            if not cached_file_path.exists():
+                cached_file_path.write_bytes(content)
+            now = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+            existing_entry = self._data["document_cache"]["by_url"].get(url)
+            cache_entry = {
+                "url": url,
+                "content_hash": content_hash,
+                "content_type": content_type,
+                "file_size_bytes": len(content),
+                "first_downloaded": (
+                    existing_entry.get("first_downloaded", now)
+                    if existing_entry else now
+                ),
+                "last_accessed": now,
+                "last_validated": now,
+                "access_count": (
+                    existing_entry.get("access_count", 0) + 1
+                    if existing_entry else 1
+                ),
+                "cached_file_path": str(cached_file_path),
+                "etag": etag,
+                "last_modified": last_modified,
+                "bill_ids": (
+                    existing_entry.get("bill_ids", [])
+                    if existing_entry else []
+                ),
+                "document_purpose": document_purpose
+            }
+            if bill_id and bill_id not in cache_entry["bill_ids"]:
+                cache_entry["bill_ids"].append(bill_id)
+            self._data["document_cache"]["by_url"][url] = cache_entry
+            if content_hash not in self._data["document_cache"]["by_content_hash"]:
+                self._data["document_cache"]["by_content_hash"][content_hash] = []
+            if url not in self._data["document_cache"]["by_content_hash"][content_hash]:
+                self._data["document_cache"]["by_content_hash"][content_hash].append(url)
+            self._data["document_cache"]["metadata"]["total_documents"] = len(
+                self._data["document_cache"]["by_url"]
+            )
+            total_size = 0
+            seen_hashes = set()
+            for entry in self._data["document_cache"]["by_url"].values():
+                ch = entry.get("content_hash")
+                if ch and ch not in seen_hashes:
+                    seen_hashes.add(ch)
+                    total_size += entry.get("file_size_bytes", 0)
+            self._data["document_cache"]["metadata"]["total_size_bytes"] = (
+                total_size
+            )
+            self.save()
+            return cache_entry
+
+    def get_cached_document_content(
+        self, url: str, config: Optional[Config] = None
+    ) -> Optional[bytes]:
+        """Get cached document content if available."""
+        cache_entry = self.get_cached_document(url, config)
+        if not cache_entry:
+            return None
+        cached_file_path = Path(cache_entry.get("cached_file_path", ""))
+        if not cached_file_path.exists():
+            return None
+        with self._lock:
+            cache_entry["last_accessed"] = (
+                datetime.utcnow().isoformat(timespec="seconds") + "Z"
+            )
+            cache_entry["access_count"] = cache_entry.get("access_count", 0) + 1
+            self.save()
+        return cached_file_path.read_bytes()
+
+    def cache_extracted_text(
+        self,
+        content_hash: str,
+        extracted_text: str,
+        config: Config
+    ) -> None:
+        """Cache extracted text from a document."""
+        if not config.document_cache.store_extracted_text:
+            return
+        extracted_dir = Path(config.document_cache.extracted_text_directory)
+        extracted_dir.mkdir(parents=True, exist_ok=True)
+        extracted_file_path = extracted_dir / f"{content_hash}.txt"
+        extracted_file_path.write_text(extracted_text, encoding="utf-8")
+
+    def get_cached_extracted_text(
+        self,
+        content_hash: str,
+        config: Optional[Config] = None
+    ) -> Optional[str]:
+        """Get cached extracted text if available."""
+        if not config or not config.document_cache.store_extracted_text:
+            return None
+        extracted_dir = Path(config.document_cache.extracted_text_directory)
+        extracted_file_path = extracted_dir / f"{content_hash}.txt"
+        if not extracted_file_path.exists():
+            return None
+        try:
+            return extracted_file_path.read_text(encoding="utf-8")
+        except Exception:  # pylint: disable=broad-exception-caught
+            return None
+
+    def cleanup_document_cache(
+        self, config: Config, force: bool = False
+    ) -> dict[str, int]:
+        """Clean up old or oversized cache entries."""
+        with self._lock:
+            self._ensure_document_cache_structure()
+            stats = {
+                "documents_removed": 0,
+                "bytes_freed": 0,
+                "files_deleted": 0
+            }
+            last_cleanup = (
+                self._data["document_cache"]["metadata"].get("last_cleanup")
+            )
+            if not force and last_cleanup:
+                try:
+                    last_cleanup_dt = datetime.fromisoformat(
+                        last_cleanup.replace("Z", "+00:00")
+                    )
+                    if (datetime.now(timezone.utc) - last_cleanup_dt).days < 1:
+                        return stats
+                except (ValueError, AttributeError):
+                    pass
+            by_url = self._data["document_cache"]["by_url"]
+            max_age_seconds = config.document_cache.max_age_days * 86400
+            now = datetime.now(timezone.utc)
+            urls_to_remove = []
+            for url, entry in by_url.items():
+                last_accessed = entry.get("last_accessed")
+                if last_accessed:
+                    try:
+                        last_accessed_dt = datetime.fromisoformat(
+                            last_accessed.replace("Z", "+00:00")
+                        )
+                        age_seconds = (now - last_accessed_dt).total_seconds()
+                        if age_seconds > max_age_seconds:
+                            urls_to_remove.append(url)
+                    except (ValueError, AttributeError):
+                        pass
+            files_to_delete = set()
+            for url in urls_to_remove:
+                entry = by_url.pop(url)
+                stats["documents_removed"] += 1
+                stats["bytes_freed"] += entry.get("file_size_bytes", 0)
+                cached_file_path = entry.get("cached_file_path")
+                if cached_file_path:
+                    files_to_delete.add(cached_file_path)
+                content_hash = entry.get("content_hash")
+                if content_hash in (
+                    self._data["document_cache"]["by_content_hash"]
+                ):
+                    hash_urls = (
+                        self._data["document_cache"]["by_content_hash"]
+                        [content_hash]
+                    )
+                    if url in hash_urls:
+                        hash_urls.remove(url)
+                    if not hash_urls:
+                        del self._data["document_cache"]["by_content_hash"][
+                            content_hash
+                        ]
+            for file_path_str in files_to_delete:
+                file_path = Path(file_path_str)
+                content_hash_from_path = file_path.stem
+                if content_hash_from_path not in (
+                    self._data["document_cache"]["by_content_hash"]
+                ):
+                    if file_path.exists():
+                        try:
+                            file_path.unlink()
+                            stats["files_deleted"] += 1
+                        except Exception:  # pylint: disable=broad-exception-caught
+                            pass
+            self._data["document_cache"]["metadata"]["last_cleanup"] = (
+                datetime.utcnow().isoformat(timespec="seconds") + "Z"
+            )
+            self.save()
+            return stats
 
 
 def get_next_first_wednesday_december(from_date: date) -> date:

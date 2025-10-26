@@ -165,7 +165,11 @@ class VotesCommitteeDocumentsParser(ParserInterface):
 
     @classmethod
     def discover(
-        cls, base_url: str, bill: BillAtHearing
+        cls,
+        base_url: str,
+        bill: BillAtHearing,
+        cache=None,
+        config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover vote documents in committee Documents tab."""
         logger.debug("Trying %s...", cls.__name__)

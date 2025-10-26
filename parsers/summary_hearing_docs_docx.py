@@ -109,7 +109,11 @@ class SummaryHearingDocsDocxParser(ParserInterface):
 
     @classmethod
     def discover(
-        cls, base_url: str, bill: BillAtHearing
+        cls,
+        base_url: str,
+        bill: BillAtHearing,
+        cache=None,
+        config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """
         Probe hearing 'Documents' tab for DOCX summary for this bill.

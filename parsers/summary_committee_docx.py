@@ -22,10 +22,16 @@ class SummaryCommitteeDocxParser(ParserInterface):
     cost = 3
 
     @staticmethod
-    def _extract_docx_text(docx_url: str) -> Optional[str]:
+    def _extract_docx_text(
+        docx_url: str,
+        cache=None,
+        config=None
+    ) -> Optional[str]:
         """Extract text content from a DOCX URL (paragraphs, tables, headers, footers)."""
         try:
-            content = ParserInterface._fetch_binary(docx_url, timeout=30)
+            content = ParserInterface._fetch_binary(
+                docx_url, timeout=30, cache=cache, config=config
+            )
             docx_file = io.BytesIO(content)
             doc = Document(docx_file)
             parts = []
@@ -90,7 +96,11 @@ class SummaryCommitteeDocxParser(ParserInterface):
 
     @classmethod
     def discover(
-        cls, base_url: str, bill: BillAtHearing
+        cls,
+        base_url: str,
+        bill: BillAtHearing,
+        cache=None,
+        config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the Committee Summary DOCX."""
         logger.debug("Trying %s...", cls.__name__)
@@ -100,8 +110,30 @@ class SummaryCommitteeDocxParser(ParserInterface):
         docx_url = cls._find_committee_summary_docx(soup, base_url)
         if not docx_url:
             return None
-        # Try to extract text from the DOCX for preview
-        docx_text = cls._extract_docx_text(docx_url)
+        docx_text = None
+        if cache and config:
+            cached_doc = cache.get_cached_document(docx_url, config)
+            if cached_doc:
+                content_hash = cached_doc.get("content_hash")
+                if content_hash:
+                    docx_text = cache.get_cached_extracted_text(
+                        content_hash, config
+                    )
+                    if docx_text:
+                        logger.debug(
+                            "Using cached extracted text for %s", docx_url
+                        )
+        if not docx_text:
+            docx_text = cls._extract_docx_text(docx_url, cache, config)
+            if docx_text and cache and config:
+                cached_doc = cache.get_cached_document(docx_url, config)
+                if cached_doc:
+                    content_hash = cached_doc.get("content_hash")
+                    if content_hash:
+                        cache.cache_extracted_text(
+                            content_hash, docx_text, config
+                        )
+                        logger.debug("Cached extracted text for %s", docx_url)
         if docx_text:
             # Use the extracted text as preview, truncated if too long
             preview = f"Found Committee Summary DOCX for {bill.bill_id}"

@@ -40,7 +40,11 @@ class VotesBillEmbeddedParser(ParserInterface):
 
     @classmethod
     def discover(
-        cls, base_url: str, bill: BillAtHearing
+        cls,
+        base_url: str,
+        bill: BillAtHearing,
+        cache=None,
+        config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the votes."""
         logger.debug("Trying %s...", cls.__name__)

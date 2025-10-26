@@ -7,11 +7,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Optional, Any
 import sys
 import time
 import threading
 import logging
+from datetime import datetime
 
 from bs4 import BeautifulSoup
 import requests  # type: ignore
@@ -132,8 +134,50 @@ class DecayingUrlCache:
 _URL_CACHE = DecayingUrlCache()
 
 
-_GLOBAL_SESSION: Optional[requests.Session] = None
-_SESSION_LOCK = threading.Lock()
+class _SessionManager:
+    """Manages HTTP session lifecycle without global keyword."""
+
+    def __init__(self) -> None:
+        self._session: Optional[requests.Session] = None
+        self._lock = threading.Lock()
+
+    def get_session(self) -> requests.Session:
+        """Get or create the HTTP session with connection pooling."""
+        if self._session is None:
+            with self._lock:
+                if self._session is None:
+                    session = requests.Session()
+                    retry_strategy = Retry(
+                        total=3,
+                        backoff_factor=1,
+                        status_forcelist=[429, 500, 502, 503, 504],
+                        allowed_methods=["GET", "POST"]
+                    )
+                    adapter = HTTPAdapter(
+                        pool_connections=10,
+                        pool_maxsize=20,
+                        max_retries=retry_strategy,
+                        pool_block=False
+                    )
+                    session.mount("http://", adapter)
+                    session.mount("https://", adapter)
+                    session.headers.update({
+                        "User-Agent": "legis-scraper/0.1"
+                    })
+                    self._session = session
+                    logger.debug("Created global HTTP session")
+        return self._session
+
+    def cleanup(self) -> None:
+        """Close the session."""
+        with self._lock:
+            if self._session:
+                self._session.close()
+                self._session = None
+                logger.debug("Closed global HTTP session")
+
+
+_SESSION_MANAGER = _SessionManager()
 
 
 @dataclass
@@ -157,41 +201,12 @@ _METRICS = {
 _METRICS_LOCK = threading.Lock()
 
 
-def _get_global_session() -> requests.Session:
-    """Get or create the global HTTP session with connection pooling."""
-    global _GLOBAL_SESSION
-    if _GLOBAL_SESSION is None:
-        with _SESSION_LOCK:
-            if _GLOBAL_SESSION is None:
-                session = requests.Session()
-                retry_strategy = Retry(
-                    total=3,
-                    backoff_factor=1,
-                    status_forcelist=[429, 500, 502, 503, 504],
-                    allowed_methods=["GET", "POST"]
-                )
-                adapter = HTTPAdapter(
-                    pool_connections=10,
-                    pool_maxsize=20,
-                    max_retries=retry_strategy,
-                    pool_block=False
-                )
-                session.mount("http://", adapter)
-                session.mount("https://", adapter)
-                session.headers.update({
-                    "User-Agent": "legis-scraper/0.1"
-                })
-                _GLOBAL_SESSION = session
-                logger.debug("Created global HTTP session")
-    return _GLOBAL_SESSION
-
-
 def _fetch_with_deduplication(url: str, timeout: int = 20) -> str:
     """Fetch URL with request deduplication."""
     if url in _URL_CACHE:
         with _METRICS_LOCK:
             _METRICS["cache_hits"] += 1
-        logger.debug(f"Cache hit: {url}")
+        logger.debug("Cache hit: %s", url)
         return _URL_CACHE[url]
     with _METRICS_LOCK:
         _METRICS["cache_misses"] += 1
@@ -202,7 +217,7 @@ def _fetch_with_deduplication(url: str, timeout: int = 20) -> str:
             pending_request = _PENDING_REQUESTS[url]
             with _METRICS_LOCK:
                 _METRICS["dedup_waits"] += 1
-            logger.debug(f"Dedup wait: {url} (another thread fetching)")
+            logger.debug("Dedup wait: %s (another thread fetching)", url)
         else:
             pending_request = _PendingRequest(event=threading.Event())
             _PENDING_REQUESTS[url] = pending_request
@@ -216,8 +231,8 @@ def _fetch_with_deduplication(url: str, timeout: int = 20) -> str:
         should_fetch = True
     if should_fetch:
         try:
-            session = _get_global_session()
-            logger.debug(f"Fetching: {url}")
+            session = _SESSION_MANAGER.get_session()
+            logger.debug("Fetching: %s", url)
             response = None
             for attempt in range(5):
                 try:
@@ -227,11 +242,11 @@ def _fetch_with_deduplication(url: str, timeout: int = 20) -> str:
                 except (requests.RequestException, requests.Timeout) as e:
                     if attempt == 4:
                         raise
-                    logger.debug(f"Retry {attempt + 1}/5 for {url}: {e}")
+                    logger.debug("Retry %d/5 for %s: %s", attempt + 1, url, e)
                     continue
             if response is None:
                 raise requests.RequestException(
-                    f"Failed to fetch {url} after 5 attempts"
+                    "Failed to fetch {} after 5 attempts".format(url)
                 )
             result = response.text
             _URL_CACHE[url] = result
@@ -250,14 +265,78 @@ def _fetch_with_deduplication(url: str, timeout: int = 20) -> str:
                     pending_request.error = e
                     pending_request.event.set()
             raise
+    raise RuntimeError("Unexpected state in _fetch_with_deduplication")
 
 
-def _fetch_binary(url: str, timeout: int = 30) -> bytes:
-    """Fetch binary content (PDFs, images) via global session."""
-    session = _get_global_session()
+def _fetch_binary(
+    url: str,
+    timeout: int = 30,
+    cache: Optional[Any] = None,
+    config: Optional[Any] = None
+) -> bytes:
+    """Fetch binary content (PDFs, images) via global session with caching."""
+    if cache and config:
+        cached_content = cache.get_cached_document_content(url, config)
+        if cached_content:
+            logger.debug("Using cached document: %s", url)
+            return cached_content
+        cached_entry = cache.get_cached_document(url, config)
+        if cached_entry:
+            session = _SESSION_MANAGER.get_session()
+            headers = {}
+            if cached_entry.get("etag"):
+                headers["If-None-Match"] = cached_entry["etag"]
+            if cached_entry.get("last_modified"):
+                headers["If-Modified-Since"] = cached_entry["last_modified"]
+            if headers:
+                try:
+                    response = session.get(url, timeout=timeout, headers=headers)
+                    if response.status_code == 304:
+                        logger.debug("Document not modified (304): %s", url)
+                        cache_entry = cache._data["document_cache"]["by_url"][url]
+                        cache_entry["last_validated"] = (
+                            datetime.utcnow().isoformat(timespec="seconds") + "Z"
+                        )
+                        cache.save()
+                        cached_file_path = Path(cached_entry["cached_file_path"])
+                        return cached_file_path.read_bytes()
+                    elif response.status_code == 200:
+                        logger.debug("Document modified, updating cache: %s", url)
+                        content = response.content
+                        cache.cache_document(
+                            url=url,
+                            content=content,
+                            config=config,
+                            content_type=response.headers.get(
+                                "Content-Type", "application/octet-stream"
+                            ),
+                            etag=response.headers.get("ETag"),
+                            last_modified=response.headers.get("Last-Modified")
+                        )
+                        return content
+                except Exception as e:
+                    logger.debug("Conditional request failed: %s, fetching normally", e)
+    session = _SESSION_MANAGER.get_session()
+    logger.debug("Fetching document: %s", url)
     response = session.get(url, timeout=timeout)
     response.raise_for_status()
-    return response.content
+    content = response.content
+    if cache and config and config.document_cache.enabled:
+        try:
+            cache.cache_document(
+                url=url,
+                content=content,
+                config=config,
+                content_type=response.headers.get(
+                    "Content-Type", "application/octet-stream"
+                ),
+                etag=response.headers.get("ETag"),
+                last_modified=response.headers.get("Last-Modified")
+            )
+            logger.debug("Cached document: %s", url)
+        except Exception as e:
+            logger.warning("Failed to cache document %s: %s", url, e)
+    return content
 
 
 def get_metrics() -> dict[str, int]:
@@ -275,12 +354,7 @@ def reset_metrics() -> None:
 
 def cleanup_session() -> None:
     """Close the global session."""
-    global _GLOBAL_SESSION
-    with _SESSION_LOCK:
-        if _GLOBAL_SESSION:
-            _GLOBAL_SESSION.close()
-            _GLOBAL_SESSION = None
-            logger.debug("Closed global HTTP session")
+    _SESSION_MANAGER.cleanup()
 
 
 class ParserInterface(ABC):
@@ -341,28 +415,29 @@ class ParserInterface(ABC):
             html = _fetch_with_deduplication(url, timeout=20)
             return BeautifulSoup(html, "html.parser")
         except Exception as e:
-            logger.debug(f"Failed to fetch {url}: {e}")
+            logger.debug("Failed to fetch %s: %s", url, e)
             return BeautifulSoup("", "html.parser")
 
     @staticmethod
-    def _fetch_binary(url: str, timeout: int = 30) -> bytes:
-        """Fetch binary content (PDFs, images) via global session."""
-        return _fetch_binary(url, timeout)
+    def _fetch_binary(
+        url: str,
+        timeout: int = 30,
+        cache: Optional[Any] = None,
+        config: Optional[Any] = None
+    ) -> bytes:
+        """Fetch binary content (PDFs, images) via global session with caching."""
+        return _fetch_binary(url, timeout, cache, config)
 
     @classmethod
     @abstractmethod
     def discover(
-        cls, base_url: str, bill: BillAtHearing
+        cls,
+        base_url: str,
+        bill: BillAtHearing,
+        cache: Optional[Any] = None,
+        config: Optional[Any] = None
     ) -> Optional[ParserInterface.DiscoveryResult]:
-        """Discover potential documents for parsing.
-
-        Args:
-            base_url: Base URL for the legislature website
-            row: BillAtHearing object containing bill information
-
-        Returns:
-            DiscoveryResult if a document is found, else None
-        """
+        """Discover potential documents for parsing."""
 
     @classmethod
     @abstractmethod
@@ -578,3 +653,53 @@ bill_id: {bill_id}
     def threading(self) -> Config.Threading:
         """Threading configuration."""
         return Config.Threading(self.config)
+
+    class DocumentCache:
+        """Document cache configuration."""
+
+        def __init__(self, config: dict[str, str | dict[str, str]]) -> None:
+            self.document_cache = config.get("document_cache", {})
+
+        @property
+        def enabled(self) -> bool:
+            """Whether to enable document caching."""
+            return bool(self.document_cache.get("enabled", True))
+
+        @property
+        def directory(self) -> str:
+            """Directory for cached documents."""
+            return str(self.document_cache.get("directory", "cache/documents"))
+
+        @property
+        def extracted_text_directory(self) -> str:
+            """Directory for extracted text."""
+            return str(
+                self.document_cache.get(
+                    "extracted_text_directory", "cache/extracted"
+                )
+            )
+
+        @property
+        def max_size_mb(self) -> int:
+            """Maximum cache size in MB."""
+            return int(self.document_cache.get("max_size_mb", 5120))
+
+        @property
+        def max_age_days(self) -> int:
+            """Maximum age of cached documents in days."""
+            return int(self.document_cache.get("max_age_days", 180))
+
+        @property
+        def validate_after_days(self) -> int:
+            """Validate cached documents after N days."""
+            return int(self.document_cache.get("validate_after_days", 7))
+
+        @property
+        def store_extracted_text(self) -> bool:
+            """Store extracted text from PDFs/DOCX."""
+            return bool(self.document_cache.get("store_extracted_text", True))
+
+    @property
+    def document_cache(self) -> Config.DocumentCache:
+        """Document cache configuration."""
+        return Config.DocumentCache(self.config)

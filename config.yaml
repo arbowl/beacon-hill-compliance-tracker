@@ -41,3 +41,12 @@ llm:
     file: "out/llm_audit.log"
     include_timestamps: true
     include_model_info: true
+# Document caching configuration
+document_cache:
+  enabled: true                        # Enable document caching
+  directory: "cache/documents"        # Directory for cached documents
+  extracted_text_directory: "cache/extracted"  # Directory for extracted text
+  max_size_mb: 5120                   # Maximum cache size in MB (5GB)
+  max_age_days: 180                   # Maximum age of cached documents in days
+  validate_after_days: 7              # Validate cached documents after N days
+  store_extracted_text: true          # Store extracted text from PDFs/DOCX

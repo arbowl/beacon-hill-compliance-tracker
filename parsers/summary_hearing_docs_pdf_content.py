@@ -246,7 +246,11 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
 
     @classmethod
     def discover(
-        cls, base_url: str, bill: BillAtHearing
+        cls,
+        base_url: str,
+        bill: BillAtHearing,
+        cache=None,
+        config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """
         Download and check PDF content from hearing Documents tab for summaries.
