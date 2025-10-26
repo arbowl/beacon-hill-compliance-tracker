@@ -14,6 +14,7 @@ import time
 import threading
 import logging
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 import requests  # type: ignore
@@ -22,6 +23,8 @@ from urllib3.util.retry import Retry
 from yaml import safe_load  # type: ignore
 
 from components.models import BillAtHearing
+if TYPE_CHECKING:
+    from components.utils import Cache
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -271,8 +274,8 @@ def _fetch_with_deduplication(url: str, timeout: int = 20) -> str:
 def _fetch_binary(
     url: str,
     timeout: int = 30,
-    cache: Optional[Any] = None,
-    config: Optional[Any] = None
+    cache: Optional[Cache] = None,
+    config: Optional[Config] = None
 ) -> bytes:
     """Fetch binary content (PDFs, images) via global session with caching."""
     if cache and config:
