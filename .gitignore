@@ -210,3 +210,4 @@ __marimo__/
 # Project specific
 out/
 cache/
+cache.json

@@ -4,6 +4,11 @@ A Python tool for tracking compliance of Massachusetts legislative committees wi
 
 The tool uses an API key to submit recorded data to a dashboard at https://beaconhilltracker.org/.
 
+I chose a web-scraping approach rather than using the official API because the purpose of this tool is to track compliance
+based on a what-you-see-is-what-you-get mindset. The primary way the public interfaces with the Legislature's outputs is via
+the website, not via backend interfaces and scripts. Although this approach is more brittle, I believe that the advantages gained by having the code
+see exactly what an activist would see outweigh the benefits of using unified data structures.
+
 ## Purpose
 
 Massachusetts House and Joint committees are required to:
@@ -37,6 +42,12 @@ pip install -r requirements.txt
 ```bash
 python app.py
 ```
+
+### The Cache
+
+This is the "sourdough starter" of this project; if you run it, you'll want a cache from a trusted user. The "cache" is a JSON file aptly named
+"cache.json" which contains metadata about bills and committees that make the algorithm run faster over time. The code will generate it on its
+own, but using a trusted user's version will get you up and running much sooner.
 
 ## Outputs
 

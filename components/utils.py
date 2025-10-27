@@ -15,7 +15,7 @@ from components.llm import LLMParser
 from components.interfaces import Config
 from collectors.extension_orders import collect_all_extension_orders
 
-_DEFAULT_PATH = Path("cache.json")
+_DEFAULT_PATH = Path("cache/cache.json")
 
 
 class Cache:
@@ -31,12 +31,12 @@ class Cache:
         if path.exists():
             try:
                 self._data = json.loads(path.read_text(encoding="utf-8"))
-                committee_bills = self._data.get("committee_bills", {})
+                committee_bills: dict[str, dict[str, str]] = self._data.get("committee_bills", {})
                 for committee_id, data in committee_bills.items():
                     bills_list = data.get("bills", [])
                     self._committee_bills_cache[committee_id] = set(bills_list)
             except Exception:  # pylint: disable=broad-exception-caught
-                self._data = {}
+                self._data: dict[str, dict[str, str]] = {}
 
     def save(self) -> None:
         """Save the cache to the file (respects auto_save flag)."""
