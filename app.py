@@ -9,16 +9,21 @@ from components.options import (
     get_hearing_limit,
     get_extension_check_preference,
     print_options_summary,
-    submit_data
+    submit_data,
+    submit_changelog
 )
 from components.utils import Cache
 from collectors.extension_orders import collect_all_extension_orders
+from version import __version__
 
 
-def main():
+def main() -> None:
     """Entry point for the compliance pipeline"""
     cache = Cache(auto_save=False)
     config = Config("config.yaml")
+    print()
+    print(f"Beacon Hill Compliance Tracker v{__version__}")
+    print()
     submit_data(
         [committee.id for committee in get_committees(
             config.base_url, tuple(config.include_chambers)
@@ -81,6 +86,7 @@ def main():
     cache.force_save()
     print("Final cache save completed")
     submit_data(committee_ids)
+    submit_changelog()
     input("Collection complete! Press Enter to exit.")
 
 

@@ -128,7 +128,7 @@ def get_hearing_limit():
             print("Please enter a valid number.")
 
 
-def get_extension_check_preference(cache: Cache) -> None:
+def get_extension_check_preference(cache: Cache):
     """Interactive extension check preference with cache status."""
     print("\n" + "="*60)
     print("EXTENSION CHECKING")
@@ -183,3 +183,36 @@ def submit_data(committees: list[str]) -> None:
         print("Sending committee:", committee)
         print(client.upload_file(f"out/basic_{committee}.json", kind="basic"))
     print("Data submission complete.")
+
+
+def submit_changelog():
+    """Send changelog and version information to the remote server.
+
+    This function can be called standalone or integrated into your
+    deployment workflow to update the server with the current version.
+
+    Environment Variables:
+        SIGNING_ID: API signing key ID
+        SIGNING_SECRET: API signing key secret
+    """
+    if input(
+        "Send changelog to remote server? (y/n): "
+    ).strip().lower() not in ['y', 'yes']:
+        print("Changelog submission skipped.")
+        return
+
+    print("Sending changelog...")
+    client = IngestClient(
+        base_url="https://beacon-hill-tracker.onrender.com/",
+        signing_key_id=getenv("SIGNING_ID", ""),
+        signing_key_secret=getenv("SIGNING_SECRET"),
+    )
+
+    result = client.upload_changelog()
+    print("Response:", result)
+
+    if result.get("results") and result["results"][0].get("ok"):
+        print("[OK] Changelog sent successfully!")
+    else:
+        print("[FAIL] Failed to send changelog.")
+        print("  Check your API credentials and network connection.")

@@ -232,3 +232,56 @@ class IngestClient:
             resp = self.session.post(url, json=body, headers=headers)
             results.append(_safe_json(resp))
         return {"endpoint": url, "results": results}
+
+    def upload_changelog(
+        self,
+        changelog_data: Optional[dict[str, Any]] = None,
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        """Upload changelog and version information to the receiver.
+
+        Args:
+            changelog_data: Dictionary containing changelog data. If None,
+                          will be auto-generated from CHANGELOG.md
+            dry_run: If True, do not send HTTP requests; return the would-be
+                    payload.
+
+        Returns:
+            A dict with 'endpoint' and 'results'.
+        """
+        # Import here to avoid circular dependency
+        from components.utils import parse_changelog, get_user_agent
+        from version import __version__
+
+        if changelog_data is None:
+            try:
+                changelog_data = parse_changelog()
+            except FileNotFoundError:
+                # Fallback if CHANGELOG.md doesn't exist
+                changelog_data = {
+                    "current_version": __version__,
+                    "user_agent": get_user_agent(),
+                    "changelog": []
+                }
+        else:
+            # Ensure required fields are present
+            if "user_agent" not in changelog_data:
+                changelog_data["user_agent"] = get_user_agent()
+
+        path = "/ingest/changelog"
+        url = self.base_url + path
+        extra = self._signed_headers("POST", path, changelog_data)
+        headers = {**self.headers, **extra}
+
+        if dry_run:
+            return {
+                "endpoint": url,
+                "results": [{
+                    "status": 0,
+                    "dry_run": True,
+                    "payload_preview": json.dumps(changelog_data)[:4000]
+                }],
+            }
+
+        resp = self.session.post(url, json=changelog_data, headers=headers)
+        return {"endpoint": url, "results": [_safe_json(resp)]}

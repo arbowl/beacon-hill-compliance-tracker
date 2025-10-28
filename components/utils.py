@@ -2,6 +2,8 @@
 
 import json
 import hashlib
+import re
+import sys
 from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
 import textwrap
@@ -14,6 +16,10 @@ import webbrowser
 from components.llm import LLMParser
 from components.interfaces import Config
 from collectors.extension_orders import collect_all_extension_orders
+
+# Import version from root version.py
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from version import __version__  # noqa: E402
 
 _DEFAULT_PATH = Path("cache/cache.json")
 
@@ -1136,3 +1142,117 @@ def get_extension_order_url(
             continue
 
     return latest_url
+
+
+# Version and Changelog Functions
+
+
+def get_user_agent() -> str:
+    """
+    Get the user-agent string for HTTP requests.
+
+    Returns:
+        User-agent string in format: "BeaconHillTracker/VERSION (EMAIL)"
+    """
+    email = "info@beaconhilltracker.org"
+    return f"BeaconHillTracker/{__version__} ({email})"
+
+
+def parse_changelog(changelog_path: str = "CHANGELOG.md") -> dict[str, Any]:
+    """
+    Parse the CHANGELOG.md file and return structured data.
+
+    Args:
+        changelog_path: Path to the CHANGELOG.md file
+
+    Returns:
+        Dictionary containing:
+        - current_version: The latest version number
+        - changelog: List of version entries with changes
+
+    Raises:
+        FileNotFoundError: If CHANGELOG.md doesn't exist
+    """
+    changelog_file = Path(changelog_path)
+    if not changelog_file.exists():
+        raise FileNotFoundError(f"Changelog not found at {changelog_path}")
+
+    content = changelog_file.read_text(encoding="utf-8")
+
+    # Parse changelog entries
+    # Pattern matches: ## [VERSION] - DATE
+    version_pattern = r"## \[([^\]]+)\] - (\d{4}-\d{2}-\d{2})"
+
+    versions = []
+    current_version = None
+
+    # Split content by version headers
+    sections = re.split(version_pattern, content)
+
+    # sections[0] is the header text before first version
+    # Then it alternates: version, date, content, version, date, content, ...
+    for i in range(1, len(sections), 3):
+        if i + 2 <= len(sections):
+            version = sections[i]
+            release_date = sections[i + 1]
+            changes_text = sections[i + 2]
+
+            # Set current_version to the first (most recent) version
+            if current_version is None:
+                current_version = version
+
+            # Parse the changes by category
+            changes = parse_changelog_section(changes_text)
+
+            versions.append({
+                "version": version,
+                "date": release_date,
+                "changes": changes
+            })
+
+    return {
+        "current_version": current_version or __version__,
+        "changelog": versions
+    }
+
+
+def parse_changelog_section(section_text: str) -> dict[str, list[str]]:
+    """
+    Parse a changelog section to extract categorized changes.
+
+    Args:
+        section_text: The text content of a version section
+
+    Returns:
+        Dictionary with categories (added, changed, fixed, etc.) as keys
+        and lists of change items as values
+    """
+    changes: dict[str, list[str]] = {}
+
+    # Pattern matches: ### Category (Added, Changed, Fixed, etc.)
+    category_pattern = r"### ([A-Z][a-z]+)"
+
+    # Split by category headers
+    parts = re.split(category_pattern, section_text)
+
+    # parts[0] is any text before first category
+    # Then it alternates: category, content, category, content, ...
+    for i in range(1, len(parts), 2):
+        if i + 1 <= len(parts):
+            category = parts[i].lower()
+            content = parts[i + 1].strip()
+
+            # Extract bullet points (lines starting with -)
+            items = []
+            for line in content.split('\n'):
+                line = line.strip()
+                if line.startswith('-'):
+                    # Remove the leading dash and whitespace
+                    item = line[1:].strip()
+                    if item:
+                        items.append(item)
+
+            if items:
+                changes[category] = items
+
+    return changes
