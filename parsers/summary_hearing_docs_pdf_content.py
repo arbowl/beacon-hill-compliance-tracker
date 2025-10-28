@@ -21,6 +21,7 @@ _HEARING_PDF_CACHE = DecayingUrlCache()
 
 
 class SummaryHearingDocsPdfContentParser(ParserInterface):
+    """Parser for PDF summaries on the hearing's Documents tab."""
 
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "Hearing page Documents tab PDF content"
@@ -145,7 +146,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
         cls, hearing_docs_url: str, base_url: str
     ) -> list[dict]:
         """Download all PDFs from a hearing and return their content."""
-        soup = cls._soup(hearing_docs_url)
+        soup = cls.soup(hearing_docs_url)
 
         # Find all PDF download links
         pdf_links = []

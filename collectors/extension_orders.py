@@ -149,7 +149,7 @@ def _parse_extension_order_page(
     mentioned.
     """
     try:
-        soup = ParserInterface._soup(order_url)
+        soup = ParserInterface.soup(order_url)
         text = soup.get_text(" ", strip=True)
         # Extract extension date
         extension_date = _extract_extension_date(text)

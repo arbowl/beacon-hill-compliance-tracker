@@ -18,6 +18,8 @@ DOCX_RX = re.compile(r"\.docx($|\?)", re.I)
 
 
 class SummaryHearingDocsDocxParser(ParserInterface):
+    """Parser for DOCX summaries on the hearing's Documents tab."""
+
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "Hearing page Documents tab DOCX"
     cost = 2
@@ -121,7 +123,7 @@ class SummaryHearingDocsDocxParser(ParserInterface):
         """
         logger.debug("Trying %s...", cls.__name__)
         hearing_docs_url = bill.hearing_url
-        soup = cls._soup(hearing_docs_url)
+        soup = cls.soup(hearing_docs_url)
         for a in soup.find_all("a", href=True):
             if not hasattr(a, 'get'):
                 continue

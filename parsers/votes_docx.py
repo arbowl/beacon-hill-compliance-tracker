@@ -15,6 +15,7 @@ from components.interfaces import ParserInterface
 logger = logging.getLogger(__name__)
 
 class VotesDocxParser(ParserInterface):
+    """Parser for DOCX files containing vote records."""
 
     parser_type = ParserInterface.ParserType.VOTES
     location = "Bill page Word document"
@@ -35,7 +36,7 @@ class VotesDocxParser(ParserInterface):
                 full_text = "\n".join(text_content)
                 full_text = re.sub(r'\s+', ' ', full_text).strip()
                 return full_text
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Could not extract text from DOCX %s: %s", docx_url, e)
             return None
         return None
@@ -90,7 +91,7 @@ class VotesDocxParser(ParserInterface):
         ]
         for location in locations_to_check:
             try:
-                soup = cls._soup(location)
+                soup = cls.soup(location)
                 docx_urls = cls._find_docx_files(soup, base_url)
                 for docx_url in docx_urls:
                     docx_text = cls._extract_docx_text(docx_url)
@@ -106,7 +107,7 @@ class VotesDocxParser(ParserInterface):
                             docx_url,
                             0.85,
                         )
-            except Exception as e:
+            except Exception:  # pylint: disable=broad-exception-caught
                 continue
         return None
 
@@ -118,4 +119,3 @@ class VotesDocxParser(ParserInterface):
             "location": cls.location,
             "source_url": candidate.source_url
         }
-

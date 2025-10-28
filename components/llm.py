@@ -9,7 +9,6 @@ import json
 import logging
 from datetime import datetime
 from typing import Optional, Literal
-from dataclasses import dataclass
 
 import requests  # type: ignore
 

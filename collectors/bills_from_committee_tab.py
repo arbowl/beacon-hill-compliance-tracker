@@ -30,7 +30,7 @@ def get_all_committee_bills(
                 f"?current=True&pageNumber={page_num}"
             )
             url = urljoin(base_url, path)
-        soup = ParserInterface._soup(url)
+        soup = ParserInterface.soup(url)
         found_bills_on_page = False
         for a in soup.select('a[href*="/Bills/"]'):
             href = a.get("href", "")

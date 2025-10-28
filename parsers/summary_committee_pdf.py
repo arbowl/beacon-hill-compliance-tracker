@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class SummaryCommitteePdfParser(ParserInterface):
+    """Parser for PDF files in the Committee Summary tab."""
 
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "committee page PDF"
@@ -67,7 +68,7 @@ class SummaryCommitteePdfParser(ParserInterface):
                 full_text = "\n".join(text_content)
                 full_text = re.sub(r'\s+', ' ', full_text).strip()
                 return full_text
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
             return None
         return None
@@ -83,7 +84,7 @@ class SummaryCommitteePdfParser(ParserInterface):
         """Discover the Committee Summary PDF."""
         logger.debug("Trying %s...", cls.__name__)
         committee_summary_url = f"{bill.bill_url}/CommitteeSummary"
-        soup = cls._soup(committee_summary_url)
+        soup = cls.soup(committee_summary_url)
         pdf_url = cls._find_committee_summary_pdf(soup, base_url)
         if not pdf_url:
             return None
@@ -128,10 +129,9 @@ class SummaryCommitteePdfParser(ParserInterface):
                 0.8,
             )
 
-
+    @staticmethod
     def parse(
         _base_url: str, candidate: ParserInterface.DiscoveryResult
     ) -> dict:
         """Parse the Committee Summary PDF."""
         return {"source_url": candidate.source_url}
-

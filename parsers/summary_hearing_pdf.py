@@ -22,6 +22,7 @@ SUMMARY_HINTS = [
 
 
 class SummaryHearingPdfParser(ParserInterface):
+    """Parser for summary PDFs on hearing pages."""
 
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "Hearing page PDF"
@@ -56,11 +57,11 @@ class SummaryHearingPdfParser(ParserInterface):
         or None if nothing plausible is found.
         """
         logger.debug("Trying %s...", cls.__name__)
-        soup = cls._soup(bill.hearing_url)
+        soup = cls.soup(bill.hearing_url)
         # Prefer the hearing detail page URL; derive it from known pattern:
         # we stored only IDs in BillAtHearing, so reconstruct if needed:
         hearing_url = f"{base_url}/Events/Hearings/Detail/{bill.hearing_id}"
-        soup = cls._soup(hearing_url)
+        soup = cls.soup(hearing_url)
 
         pdf_url = cls._find_candidate_pdf(soup, base_url)
         if not pdf_url:

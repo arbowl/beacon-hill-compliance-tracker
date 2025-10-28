@@ -18,6 +18,7 @@ PDF_RX = re.compile(r"\.pdf($|\?)", re.I)
 
 
 class SummaryHearingDocsPdfParser(ParserInterface):
+    """Parser for when the summary is on the hearing's Documents tab."""
 
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "Hearing page Documents tab PDF"
@@ -83,7 +84,7 @@ class SummaryHearingDocsPdfParser(ParserInterface):
                 full_text = "\n".join(text_content)
                 return full_text
 
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
             return None
 
@@ -93,25 +94,19 @@ class SummaryHearingDocsPdfParser(ParserInterface):
     def _find_bill_summary_in_pdf_text(
         cls, pdf_text: str, bill_id: str
     ) -> Optional[str]:
-        """Find a bill summary in PDF text content using the format from the user's example."""  # noqa: E501
-        # Look for lines that match the pattern: H.XXXX Summary_Description
-        # This handles the specific format shown in the user's example
+        """Find a bill summary in PDF text content using
+        the format from the user's example.
+        """
         lines = pdf_text.split('\n')
-
         for line in lines:
             line = line.strip()
             if not line:
                 continue
-
-            # Check if this line contains the bill ID and "Summary"
             normalized_line = cls._norm_bill_id(line)
             normalized_bill_id = cls._norm_bill_id(bill_id)
-
-            # Look for the pattern: bill_id + "Summary" (case insensitive)
             if (normalized_bill_id in normalized_line and
                     re.search(r'\bsummary\b', line, re.I)):
                 return line
-
         return None
 
     @classmethod
@@ -127,12 +122,8 @@ class SummaryHearingDocsPdfParser(ParserInterface):
         Returns {"preview","source_url","confidence"} or None.
         """
         logger.debug("Trying %s...", cls.__name__)
-        # We rely on hearing_url (added in step 2 tweak)
-        hearing_docs_url = bill.hearing_url  # docs are here (tabbed content)
-        soup = cls._soup(hearing_docs_url)
-
-        # First pass: Look for any link like /Events/DownloadDocument?...fileExtension=.pdf  # noqa: E501
-        # This is the original logic that checks link text and title parameters
+        hearing_docs_url = bill.hearing_url
+        soup = cls.soup(hearing_docs_url)
         for a in soup.find_all("a", href=True):
             if not hasattr(a, 'get'):
                 continue
@@ -146,18 +137,16 @@ class SummaryHearingDocsPdfParser(ParserInterface):
 
             text = " ".join(a.get_text(strip=True).split())
             title_param = cls._title_from_href(href)
-
-            bill_id = cls._norm_bill_id(bill.bill_id)  # "H96"
-            
-            # Debug logging for troubleshooting (only for specific bill patterns)
-            if text and "summary" in text.lower() and bill.bill_id in ["H.2244", "H.2250", "H.2251"]:
+            bill_id = cls._norm_bill_id(bill.bill_id)
+            if text and "summary" in text.lower() and bill.bill_id in [
+                "H.2244", "H.2250", "H.2251"
+            ]:
                 logger.debug(
                     "Found potential summary link for %s: text='%s', "
                     "title='%s', matches=%s",
                     bill.bill_id, text, title_param,
                     cls._looks_like_summary_for_bill(text, title_param, bill_id)
                 )
-            
             if cls._looks_like_summary_for_bill(text, title_param, bill_id):
                 pdf_url = urljoin(base_url, href)
                 preview = (f"Found '{title_param or text}' in hearing "
@@ -168,9 +157,6 @@ class SummaryHearingDocsPdfParser(ParserInterface):
                     pdf_url,
                     0.95
                 )
-
-        # Second pass: Fallback - Download and parse PDF content
-        # This handles cases where the link text doesn't match but the PDF content does  # noqa: E501
         for a in soup.find_all("a", href=True):
             if not hasattr(a, 'get'):
                 continue
@@ -181,30 +167,21 @@ class SummaryHearingDocsPdfParser(ParserInterface):
                 continue
             if not PDF_RX.search(href):
                 continue
-
-            # Check if this looks like it could be a summary document
             text = " ".join(a.get_text(strip=True).split())
             title_param = cls._title_from_href(href)
-
-            # Look for any PDF that might contain summaries (less strict criteria)
             if (re.search(r"\bsummary\b", text, re.I) or
                     re.search(r"\bsummary\b", title_param, re.I) or
                     re.search(r"\breport\b", text, re.I) or
                     re.search(r"\breport\b", title_param, re.I)):
-
                 if bill.bill_id in ["H.2244", "H.2250", "H.2251"]:
                     logger.debug(
                         "Second pass - Found potential summary PDF for %s: "
                         "text='%s', title='%s'",
                         bill.bill_id, text, title_param
                     )
-
                 pdf_url = urljoin(base_url, href)
-
-                # Download and parse the PDF content
                 pdf_text = cls._extract_pdf_text(pdf_url)
                 if pdf_text:
-                    # Look for our specific bill in the PDF content
                     bill_summary_line = cls._find_bill_summary_in_pdf_text(
                         pdf_text, bill.bill_id)
                     if bill_summary_line:
@@ -215,7 +192,7 @@ class SummaryHearingDocsPdfParser(ParserInterface):
                             preview,
                             pdf_text,
                             pdf_url,
-                            0.85,  # Slightly lower confidence
+                            0.85,
                         )
 
         return None
@@ -225,5 +202,4 @@ class SummaryHearingDocsPdfParser(ParserInterface):
         _base_url: str, candidate: ParserInterface.DiscoveryResult
     ) -> dict:
         """Parse the summary."""
-        # Nothing heavy yet; just return the stable link for the report/cache
         return {"source_url": candidate.source_url}

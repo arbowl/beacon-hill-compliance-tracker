@@ -32,7 +32,7 @@ def _validate_email_domain(email: str) -> bool:
 def _get_legislator_email(url: str) -> str:
     """Extract email from legislator profile page."""
     try:
-        soup = ParserInterface._soup(url)
+        soup = ParserInterface.soup(url)
         
         # Method 1: Look for email links (mailto: or direct email links)
         email_links = soup.find_all("a", href=re.compile(r"mailto:", re.I))
@@ -120,7 +120,7 @@ def get_committee_contact(
 
     print(f"Fetching contact info for committee {committee.id}")
     url = urljoin(base_url, f"/Committees/Detail/{committee.id}")
-    soup = ParserInterface._soup(url)
+    soup = ParserInterface.soup(url)
 
         # Helper function to extract contact info from a section
     def extract_contact_info(

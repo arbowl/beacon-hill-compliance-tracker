@@ -114,7 +114,7 @@ def should_use_llm_for_parser(
     
     # Tier 1: Committee-proven - phase-based with confidence gate
     if tier == ParserTier.COMMITTEE_PROVEN:
-        committee_data = cache._data.get("committee_parsers", {}).get(
+        committee_data = cache.data.get("committee_parsers", {}).get(
             committee_id, {}
         )
         parser_stats = committee_data.get(parser_type, {}).get(

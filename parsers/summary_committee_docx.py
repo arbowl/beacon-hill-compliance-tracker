@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class SummaryCommitteeDocxParser(ParserInterface):
+    """Parser for DOCX files in the Committee Summary tab."""
 
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "Committee page Word document"
@@ -60,7 +61,7 @@ class SummaryCommitteeDocxParser(ParserInterface):
                 full_text = " ".join(parts)
                 full_text = re.sub(r'\s+', ' ', full_text).strip()
                 return full_text
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Could not extract text from DOCX %s: %s", docx_url, e)
             return None
         return None
@@ -106,7 +107,7 @@ class SummaryCommitteeDocxParser(ParserInterface):
         logger.debug("Trying %s...", cls.__name__)
         # Navigate to the Committee Summary tab
         committee_summary_url = f"{bill.bill_url}/CommitteeSummary"
-        soup = cls._soup(committee_summary_url)
+        soup = cls.soup(committee_summary_url)
         docx_url = cls._find_committee_summary_docx(soup, base_url)
         if not docx_url:
             return None

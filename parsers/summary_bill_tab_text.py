@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class SummaryBillTabTextParser(ParserInterface):
+    """Parser for when the summary is on the bill's Summary tab."""
 
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "Bill page summary tab"
@@ -85,7 +86,7 @@ class SummaryBillTabTextParser(ParserInterface):
         """Discover the summary."""
         logger.debug("Trying %s...", cls.__name__)
         bill_url = bill.bill_url
-        soup = cls._soup(f"{bill_url}/PrimarySponsorSummary")
+        soup = cls.soup(f"{bill_url}/PrimarySponsorSummary")
         tab_panel = soup.find("div", attrs={
             "aria-labelledby": re.compile("PrimarySponsorSummary",
                                           re.I)
@@ -124,7 +125,7 @@ class SummaryBillTabTextParser(ParserInterface):
                     )
         tab_link = cls._find_summary_tab_link(soup, base_url)
         if tab_link:
-            tab_soup = cls._soup(tab_link)
+            tab_soup = cls.soup(tab_link)
             text = " ".join(tab_soup.get_text(" ", strip=True).split())
             if text:
                 full_text = cls._extract_summary_content(text)

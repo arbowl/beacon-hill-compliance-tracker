@@ -8,13 +8,12 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, Any
+from typing import Optional, Any, TYPE_CHECKING
 import sys
 import time
 import threading
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from bs4 import BeautifulSoup
 import requests  # type: ignore
@@ -186,6 +185,7 @@ _SESSION_MANAGER = _SessionManager()
 @dataclass
 class _PendingRequest:
     """Tracks an in-flight HTTP request."""
+
     event: threading.Event
     result: Optional[str] = None
     error: Optional[Exception] = None
@@ -249,7 +249,7 @@ def _fetch_with_deduplication(url: str, timeout: int = 20) -> str:
                     continue
             if response is None:
                 raise requests.RequestException(
-                    "Failed to fetch {} after 5 attempts".format(url)
+                    f"Failed to fetch {url} after 5 attempts"
                 )
             result = response.text
             _URL_CACHE[url] = result
@@ -296,7 +296,7 @@ def _fetch_binary(
                     response = session.get(url, timeout=timeout, headers=headers)
                     if response.status_code == 304:
                         logger.debug("Document not modified (304): %s", url)
-                        cache_entry = cache._data["document_cache"]["by_url"][url]
+                        cache_entry = cache.data["document_cache"]["by_url"][url]
                         cache_entry["last_validated"] = (
                             datetime.utcnow().isoformat(timespec="seconds") + "Z"
                         )
@@ -317,7 +317,7 @@ def _fetch_binary(
                             last_modified=response.headers.get("Last-Modified")
                         )
                         return content
-                except Exception as e:
+                except Exception as e:  # pylint: disable=broad-exception-caught
                     logger.debug("Conditional request failed: %s, fetching normally", e)
     session = _SESSION_MANAGER.get_session()
     logger.debug("Fetching document: %s", url)
@@ -337,7 +337,7 @@ def _fetch_binary(
                 last_modified=response.headers.get("Last-Modified")
             )
             logger.debug("Cached document: %s", url)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to cache document %s: %s", url, e)
     return content
 
@@ -412,12 +412,12 @@ class ParserInterface(ABC):
             raise TypeError(f"{cls.__name__}.location must be a str")
 
     @staticmethod
-    def _soup(url: str) -> BeautifulSoup:
+    def soup(url: str) -> BeautifulSoup:
         """Get the soup of the page (cached by URL with deduplication)."""
         try:
             html = _fetch_with_deduplication(url, timeout=20)
             return BeautifulSoup(html, "html.parser")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.debug("Failed to fetch %s: %s", url, e)
             return BeautifulSoup("", "html.parser")
 
@@ -552,6 +552,7 @@ class Config:
         return Config.DeferredReview(self.config)
 
     class Llm:
+        """LLM configuration."""
 
         def __init__(self, config: dict[str, str | dict[str, str]]) -> None:
             self.llm = config.get("llm", {})

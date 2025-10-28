@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from threading import Lock
 from typing import Optional, List, TYPE_CHECKING, Any
 import uuid
 
@@ -84,7 +85,7 @@ class SummaryInfo:
             result["parser_module"] = self.parser_module
         return result
 
-    def from_dict(data: dict) -> 'SummaryInfo':
+    def from_dict(self, data: dict) -> 'SummaryInfo':
         """Create SummaryInfo from a dictionary."""
         return SummaryInfo(
             present=data.get("present", False),
@@ -136,11 +137,13 @@ class VoteInfo:  # pylint: disable=too-many-instance-attributes
             result["tallies"] = self.tallies
         if self.records is not None:
             result["records"] = (
-                [{"member": r.member, "vote": r.vote} for r in self.records] if self.records else None
+                [{"member": r.member, "vote": r.vote}
+                 for r in self.records]
+                 if self.records else None
             )
         return result
 
-    def from_dict(data: dict) -> VoteInfo:
+    def from_dict(self, data: dict) -> VoteInfo:
         """Create VoteInfo from a dictionary."""
         records_data = data.get("records")
         records = (
@@ -211,7 +214,7 @@ class DeferredConfirmation:
     preview_text: Optional[str] = None
     confidence: Optional[float] = None
     created_at: datetime = field(default_factory=datetime.utcnow)
-    
+
     def __post_init__(self):
         """Generate confirmation ID if not provided."""
         if not self.confirmation_id:
@@ -226,27 +229,26 @@ class DeferredReviewSession:
     confirmations: List[DeferredConfirmation] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.utcnow)
     _lock: Any = field(default=None, init=False, repr=False)
-    
+
     def __post_init__(self):
         """Generate session ID if not provided."""
-        import threading
-        object.__setattr__(self, '_lock', threading.Lock())
+        object.__setattr__(self, '_lock', Lock())
         if not self.session_id:
             object.__setattr__(self, 'session_id', str(uuid.uuid4())[:8])
-    
+
     def add_confirmation(self, confirmation: DeferredConfirmation) -> None:
         """Add a confirmation to the session (thread-safe)."""
         with self._lock:
             self.confirmations.append(confirmation)
-    
+
     def get_summary_count(self) -> int:
         """Get count of summary confirmations."""
         return len([c for c in self.confirmations if c.parser_type == "summary"])
-    
+
     def get_votes_count(self) -> int:
         """Get count of vote confirmations."""
         return len([c for c in self.confirmations if c.parser_type == "votes"])
-    
+
     def get_bill_ids(self) -> List[str]:
         """Get unique list of bill IDs in this session."""
         return list(set(c.bill_id for c in self.confirmations))

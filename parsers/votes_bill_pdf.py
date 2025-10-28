@@ -18,6 +18,7 @@ VOTE_HINTS = [r"\bvote\b", r"\bvoting\b", r"\brecorded vote\b", r"\broll[- ]?cal
 
 
 class VotesBillPdfParser(ParserInterface):
+    """Parser for when the votes are on the bill's PDF."""
 
     parser_type = ParserInterface.ParserType.VOTES
     location = "Bill page PDF"
@@ -27,29 +28,23 @@ class VotesBillPdfParser(ParserInterface):
     def _extract_pdf_text(pdf_url: str) -> Optional[str]:
         """Extract text content from a PDF URL."""
         try:
-            content = ParserInterface._fetch_binary(pdf_url, timeout=30)
-            
-            # Read PDF from memory
+            content = ParserInterface._fetch_binary(
+                pdf_url, timeout=30
+            )
             pdf_file = io.BytesIO(content)
             pdf_reader = PyPDF2.PdfReader(pdf_file)
-            
-            # Extract text from all pages
             text_content = []
             for page in pdf_reader.pages:
                 page_text = page.extract_text()
                 if page_text:
                     text_content.append(page_text)
-            
             if text_content:
                 full_text = "\n".join(text_content)
-                # Clean up the text - remove excessive whitespace
                 full_text = re.sub(r'\s+', ' ', full_text).strip()
                 return full_text
-                
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
             return None
-        
         return None
 
     @classmethod
@@ -62,7 +57,7 @@ class VotesBillPdfParser(ParserInterface):
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the votes."""
         logger.debug("Trying %s...", cls.__name__)
-        soup = cls._soup(bill.bill_url)
+        soup = cls.soup(bill.bill_url)
         for a in soup.find_all("a", href=True):
             href = a["href"]
             text = " ".join(a.get_text(strip=True).split())
@@ -73,27 +68,25 @@ class VotesBillPdfParser(ParserInterface):
             ) or re.search(r"vote", href, re.I)
             if looks_vote:
                 pdf_url = urljoin(base_url, href)
-                
-                # Try to extract text from the PDF for preview
                 pdf_text = cls._extract_pdf_text(pdf_url)
-                
+
                 if pdf_text:
-                    # Create preview with PDF content
                     preview = f"Possible vote PDF on bill page: {text or href}"
                     if len(pdf_text) > 200:
                         preview += f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
                     else:
                         preview += f"\n\nPDF Content:\n{pdf_text}"
-                    
                     return ParserInterface.DiscoveryResult(
                         preview,
                         pdf_text,
                         pdf_url,
-                        0.8,  # Higher confidence with text extraction
+                        0.8,
                     )
                 else:
-                    # Fallback to simple preview if text extraction fails
-                    preview = f"Possible vote PDF on bill page: {text or href} (text extraction failed)"
+                    preview = (
+                        f"Possible vote PDF on bill page: "
+                        f"{text or href} (text extraction failed)"
+                    )
                     return ParserInterface.DiscoveryResult(
                         preview,
                         "",

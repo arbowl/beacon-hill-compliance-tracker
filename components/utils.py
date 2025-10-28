@@ -3,7 +3,6 @@
 import json
 import hashlib
 import re
-import sys
 from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
 import textwrap
@@ -16,10 +15,7 @@ import webbrowser
 from components.llm import LLMParser
 from components.interfaces import Config
 from collectors.extension_orders import collect_all_extension_orders
-
-# Import version from root version.py
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from version import __version__  # noqa: E402
+from version import __version__
 
 _DEFAULT_PATH = Path("cache/cache.json")
 
@@ -29,20 +25,20 @@ class Cache:
 
     def __init__(self, path: Path = _DEFAULT_PATH, auto_save: bool = True):
         self.path = path
-        self._data: dict[str, Any] = {}
+        self.data: dict[str, Any] = {}
         self.auto_save = auto_save
         self.unsaved_changes = False
         self._committee_bills_cache: dict[str, set[str]] = {}
         self._lock = threading.RLock()  # Reentrant lock for nested calls
         if path.exists():
             try:
-                self._data = json.loads(path.read_text(encoding="utf-8"))
-                committee_bills: dict[str, dict[str, str]] = self._data.get("committee_bills", {})
+                self.data = json.loads(path.read_text(encoding="utf-8"))
+                committee_bills: dict[str, dict[str, str]] = self.data.get("committee_bills", {})
                 for committee_id, data in committee_bills.items():
                     bills_list = data.get("bills", [])
                     self._committee_bills_cache[committee_id] = set(bills_list)
             except Exception:  # pylint: disable=broad-exception-caught
-                self._data: dict[str, dict[str, str]] = {}
+                self.data: dict[str, dict[str, str]] = {}
 
     def save(self) -> None:
         """Save the cache to the file (respects auto_save flag)."""
@@ -64,7 +60,7 @@ class Cache:
         # Use compact JSON (no indent) for faster writes with large cache
         # File size: ~2.3MB vs ~4.7MB, Write speed: 2x faster
         self.path.write_text(
-            json.dumps(self._data, separators=(',', ':')), encoding="utf-8"
+            json.dumps(self.data, separators=(',', ':')), encoding="utf-8"
         )
 
     def get_parser(self, bill_id: str, kind: str) -> Optional[str]:
@@ -132,7 +128,7 @@ class Cache:
             self.save()
 
     def _slot(self, bill_id: str) -> dict[str, Any]:
-        return self._data.setdefault(
+        return self.data.setdefault(
             "bill_parsers", {}
         ).setdefault(bill_id, {})
 
@@ -219,16 +215,16 @@ class Cache:
 
     def get_committee_contact(self, committee_id: str) -> Optional[dict]:
         """Return cached committee contact info (or None)."""
-        return self._data.get("committee_contacts", {}).get(committee_id)
+        return self.data.get("committee_contacts", {}).get(committee_id)
 
     def set_committee_contact(
         self, committee_id: str, contact_data: dict
     ) -> None:
         """Set committee contact data in cache."""
         with self._lock:
-            if "committee_contacts" not in self._data:
-                self._data["committee_contacts"] = {}
-            self._data["committee_contacts"][committee_id] = {
+            if "committee_contacts" not in self.data:
+                self.data["committee_contacts"] = {}
+            self.data["committee_contacts"][committee_id] = {
                 **contact_data,
                 "updated_at": datetime.utcnow().isoformat(
                     timespec="seconds"
@@ -290,7 +286,7 @@ class Cache:
             # O(1) set lookup instead of O(n) list scan
             if bill_id not in self._committee_bills_cache[committee_id]:
                 self._committee_bills_cache[committee_id].add(bill_id)
-                committee_bills = self._data.setdefault("committee_bills", {})
+                committee_bills = self.data.setdefault("committee_bills", {})
                 committee_data = committee_bills.setdefault(committee_id, {
                     "bills": [],
                     "bill_count": 0
@@ -311,7 +307,7 @@ class Cache:
         Returns:
             List of bill IDs
         """
-        committee_bills = self._data.get("committee_bills", {})
+        committee_bills = self.data.get("committee_bills", {})
         committee_data = committee_bills.get(committee_id, {})
         return committee_data.get("bills", [])
 
@@ -327,7 +323,7 @@ class Cache:
         This allows the system to detect when a committee shifts their
         document practices to a new parser.
         """
-        committee_data = self._data.setdefault(
+        committee_data = self.data.setdefault(
             "committee_parsers", {}
         ).get(committee_id, {})
         parser_stats = committee_data.get(parser_type, {})
@@ -357,7 +353,7 @@ class Cache:
         a committee shifts to consistently using a different parser.
         """
         with self._lock:
-            committee_parsers = self._data.setdefault(
+            committee_parsers = self.data.setdefault(
                 "committee_parsers", {}
             )
             committee_data = committee_parsers.setdefault(committee_id, {})
@@ -387,8 +383,8 @@ class Cache:
 
     def _ensure_document_cache_structure(self) -> None:
         """Ensure document cache structure exists in cache data."""
-        if "document_cache" not in self._data:
-            self._data["document_cache"] = {
+        if "document_cache" not in self.data:
+            self.data["document_cache"] = {
                 "by_url": {},
                 "by_content_hash": {},
                 "metadata": {
@@ -431,7 +427,7 @@ class Cache:
         if not config or not config.document_cache.enabled:
             return None
         self._ensure_document_cache_structure()
-        cache_entry = self._data["document_cache"]["by_url"].get(url)
+        cache_entry = self.data["document_cache"]["by_url"].get(url)
         if not cache_entry:
             return None
         cached_file_path = Path(cache_entry.get("cached_file_path", ""))
@@ -474,7 +470,7 @@ class Cache:
             if not cached_file_path.exists():
                 cached_file_path.write_bytes(content)
             now = datetime.utcnow().isoformat(timespec="seconds") + "Z"
-            existing_entry = self._data["document_cache"]["by_url"].get(url)
+            existing_entry = self.data["document_cache"]["by_url"].get(url)
             cache_entry = {
                 "url": url,
                 "content_hash": content_hash,
@@ -501,22 +497,22 @@ class Cache:
             }
             if bill_id and bill_id not in cache_entry["bill_ids"]:
                 cache_entry["bill_ids"].append(bill_id)
-            self._data["document_cache"]["by_url"][url] = cache_entry
-            if content_hash not in self._data["document_cache"]["by_content_hash"]:
-                self._data["document_cache"]["by_content_hash"][content_hash] = []
-            if url not in self._data["document_cache"]["by_content_hash"][content_hash]:
-                self._data["document_cache"]["by_content_hash"][content_hash].append(url)
-            self._data["document_cache"]["metadata"]["total_documents"] = len(
-                self._data["document_cache"]["by_url"]
+            self.data["document_cache"]["by_url"][url] = cache_entry
+            if content_hash not in self.data["document_cache"]["by_content_hash"]:
+                self.data["document_cache"]["by_content_hash"][content_hash] = []
+            if url not in self.data["document_cache"]["by_content_hash"][content_hash]:
+                self.data["document_cache"]["by_content_hash"][content_hash].append(url)
+            self.data["document_cache"]["metadata"]["total_documents"] = len(
+                self.data["document_cache"]["by_url"]
             )
             total_size = 0
             seen_hashes = set()
-            for entry in self._data["document_cache"]["by_url"].values():
+            for entry in self.data["document_cache"]["by_url"].values():
                 ch = entry.get("content_hash")
                 if ch and ch not in seen_hashes:
                     seen_hashes.add(ch)
                     total_size += entry.get("file_size_bytes", 0)
-            self._data["document_cache"]["metadata"]["total_size_bytes"] = (
+            self.data["document_cache"]["metadata"]["total_size_bytes"] = (
                 total_size
             )
             self.save()
@@ -583,7 +579,7 @@ class Cache:
                 "files_deleted": 0
             }
             last_cleanup = (
-                self._data["document_cache"]["metadata"].get("last_cleanup")
+                self.data["document_cache"]["metadata"].get("last_cleanup")
             )
             if not force and last_cleanup:
                 try:
@@ -594,7 +590,7 @@ class Cache:
                         return stats
                 except (ValueError, AttributeError):
                     pass
-            by_url = self._data["document_cache"]["by_url"]
+            by_url = self.data["document_cache"]["by_url"]
             max_age_seconds = config.document_cache.max_age_days * 86400
             now = datetime.now(timezone.utc)
             urls_to_remove = []
@@ -620,23 +616,23 @@ class Cache:
                     files_to_delete.add(cached_file_path)
                 content_hash = entry.get("content_hash")
                 if content_hash in (
-                    self._data["document_cache"]["by_content_hash"]
+                    self.data["document_cache"]["by_content_hash"]
                 ):
                     hash_urls = (
-                        self._data["document_cache"]["by_content_hash"]
+                        self.data["document_cache"]["by_content_hash"]
                         [content_hash]
                     )
                     if url in hash_urls:
                         hash_urls.remove(url)
                     if not hash_urls:
-                        del self._data["document_cache"]["by_content_hash"][
+                        del self.data["document_cache"]["by_content_hash"][
                             content_hash
                         ]
             for file_path_str in files_to_delete:
                 file_path = Path(file_path_str)
                 content_hash_from_path = file_path.stem
                 if content_hash_from_path not in (
-                    self._data["document_cache"]["by_content_hash"]
+                    self.data["document_cache"]["by_content_hash"]
                 ):
                     if file_path.exists():
                         try:
@@ -644,7 +640,7 @@ class Cache:
                             stats["files_deleted"] += 1
                         except Exception:  # pylint: disable=broad-exception-caught
                             pass
-            self._data["document_cache"]["metadata"]["last_cleanup"] = (
+            self.data["document_cache"]["metadata"]["last_cleanup"] = (
                 datetime.utcnow().isoformat(timespec="seconds") + "Z"
             )
             self.save()

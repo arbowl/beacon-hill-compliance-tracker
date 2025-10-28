@@ -27,10 +27,11 @@ def main() -> None:
     submit_data(
         [committee.id for committee in get_committees(
             config.base_url, tuple(config.include_chambers)
-        )]
+        )],
+        cache
     )
+    submit_changelog()
     if config.collect_input:
-        # Get interactive inputs
         committee_ids = get_committee_selection(
             config.base_url, tuple(config.include_chambers)
         )
@@ -85,9 +86,7 @@ def main() -> None:
         print(f"Cache saved after processing committee {committee_id}")
     cache.force_save()
     print("Final cache save completed")
-    submit_data(committee_ids)
-    submit_changelog()
-    input("Collection complete! Press Enter to exit.")
+    input("Collection complete! Press Enter to continue.")
 
 
 if __name__ == "__main__":

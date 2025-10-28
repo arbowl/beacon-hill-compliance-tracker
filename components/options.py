@@ -18,20 +18,16 @@ def get_committee_selection(
     print("\n" + "="*60)
     print("COMMITTEE SELECTION")
     print("="*60)
-    
-    # Get all available committees
     all_committees = get_committees(base_url, include_chambers)
     print(f"\nAvailable committees ({len(all_committees)} total):")
     for i, committee in enumerate(all_committees, 1):
         print(f"  {i:2d}. {committee.id} - {committee.name}")
-    
     print("\nSelection options:")
     print("  - Enter a single number (e.g., 1)")
     print("  - Enter comma-separated numbers (e.g., 1,3,5)")
     print("  - Enter a range with dash (e.g., 1-5)")
     print("  - Enter 'all' for all committees")
     print("  - Enter committee IDs directly (e.g., J10,J11)")
-    
     while True:
         selection = input("\nEnter your selection: ").strip()
         if not selection:
@@ -39,21 +35,19 @@ def get_committee_selection(
             continue
         if selection.lower() == 'all':
             return [c.id for c in all_committees]
-        
-        # Try to parse as committee IDs first
         if ',' in selection or '-' in selection or selection.isalnum():
-            # Check if it looks like committee IDs
-            if any(part.strip() in [c.id for c in all_committees] for part in selection.replace('-', ',').split(',')):
-                # Parse committee IDs
+            if any(
+                part.strip()
+                in [c.id for c in all_committees]
+                for part in selection.replace('-', ',').split(',')
+            ):
                 committee_ids = []
                 for part in selection.split(','):
                     part = part.strip()
                     if '-' in part:
-                        # Handle range
                         start, end = part.split('-', 1)
                         start = start.strip()
                         end = end.strip()
-                        # Find start and end indices
                         start_idx = None
                         end_idx = None
                         for i, c in enumerate(all_committees):
@@ -67,20 +61,16 @@ def get_committee_selection(
                     else:
                         if part in [c.id for c in all_committees]:
                             committee_ids.append(part)
-                
                 if committee_ids:
                     return committee_ids
                 else:
                     print("No valid committee IDs found. Please try again.")
                     continue
-        
-        # Try to parse as numbers
         try:
             committee_ids = []
             for part in selection.split(','):
                 part = part.strip()
                 if '-' in part:
-                    # Handle range
                     start, end = part.split('-', 1)
                     start_idx = int(start.strip()) - 1
                     end_idx = int(end.strip()) - 1
@@ -105,7 +95,7 @@ def get_committee_selection(
             continue
 
 
-def get_hearing_limit():
+def get_hearing_limit() -> int:
     """Interactive hearing limit selection."""
     print("\n" + "="*60)
     print("HEARING LIMIT")
@@ -115,7 +105,6 @@ def get_hearing_limit():
     print("  - Leave blank to process all hearings")
     while True:
         limit_input = input("\nNumber of hearings (or blank for all): ").strip()
-        
         if not limit_input:
             return 999
         try:
@@ -128,7 +117,7 @@ def get_hearing_limit():
             print("Please enter a valid number.")
 
 
-def get_extension_check_preference(cache: Cache):
+def get_extension_check_preference(cache: Cache) -> bool:
     """Interactive extension check preference with cache status."""
     print("\n" + "="*60)
     print("EXTENSION CHECKING")
@@ -159,7 +148,7 @@ def print_options_summary(
     check_extensions: bool
 ) -> None:
     """Print the options summary."""
-    print(f"\n" + "="*60)
+    print("\n" + "="*60)
     print("CONFIGURATION SUMMARY")
     print("="*60)
     print(f"Committees: {', '.join(committee_ids)}")
@@ -167,7 +156,8 @@ def print_options_summary(
     print(f"Check extensions: {check_extensions}")
 
 
-def submit_data(committees: list[str]) -> None:
+def submit_data(committees: list[str], cache: Cache) -> None:
+    """Send collected data to the remote server."""
     if input(
         "Send data to remote server? (y/n)"
     ).strip().lower() not in ['y', 'yes']:
@@ -178,14 +168,14 @@ def submit_data(committees: list[str]) -> None:
         signing_key_id=getenv("SIGNING_ID", ""),
         signing_key_secret=getenv("SIGNING_SECRET"),
     )
-    print(client.upload_file("cache.json", kind="cache"))
+    print(client.upload_file(cache.path, kind="cache"))
     for committee in committees:
         print("Sending committee:", committee)
         print(client.upload_file(f"out/basic_{committee}.json", kind="basic"))
     print("Data submission complete.")
 
 
-def submit_changelog():
+def submit_changelog() -> None:
     """Send changelog and version information to the remote server.
 
     This function can be called standalone or integrated into your
@@ -200,17 +190,14 @@ def submit_changelog():
     ).strip().lower() not in ['y', 'yes']:
         print("Changelog submission skipped.")
         return
-
     print("Sending changelog...")
     client = IngestClient(
         base_url="https://beacon-hill-tracker.onrender.com/",
         signing_key_id=getenv("SIGNING_ID", ""),
         signing_key_secret=getenv("SIGNING_SECRET"),
     )
-
     result = client.upload_changelog()
     print("Response:", result)
-
     if result.get("results") and result["results"][0].get("ok"):
         print("[OK] Changelog sent successfully!")
     else:

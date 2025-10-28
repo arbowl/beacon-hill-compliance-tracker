@@ -35,8 +35,7 @@ def _reported_out_from_bill_page(
     """Heuristic: scan the bill page text/history for 'reported' phrases and
     grab a nearby date. Good enough for a baseline.
     """
-    soup = ParserInterface._soup(bill_url)
-
+    soup = ParserInterface.soup(bill_url)
     # Look through table rows and only inspect the Action column (typically
     # the 3rd <td>). This avoids accidental matches elsewhere on the page
     # (e.g., presenter text or other descriptive paragraphs).
@@ -74,7 +73,7 @@ def _reported_out_from_bill_page(
 
 
 def _hearing_announcement_from_bill_page(
-    bill_url: str, 
+    bill_url: str,
     target_hearing_date: Optional[date] = None
 ) -> tuple[Optional[date], Optional[date]]:
     """Extract 'Hearing scheduled for ...' announcement.
@@ -86,30 +85,24 @@ def _hearing_announcement_from_bill_page(
     
     Returns (announcement_date, scheduled_hearing_date) or (None, None).
     """
-    soup = ParserInterface._soup(bill_url)
-    
+    soup = ParserInterface.soup(bill_url)
     # Look for table rows in the bill history
     rows = soup.find_all('tr')  # type: ignore
-    
     earliest_announcement: Optional[date] = None
     earliest_hearing: Optional[date] = None
-    
     for row in rows:
         cells = row.find_all(['td', 'th'])  # type: ignore
         if len(cells) < 3:
             continue
-            
         # First cell typically contains the announcement date
         date_cell = cells[0].get_text(strip=True)
         action_cell = cells[2].get_text(strip=True) if len(cells) > 2 else ""
-        
         # Look for "Hearing scheduled for" pattern
         hearing_match = re.search(
             r'hearing scheduled for (\d{2}/\d{2}/\d{4})', 
-            action_cell, 
+            action_cell,
             re.I
         )
-        
         if hearing_match:
             # Parse announcement date
             announcement_date = None
@@ -123,7 +116,6 @@ def _hearing_announcement_from_bill_page(
                         break
                     except Exception:  # pylint: disable=broad-exception-caught
                         continue
-            
             # Parse scheduled hearing date
             try:
                 hearing_date = datetime.strptime(
@@ -131,18 +123,15 @@ def _hearing_announcement_from_bill_page(
                 ).date()
             except Exception:  # pylint: disable=broad-exception-caught
                 continue
-                
             # If target date specified, look for exact match
             if target_hearing_date and hearing_date == target_hearing_date:
                 return announcement_date, hearing_date
-            
             # Otherwise, keep the earliest hearing (past or future)
             if (announcement_date and hearing_date and
-                    (earliest_hearing is None or 
+                    (earliest_hearing is None or
                      hearing_date < earliest_hearing)):
                 earliest_announcement = announcement_date
                 earliest_hearing = hearing_date
-    
     return earliest_announcement, earliest_hearing
 
 # =============================================================================
@@ -157,9 +146,7 @@ def get_bill_title(bill_url: str) -> str | None:
     On live pages (e.g., https://malegislature.gov/Bills/194/H2244) the title
     appears in text that starts with "An Act", "An Resolve", or "A Resolve".
     """
-
-    soup = ParserInterface._soup(bill_url)
-
+    soup = ParserInterface.soup(bill_url)
     # 0. Find the H2 whose parent is the main content area (col-md-8 container)
     # The bill title is consistently in an H2 whose parent div has Bootstrap
     # classes col-xs-12 col-md-8 (the main content column)
@@ -185,7 +172,7 @@ def get_bill_title(bill_url: str) -> str | None:
             # Remove obvious trailing boilerplate if present
             for stop in ["Bill History", "Displaying", "Tabs", "Sponsor:"]:
                 if stop in txt:
-                    txt = txt.split(stop)[0].strip()
+                    txt = txt.split(stop, maxsplit=1)[0].strip()
             # sanity length filter
             if 5 < len(txt) < 200:
                 candidates.append(txt)
@@ -201,17 +188,14 @@ def build_status_row(
     _base_url: str, row: BillAtHearing, cache: Cache, extension_until=None
 ) -> BillStatus:
     """Build the status row."""
-    
     d60, d90, effective = compute_deadlines(
         row.hearing_date, extension_until, row.bill_id
     )
-    
     # Try to get hearing announcement from cache first
     cached_announcement = cache.get_hearing_announcement(row.bill_id)
     if cached_announcement:
         announce_date_str = cached_announcement.get("announcement_date")
         sched_hearing_str = cached_announcement.get("scheduled_hearing_date")
-        
         # Convert strings back to dates
         announce_date = None
         sched_hearing = None
@@ -230,21 +214,16 @@ def build_status_row(
             except ValueError:
                 pass
     else:
-        # Not in cache, fetch from web and cache the result
         announce_date, sched_hearing = (
             _hearing_announcement_from_bill_page(
                 row.bill_url, row.hearing_date
             )
         )
-        
-        # Cache the result (convert dates to strings)
         announce_date_str = str(announce_date) if announce_date else None
         sched_hearing_str = str(sched_hearing) if sched_hearing else None
         cache.set_hearing_announcement(
             row.bill_id, announce_date_str, sched_hearing_str, row.bill_url
         )
-    
-    # Get reported out status (not cached yet)
     reported, rdate = _reported_out_from_bill_page(row.bill_url)
     return BillStatus(
         bill_id=row.bill_id,

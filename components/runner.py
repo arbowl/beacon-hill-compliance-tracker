@@ -7,6 +7,7 @@ import logging
 import threading
 import time
 from datetime import datetime, date, timedelta
+from typing import Optional
 
 import requests
 
@@ -19,7 +20,12 @@ from components.compliance import classify, compute_notice_status
 from components.interfaces import Config
 from components.report import write_basic_html
 from components.utils import Cache
-from components.models import DeferredReviewSession, ExtensionOrder
+from components.models import (
+    DeferredReviewSession,
+    ExtensionOrder,
+    BillAtHearing,
+    BillStatus,
+)
 from components.review import conduct_batch_review, apply_review_results
 from collectors.bills_from_hearing import get_bills_for_committee
 from collectors.bills_from_committee_tab import get_all_committee_bills
@@ -36,7 +42,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _format_time_remaining(seconds):
+def _format_time_remaining(seconds: int) -> str:
     """Format time remaining in a human-readable way."""
     if seconds < 60:
         return f"{int(seconds)}s"
@@ -48,7 +54,9 @@ def _format_time_remaining(seconds):
         return f"{hours}h {minutes}m"
 
 
-def _update_progress(current, total, bill_id, start_time):
+def _update_progress(
+    current: int, total: int, bill_id: str, start_time: int
+) -> None:
     """Update progress indicator."""
     if total == 0:
         return
@@ -70,9 +78,9 @@ def _update_progress(current, total, bill_id, start_time):
         speed_str = "calculating..."
     bar_width = 20
     filled_width = int((current / total) * bar_width)
-    bar = "█" * filled_width + "░" * (bar_width - filled_width)
+    loading_bar = "█" * filled_width + "░" * (bar_width - filled_width)
     progress_line = (
-        f"[{bar}] {current}/{total} ({percentage:.1f}%) | "
+        f"[{loading_bar}] {current}/{total} ({percentage:.1f}%) | "
         f"Processing {bill_id} | {speed_str} | ETA: {time_remaining_str}"
     )
     logger.info(progress_line)
@@ -82,7 +90,7 @@ def _process_single_bill(
     base_url: str,
     cfg: Config,
     cache: Cache,
-    row,
+    row: BillAtHearing,
     extension_lookup: dict[str, list[ExtensionOrder]],
     deferred_session
 ) -> dict:
@@ -101,8 +109,6 @@ def _process_single_bill(
     """
     try:
         cache.add_bill_to_committee(row.committee_id, row.bill_id)
-        
-        # Determine extension date
         extension_until = None
         if row.bill_id in extension_lookup:
             latest_extension = max(
@@ -112,7 +118,7 @@ def _process_single_bill(
                 if row.hearing_date:
                     extension_until = row.hearing_date + timedelta(days=90)
                     logger.debug(
-                        f"  Using 30-day fallback extension: {extension_until}"
+                        "  Using 30-day fallback extension: %s", extension_until
                     )
             else:
                 extension_until = latest_extension.extension_date
@@ -127,35 +133,29 @@ def _process_single_bill(
                         if row.hearing_date:
                             extension_until = row.hearing_date + timedelta(days=90)
                             logger.debug(
-                                f"  Using cached 30-day fallback: {extension_until}"
+                                "  Using cached 30-day fallback: %s", extension_until
                             )
                     else:
                         extension_until = cached_date
                 except (ValueError, KeyError):
                     extension_until = None
-        
-        # Process bill
-        status = build_status_row(base_url, row, cache, extension_until)
+        status: BillStatus = build_status_row(base_url, row, cache, extension_until)
         summary = resolve_summary_for_bill(base_url, cfg, cache, row, deferred_session)
         votes = resolve_votes_for_bill(base_url, cfg, cache, row, deferred_session)
         comp = classify(row.bill_id, row.committee_id, status, summary, votes)
-        
-        # Fetch bill title
         bill_title = cache.get_title(row.bill_id)
         if bill_title is None:
             try:
-                with requests.Session() as sess:
-                    bill_title = get_bill_title(sess, row.bill_url)
+                with requests.Session() as _:
+                    bill_title: Optional[str] = get_bill_title(row.bill_url)
                     if bill_title:
                         cache.set_title(row.bill_id, bill_title)
             except Exception:  # pylint: disable=broad-exception-caught
                 bill_title = None
-        
-        # Log status
         hearing_str = str(status.hearing_date) if status.hearing_date else "N/A"
         d60_str = str(status.deadline_60) if status.deadline_60 else "N/A"
         eff_str = str(status.effective_deadline) if status.effective_deadline else "N/A"
-        logger.info(
+        bill_info = (
             f"{row.bill_id:<6} heard {hearing_str} "
             f"→ D60 {d60_str} / Eff {eff_str} | "
             f"Reported: {'Y' if status.reported_out else 'N'} | "
@@ -163,8 +163,7 @@ def _process_single_bill(
             f"Votes: {'Y' if votes.present else 'N'} | "
             f"{comp.state.upper()} — {comp.reason}"
         )
-        
-        # Extension info
+        logger.info(bill_info)
         extension_order_url = None
         extension_date = None
         if row.bill_id in extension_lookup:
@@ -173,19 +172,17 @@ def _process_single_bill(
             )
             extension_order_url = latest_extension.extension_order_url
             extension_date = latest_extension.extension_date
-            logger.debug(f"  Found extension: {extension_date}")
+            logger.debug("  Found extension: %s", extension_date)
         elif not cfg.runner.check_extensions:
             cached_extension = cache.get_extension(row.bill_id)
             if cached_extension and "extension_url" in cached_extension:
                 extension_order_url = cached_extension["extension_url"]
                 extension_date = cached_extension["extension_date"]
-                logger.debug(f"  Found cached extension: {extension_date}")
+                logger.debug("  Found cached extension: %s", extension_date)
             else:
-                logger.debug(f"  No extension found for {row.bill_id}")
+                logger.debug("  No extension found for %s", row.bill_id)
         else:
-            logger.debug(f"  No extension found for {row.bill_id}")
-        
-        # Build result
+            logger.debug("  No extension found for %s", row.bill_id)
         notice_status, gap_days = compute_notice_status(status)
         return {
             "bill_id": row.bill_id,
@@ -215,7 +212,7 @@ def _process_single_bill(
             ),
         }
     except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.error(f"Error processing bill {row.bill_id}: {e}", exc_info=True)
+        logger.error("Error processing bill %s: %s", row.bill_id, e, exc_info=True)
         return None
 
 
@@ -244,41 +241,38 @@ def run_basic_compliance(
     committee = next((c for c in committees if c.id == committee_id), None)
     if not committee:
         logger.warning(
-            f"Committee {committee_id} not found among "
-            f"{len(committees)} committees"
+            "Committee %s not found among %d committees",
+            committee_id,
+            len(committees)
         )
         return
-
     logger.info(
-        f"Running basic compliance for {committee.name} "
-        f"[{committee.id}]..."
+        "Running basic compliance for %s [%d]...",
+        committee.name,
+        committee.id
     )
-
-    # 1.5) get committee contact info
     logger.info("Collecting committee contact information...")
     contact = get_committee_contact(base_url, committee, cache)
     logger.info("Phase 1: Collecting bills from Hearings tab...")
     hearing_bills = get_bills_for_committee(
         base_url, committee.id, limit_hearings=limit_hearings
     )
-    logger.info(f"Found {len(hearing_bills)} bills with hearings")
+    logger.info("Found %d bills with hearings", len(hearing_bills))
     logger.info("Phase 2: Collecting all bills from Bills tab...")
     all_bills = get_all_committee_bills(base_url, committee.id)
-    logger.info(f"Found {len(all_bills)} total bills assigned to committee")
+    logger.info("Found %d total bills assigned to committee", len(all_bills))
     hearing_bill_ids = {b.bill_id for b in hearing_bills}
     non_hearing_bills = [
         b for b in all_bills if b.bill_id not in hearing_bill_ids
     ]
-    logger.info(f"Found {len(non_hearing_bills)} bills without hearings")
+    logger.info("Found %d bills without hearings", len(non_hearing_bills))
     rows = hearing_bills + non_hearing_bills
     if not rows:
         logger.warning("No bills found")
         return
-    logger.info(f"Processing {len(rows)} total bills...")
-    logger.info(f"  - {len(hearing_bills)} with hearings")
-    logger.info(f"  - {len(non_hearing_bills)} without hearings")
-
-    # 3) Initialize deferred review session if needed
+    logger.info("Processing %d total bills...", len(rows))
+    logger.info("  - %d with hearings", len(hearing_bills))
+    logger.info("  - %d without hearings", len(non_hearing_bills))
     deferred_session = None
     if cfg.review_mode == "deferred":
         deferred_session = DeferredReviewSession(
@@ -289,29 +283,22 @@ def run_basic_compliance(
             "Deferred review mode enabled - "
             "confirmations will be collected for batch review."
         )
-
-    # 4) per-bill: status → summary → votes → classify
     results = []
     total_bills = len(rows)
     start_time = time.time()
-
-    logger.info(f"Processing {total_bills} bills...")
-
-    # Determine thread count (force single-threaded if interactive review is on)
+    logger.info("Processing %d bills...", total_bills)
     max_workers = cfg.threading.max_workers
     if cfg.review_mode == "on":
         logger.info(
             "Interactive review mode enabled - forcing single-threaded execution"
         )
         max_workers = 1
-    
-    # Use threading if max_workers > 1
     if max_workers > 1:
-        logger.info(f"Using {max_workers} worker threads for bill processing")
+        logger.info("Using %d worker threads for bill processing", max_workers)
         results_lock = threading.Lock()
-        processed_count = [0]  # Mutable container for progress tracking
-        
-        def process_and_track(row):
+        processed_count = [0]
+
+        def process_and_track(row: BillAtHearing) -> dict:
             """Process bill and update progress."""
             result = _process_single_bill(
                 base_url, cfg, cache, row, extension_lookup, deferred_session
@@ -322,16 +309,12 @@ def run_basic_compliance(
                     processed_count[0], total_bills, row.bill_id, start_time
                 )
             return result
-        
-        # Process bills in parallel
+
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all tasks
             future_to_bill = {
                 executor.submit(process_and_track, row): row
                 for row in rows
             }
-            
-            # Collect results as they complete
             for future in as_completed(future_to_bill):
                 row = future_to_bill[future]
                 try:
@@ -341,11 +324,12 @@ def run_basic_compliance(
                             results.append(result)
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     logger.error(
-                        f"Exception processing {row.bill_id}: {e}",
+                        "Exception processing %s: %s",
+                        row.bill_id,
+                        e,
                         exc_info=True
                     )
     else:
-        # Sequential processing (single-threaded)
         logger.info("Using single-threaded sequential processing")
         for i, row in enumerate(rows, 1):
             _update_progress(i - 1, total_bills, row.bill_id, start_time)
@@ -373,8 +357,6 @@ def run_basic_compliance(
             "No confirmations needed - all parsers were "
             "auto-accepted or cached."
         )
-
-    # 5) artifacts (JSON + HTML)
     if write_json:
         outdir = Path("out")
         outdir.mkdir(exist_ok=True)
@@ -385,7 +367,6 @@ def run_basic_compliance(
             committee.name, committee.id, committee.url, contact, results,
             html_path
         )
-        logger.info(f"Wrote {json_path}")
-        logger.info(f"Wrote {html_path}")
-
+        logger.info("Wrote %s", json_path)
+        logger.info("Wrote %s", html_path)
     return results

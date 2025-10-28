@@ -19,7 +19,7 @@ def _parse_event_date(soup: BeautifulSoup) -> date | None:
     """Parse the event date from the soup."""
     # Hearing pages include an "Event Date:" field; fallback to parse any
     # date-like text near it.
-    # Example structure confirmed on real pages: 
+    # Example structure confirmed on real pages:
     # contentReference[oaicite:0]{index=0}
     label = soup.find(string=re.compile(r"Event Date:", re.I))
     if label:
@@ -61,7 +61,7 @@ def list_committee_hearings(  # pylint: disable=too-many-locals
     """
     url = urljoin(base_url, f"/Committees/Detail/{committee_id}/Hearings")
     out: List[Hearing] = []
-    soup = ParserInterface._soup(url)
+    soup = ParserInterface.soup(url)
     # Any link to an event detail looks like /Events/Hearings/Detail/<id>
     for a in soup.select('a[href*="/Events/Hearings/Detail/"]'):
         href = a.get("href", "")
@@ -76,7 +76,7 @@ def list_committee_hearings(  # pylint: disable=too-many-locals
         status = " ".join(row.get_text(" ", strip=True).split()) if row else ""
         # Visit the detail page to get the canonical date and bill list
         detail_url = urljoin(base_url, f"/Events/Hearings/Detail/{hid}")
-        detail = ParserInterface._soup(detail_url)
+        detail = ParserInterface.soup(detail_url)
         dt = _parse_event_date(detail)
         # crude status extraction from list page row text
         status_flag = (
@@ -105,7 +105,7 @@ def extract_bills_from_hearing(
     Structure validated on real hearing detail pages (bill table + bill links).
     :contentReference[oaicite:3]{index=3}
     """
-    soup = ParserInterface._soup(hearing.url)
+    soup = ParserInterface.soup(hearing.url)
     bills: List[BillAtHearing] = []
     # Any anchor that links to /Bills/<session>/<H|S><number>
     for a in soup.select('a[href*="/Bills/"]'):
