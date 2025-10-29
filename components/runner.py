@@ -247,7 +247,7 @@ def run_basic_compliance(
         )
         return
     logger.info(
-        "Running basic compliance for %s [%d]...",
+        "Running basic compliance for %s [%s]...",
         committee.name,
         committee.id
     )

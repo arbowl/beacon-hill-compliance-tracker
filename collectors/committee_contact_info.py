@@ -1,11 +1,13 @@
 """Collect the committee contact info from the committee page."""
 
 import re
+import logging
 from urllib.parse import urljoin
 from typing import Optional
 
 from components.models import Committee, CommitteeContact
 from components.interfaces import ParserInterface
+from components.utils import Cache
 
 PHONE_RX = re.compile(r"\(\d{3}\)\s*\d{3}-\d{4}")
 ROOM_RX = re.compile(r"\bRoom\s+[A-Za-z0-9\-]+", re.I)
@@ -16,16 +18,11 @@ def _validate_email_domain(email: str) -> bool:
     """Validate that email has expected Massachusetts legislature domain."""
     if not email:
         return False
-    
     email = email.lower().strip()
-    
-    # Check for expected domains
     valid_domains = ["@masenate.gov", "@mahouse.gov"]
-    
     for domain in valid_domains:
         if email.endswith(domain):
             return True
-    
     return False
 
 
@@ -33,8 +30,6 @@ def _get_legislator_email(url: str) -> str:
     """Extract email from legislator profile page."""
     try:
         soup = ParserInterface.soup(url)
-        
-        # Method 1: Look for email links (mailto: or direct email links)
         email_links = soup.find_all("a", href=re.compile(r"mailto:", re.I))
         for link in email_links:
             if hasattr(link, 'get'):
@@ -43,9 +38,6 @@ def _get_legislator_email(url: str) -> str:
                     email = href.replace("mailto:", "").strip()
                     if EMAIL_RX.match(email) and _validate_email_domain(email):
                         return email
-        
-        # Method 2: Look for email addresses in specific elements
-        # Check common containers for contact info
         for selector in ["div", "p", "span", "td"]:
             elements = soup.find_all(selector)
             for elem in elements:
@@ -55,22 +47,19 @@ def _get_legislator_email(url: str) -> str:
                     email = email_match.group(0)
                     if _validate_email_domain(email):
                         return email
-        
-        # Method 3: Fallback - search entire page text
         page_text = soup.get_text()
         email_match = EMAIL_RX.search(page_text)
         if email_match:
             email = email_match.group(0)
             if _validate_email_domain(email):
                 return email
-            
         return ""
     except Exception:  # pylint: disable=broad-exception-caught
         return ""
 
 
 def get_committee_contact(
-    base_url: str, committee: Committee, cache=None
+    base_url: str, committee: Committee, cache: Optional[Cache]=None
 ) -> CommitteeContact:
     """
     On the committee detail page, scrape both Senate and House Contact blocks
@@ -78,9 +67,9 @@ def get_committee_contact(
     """
     # Check cache first if available
     if cache:
-        cached_contact = cache.get_committee_contact(committee.id)
+        cached_contact : dict[str, str]= cache.get_committee_contact(committee.id)
         if cached_contact:
-            print(f"Using cached contact info for committee {committee.id}")
+            logging.info("Using cached contact info for committee %s", committee.id)
             return CommitteeContact(
                 committee_id=cached_contact["committee_id"],
                 name=cached_contact["name"],
@@ -118,11 +107,10 @@ def get_committee_contact(
                 ),
             )
 
-    print(f"Fetching contact info for committee {committee.id}")
+    logging.info("Fetching contact info for committee %s", committee.id)
     url = urljoin(base_url, f"/Committees/Detail/{committee.id}")
     soup = ParserInterface.soup(url)
 
-        # Helper function to extract contact info from a section
     def extract_contact_info(
         section_text: str
     ) -> tuple[Optional[str], Optional[str], Optional[str]]:
@@ -197,37 +185,37 @@ def get_committee_contact(
             for elem in senate_container.find_all(
                 ["div", "p", "span", "li"]
             ):
-                    text = elem.get_text(strip=True)
-                    if "Chair" in text and "Vice" not in text:
-                        # Look for a link in this element or nearby
+                text = elem.get_text(strip=True)
+                if "Chair" in text and "Vice" not in text:
+                    # Look for a link in this element or nearby
+                    link = elem.find("a")
+                    if not link:
+                        link = elem.find_previous("a")
+                    if not link:
+                        link = elem.find_next("a")
+                    if link:
+                        senate_chair_name = link.get_text(strip=True)
+                        senate_chair_url = urljoin(
+                            base_url, link.get("href", "")
+                        )
+                elif "Vice" in text and "Chair" in text:
+                    # For Vice Chair, link is typically in parent container
+                    link = None
+                    # First try the parent container (thumbnailGroup)
+                    if elem.parent:
+                        link = elem.parent.find("a")
+                    # Fallback: try current element and siblings
+                    if not link:
                         link = elem.find("a")
-                        if not link:
-                            link = elem.find_previous("a")
-                        if not link:
-                            link = elem.find_next("a")
-                        if link:
-                            senate_chair_name = link.get_text(strip=True)
-                            senate_chair_url = urljoin(
-                                base_url, link.get("href", "")
-                            )
-                    elif "Vice" in text and "Chair" in text:
-                        # For Vice Chair, link is typically in parent container
-                        link = None
-                        # First try the parent container (thumbnailGroup)
-                        if elem.parent:
-                            link = elem.parent.find("a")
-                        # Fallback: try current element and siblings
-                        if not link:
-                            link = elem.find("a")
-                        if not link:
-                            link = elem.find_previous("a")
-                        if not link:
-                            link = elem.find_next("a")
-                        if link:
-                            senate_vice_chair_name = link.get_text(strip=True)
-                            senate_vice_chair_url = urljoin(
-                                base_url, link.get("href", "")
-                            )
+                    if not link:
+                        link = elem.find_previous("a")
+                    if not link:
+                        link = elem.find_next("a")
+                    if link:
+                        senate_vice_chair_name = link.get_text(strip=True)
+                        senate_vice_chair_url = urljoin(
+                            base_url, link.get("href", "")
+                        )
 
         # Look for House Members section
         house_section = soup.find("h2", string="House Members")
@@ -281,29 +269,34 @@ def get_committee_contact(
     senate_vice_chair_email = ""
     house_chair_email = ""
     house_vice_chair_email = ""
-
     if senate_chair_url:
-        print(f"Fetching email for Senate Chair: {senate_chair_name}")
+        logging.info(
+            "Fetching email for Senate Chair: %s",
+            senate_chair_name
+        )
         senate_chair_email = _get_legislator_email(senate_chair_url)
-    
     if senate_vice_chair_url:
-        print(f"Fetching email for Senate Vice Chair: "
-              f"{senate_vice_chair_name}")
+        logging.info(
+            "Fetching email for Senate Vice Chair: %s",
+            senate_vice_chair_name
+        )
         senate_vice_chair_email = _get_legislator_email(
             senate_vice_chair_url
         )
-    
     if house_chair_url:
-        print(f"Fetching email for House Chair: {house_chair_name}")
+        logging.info(
+            "Fetching email for House Chair: %s",
+            house_chair_name
+        )
         house_chair_email = _get_legislator_email(house_chair_url)
-    
     if house_vice_chair_url:
-        print(f"Fetching email for House Vice Chair: "
-              f"{house_vice_chair_name}")
+        logging.info(
+            "Fetching email for House Vice Chair: %s",
+            house_vice_chair_name
+        )
         house_vice_chair_email = _get_legislator_email(
             house_vice_chair_url
         )
-
     contact = CommitteeContact(
         committee_id=committee.id,
         name=committee.name,
@@ -324,8 +317,6 @@ def get_committee_contact(
         house_vice_chair_name=house_vice_chair_name,
         house_vice_chair_email=house_vice_chair_email,
     )
-
-    # Cache the contact info if cache is available
     if cache:
         contact_data = {
             "committee_id": contact.committee_id,
@@ -348,6 +339,5 @@ def get_committee_contact(
             "house_vice_chair_email": contact.house_vice_chair_email,
         }
         cache.set_committee_contact(committee.id, contact_data)
-        print(f"Cached contact info for committee {committee.id}")
-
+        logging.info("Cached contact info for committee %s", committee.id)
     return contact
