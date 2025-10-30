@@ -179,7 +179,11 @@ class IngestClient:
         if kind == "cache":
             return self._upload_cache(payload, dry_run=dry_run)
         if kind == "basic":
-            items = payload if isinstance(payload, list) else payload.get("items", [])
+            if isinstance(payload, list):
+                items = payload
+            else:
+                # Handle both "bills" and "items" keys for backward compatibility
+                items = payload.get("bills") or payload.get("items", [])
             if not isinstance(items, list):
                 raise ValueError("Expected a list of items for basic/report uploads.")
             cid = committee_id or infer_committee_id(path)

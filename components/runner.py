@@ -1,12 +1,12 @@
 """Runner module for basic compliance checking."""
 
-from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import logging
 import threading
 import time
 from datetime import datetime, date, timedelta
+from zoneinfo import ZoneInfo
 from typing import Optional
 
 import requests
@@ -19,7 +19,16 @@ from components.committees import get_committees
 from components.compliance import classify, compute_notice_status
 from components.interfaces import Config
 from components.report import write_basic_html
-from components.utils import Cache
+from components.utils import (
+    Cache,
+    get_date_output_dir,
+    load_previous_committee_json,
+    generate_diff_report,
+)
+from components.llm import (
+    generate_llm_analysis,
+    generate_fallback_analysis,
+)
 from components.models import (
     DeferredReviewSession,
     ExtensionOrder,
@@ -358,11 +367,40 @@ def run_basic_compliance(
             "auto-accepted or cached."
         )
     if write_json:
-        outdir = Path("out")
-        outdir.mkdir(exist_ok=True)
+        outdir = get_date_output_dir()
         json_path = outdir / f"basic_{committee.id}.json"
         html_path = outdir / f"basic_{committee.id}.html"
-        json_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+
+        # Generate diff report by comparing with previous scan
+        boston_tz = ZoneInfo("US/Eastern")
+        current_date = datetime.now(boston_tz).date()
+        previous_bills, previous_date = load_previous_committee_json(
+            committee.id
+        )
+
+        diff_report = None
+        if previous_bills is not None and previous_date is not None:
+            diff_report = generate_diff_report(
+                results, previous_bills, current_date, previous_date
+            )
+
+        # Generate analysis (LLM or fallback)
+        analysis = None
+        if diff_report is not None:
+            analysis = generate_llm_analysis(diff_report, results, cfg)
+            if analysis is None:
+                analysis = generate_fallback_analysis(diff_report)
+
+        # Create output structure with bills, diff_report, and analysis
+        output_data = {
+            "bills": results,
+            "diff_report": diff_report,
+            "analysis": analysis,
+        }
+
+        json_path.write_text(
+            json.dumps(output_data, indent=2), encoding="utf-8"
+        )
         write_basic_html(
             committee.name, committee.id, committee.url, contact, results,
             html_path

@@ -606,6 +606,55 @@ bill_id: {bill_id}
             """The timeout for the LLM request."""
             return int(self.llm.get("timeout", 120))
 
+        @property
+        def diff_report_analysis_prompt(self) -> str:
+            """The prompt for diff report analysis."""
+            default_prompt = """You are a legislative data analyst generating a daily operational brief for the Massachusetts Beacon Hill Compliance Tracker.
+
+**Massachusetts Legislative Committee Compliance Analysis**
+**Period:** {previous_date} to {current_date} ({time_interval} ago)
+
+**Reported Metrics**
+- Compliance delta: {compliance_delta} percentage points
+- New bills: {new_bills_count}
+- Bills with new hearings: {bills_with_new_hearings_count}
+- Bills reported out of committee: {bills_reported_out_count}
+- Bills with new summaries: {bills_with_new_summaries_count}
+
+**New Bills**
+{new_bills_details}
+
+**Bills with New Hearings**
+{bills_with_new_hearings_details}
+
+**Bills Reported Out**
+{bills_reported_out_details}
+
+**Bills with New Summaries**
+{bills_with_new_summaries_details}
+
+**Legislative Transparency Context**
+In 2025, the Massachusetts Legislature strengthened its joint rules to improve public visibility: hearings must be publicly noticed at least ten days in advance, committee votes and attendance must be posted, and plain-language summaries must be available before or soon after hearings.  
+Your analysis should interpret changes in light of these obligations.
+The tracker measures compliance across approximately 7,000 active bills and 35 committees. Daily changes typically reflect a small number of committee postings, not system-wide policy shifts.
+You aren't seeing all the bills analyzed in this dataset--you're just seeing day-to-day differences, so don't make too many assumptions about the relationship between what's new and what's required. New items generally need time to have documentation posted.
+
+**Your Task**
+Write a concise 3–4 sentence brief that:
+
+1. States whether compliance rose, fell, or remained stable — quantify the change.  
+2. Identifies which activities (hearings, reports, summaries) most affected the shift.  
+3. Notes any behavior that aligns with or deviates from transparency requirements (e.g., delayed postings, clustering before deadlines). 
+
+Tone: neutral, factual, and concise.  
+Avoid adjectives such as "promising," "concerning," or "disappointing."  
+Use analytic verbs — "rose," "declined," "remained," "corresponded," "reflected."  
+Each sentence should deliver a verifiable observation, not interpretation."""
+            prompt = str(
+                self.llm.get("diff_report_analysis_prompt", default_prompt)
+            )
+            return prompt.strip()
+
     @property
     def llm(self) -> Config.Llm:
         """LLM configuration."""

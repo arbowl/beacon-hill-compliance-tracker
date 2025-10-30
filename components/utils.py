@@ -5,6 +5,7 @@ import hashlib
 import re
 from datetime import date, timedelta, datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 import textwrap
 import threading
 import tkinter as tk
@@ -1252,3 +1253,347 @@ def parse_changelog_section(section_text: str) -> dict[str, list[str]]:
                 changes[category] = items
 
     return changes
+
+
+def get_date_output_dir(base_dir: str = "out") -> Path:
+    """Get the date-based output directory path for today (Boston time).
+
+    Creates a path in the format: out/YYYY/MM/DD
+
+    Args:
+        base_dir: Base directory name (default: "out")
+
+    Returns:
+        Path object pointing to the date-based output directory
+    """
+    # Get current date in Boston timezone
+    # US/Eastern handles EST/EDT automatically
+    boston_tz = ZoneInfo("US/Eastern")
+    today = datetime.now(boston_tz).date()
+
+    # Create path: out/YYYY/MM/DD
+    outdir = (
+        Path(base_dir) / str(today.year) /
+        f"{today.month:02d}" / f"{today.day:02d}"
+    )
+    outdir.mkdir(parents=True, exist_ok=True)
+    return outdir
+
+
+def get_latest_output_dir(base_dir: str = "out") -> Optional[Path]:
+    """Find the most recent date-based output directory.
+
+    Scans the base directory structure (out/YYYY/MM/DD) and returns
+    the path to the most recent date folder.
+
+    Args:
+        base_dir: Base directory name (default: "out")
+
+    Returns:
+        Path to the latest date directory, or None if no dirs exist
+    """
+    base_path = Path(base_dir)
+    if not base_path.exists():
+        return None
+
+    latest_date = None
+    latest_path = None
+
+    # Scan for year directories
+    for year_dir in base_path.iterdir():
+        if not year_dir.is_dir() or not year_dir.name.isdigit():
+            continue
+
+        try:
+            year = int(year_dir.name)
+        except ValueError:
+            continue
+
+        # Scan for month directories
+        for month_dir in year_dir.iterdir():
+            if not month_dir.is_dir() or not month_dir.name.isdigit():
+                continue
+
+            try:
+                month = int(month_dir.name)
+            except ValueError:
+                continue
+
+            # Scan for day directories
+            for day_dir in month_dir.iterdir():
+                if not day_dir.is_dir() or not day_dir.name.isdigit():
+                    continue
+
+                try:
+                    day = int(day_dir.name)
+                    # Create date object for comparison
+                    dir_date = date(year, month, day)
+
+                    # Check if this is the latest date found so far
+                    if latest_date is None or dir_date > latest_date:
+                        latest_date = dir_date
+                        latest_path = day_dir
+                except (ValueError, OverflowError):
+                    # Invalid date (e.g., month 13 or day 32)
+                    continue
+
+    return latest_path
+
+
+def get_previous_output_dir(base_dir: str = "out") -> Optional[Path]:
+    """Find the most recent date-based output directory before today.
+
+    Similar to get_latest_output_dir, but excludes today's directory.
+
+    Args:
+        base_dir: Base directory name (default: "out")
+
+    Returns:
+        Path to the previous date directory, or None if none exist
+    """
+    # Get today's date in Boston timezone
+    boston_tz = ZoneInfo("US/Eastern")
+    today = datetime.now(boston_tz).date()
+
+    base_path = Path(base_dir)
+    if not base_path.exists():
+        return None
+
+    previous_date = None
+    previous_path = None
+
+    # Scan for year directories
+    for year_dir in base_path.iterdir():
+        if not year_dir.is_dir() or not year_dir.name.isdigit():
+            continue
+
+        try:
+            year = int(year_dir.name)
+        except ValueError:
+            continue
+
+        # Scan for month directories
+        for month_dir in year_dir.iterdir():
+            if not month_dir.is_dir() or not month_dir.name.isdigit():
+                continue
+
+            try:
+                month = int(month_dir.name)
+            except ValueError:
+                continue
+
+            # Scan for day directories
+            for day_dir in month_dir.iterdir():
+                if not day_dir.is_dir() or not day_dir.name.isdigit():
+                    continue
+
+                try:
+                    day = int(day_dir.name)
+                    # Create date object for comparison
+                    dir_date = date(year, month, day)
+
+                    # Only consider dates before today
+                    if dir_date >= today:
+                        continue
+
+                    # Check if this is the most recent previous date
+                    if previous_date is None or dir_date > previous_date:
+                        previous_date = dir_date
+                        previous_path = day_dir
+                except (ValueError, OverflowError):
+                    # Invalid date (e.g., month 13 or day 32)
+                    continue
+
+    return previous_path
+
+
+def get_date_from_output_dir(output_dir: Path) -> Optional[date]:
+    """Extract the date from an output directory path.
+
+    Args:
+        output_dir: Path to a date-based output directory
+                   (e.g., Path("out/2025/01/15"))
+
+    Returns:
+        Date object, or None if path format is invalid
+    """
+    try:
+        # Path should be: out/YYYY/MM/DD
+        parts = output_dir.parts
+        if len(parts) >= 3:
+            year = int(parts[-3])
+            month = int(parts[-2])
+            day = int(parts[-1])
+            return date(year, month, day)
+    except (ValueError, IndexError):
+        pass
+    return None
+
+
+def load_previous_committee_json(
+    committee_id: str,
+    base_dir: str = "out"
+) -> tuple[Optional[list[dict]], Optional[date]]:
+    """Load the previous day's JSON data for a committee.
+
+    Args:
+        committee_id: Committee ID (e.g., "J50")
+        base_dir: Base directory name (default: "out")
+
+    Returns:
+        Tuple of (list of bill dictionaries, previous date),
+        or (None, None) if not found
+    """
+    previous_dir = get_previous_output_dir(base_dir)
+    if previous_dir is None:
+        return None, None
+
+    previous_date = get_date_from_output_dir(previous_dir)
+    if previous_date is None:
+        return None, None
+
+    json_path = previous_dir / f"basic_{committee_id}.json"
+    if not json_path.exists():
+        return None, previous_date
+
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            # Handle both old format (array) and new format (object)
+            if isinstance(data, list):
+                return data, previous_date
+            elif isinstance(data, dict) and "bills" in data:
+                return data["bills"], previous_date
+            return None, previous_date
+    except (json.JSONDecodeError, IOError):
+        return None, previous_date
+
+
+def generate_diff_report(
+    current_bills: list[dict],
+    previous_bills: Optional[list[dict]],
+    current_date: date,
+    previous_date: Optional[date]
+) -> Optional[dict]:
+    """Generate a diff report comparing current and previous scans.
+
+    Args:
+        current_bills: List of current bill dictionaries
+        previous_bills: List of previous bill dictionaries (or None)
+        current_date: Current scan date
+        previous_date: Previous scan date (or None)
+
+    Returns:
+        Dictionary with diff report, or None if no previous data
+    """
+    if previous_bills is None or previous_date is None:
+        return None
+
+    # Create lookup dictionaries by bill_id
+    current_by_id = {bill["bill_id"]: bill for bill in current_bills}
+    previous_by_id = {bill["bill_id"]: bill for bill in previous_bills}
+
+    # Calculate compliance percentages
+    def count_compliant(bills: list[dict]) -> int:
+        return sum(1 for b in bills if b.get("state") == "Compliant")
+
+    def count_non_compliant_incomplete(bills: list[dict]) -> int:
+        return sum(
+            1 for b in bills
+            if b.get("state") in ("Non-Compliant", "Incomplete")
+        )
+
+    prev_compliant = count_compliant(previous_bills)
+    prev_non_compliant_incomplete = (
+        count_non_compliant_incomplete(previous_bills)
+    )
+    curr_compliant = count_compliant(current_bills)
+    curr_non_compliant_incomplete = (
+        count_non_compliant_incomplete(current_bills)
+    )
+
+    # Calculate compliance delta
+    prev_total = len(previous_bills)
+    curr_total = len(current_bills)
+    prev_compliant_pct = (
+        (prev_compliant / prev_total * 100) if prev_total > 0 else 0
+    )
+    prev_non_compliant_pct = (
+        (prev_non_compliant_incomplete / prev_total * 100)
+        if prev_total > 0 else 0
+    )
+    curr_compliant_pct = (
+        (curr_compliant / curr_total * 100)
+        if curr_total > 0 else 0
+    )
+    curr_non_compliant_pct = (
+        (curr_non_compliant_incomplete / curr_total * 100)
+        if curr_total > 0 else 0
+    )
+
+    compliance_delta = (
+        (curr_compliant_pct - curr_non_compliant_pct) -
+        (prev_compliant_pct - prev_non_compliant_pct)
+    )
+
+    # Find new bills (exist in current but not in previous)
+    new_bill_ids = [
+        bill_id for bill_id in current_by_id
+        if bill_id not in previous_by_id
+    ]
+
+    # Find bills that announced hearings
+    # (didn't have announcement_date before, now do)
+    bills_with_new_hearings = []
+    for bill_id, curr_bill in current_by_id.items():
+        if bill_id not in previous_by_id:
+            continue
+        prev_bill = previous_by_id[bill_id]
+        prev_announced = prev_bill.get("announcement_date") is not None
+        curr_announced = curr_bill.get("announcement_date") is not None
+        if not prev_announced and curr_announced:
+            bills_with_new_hearings.append(bill_id)
+
+    # Find bills that reported out
+    # (reported_out changed from False to True)
+    bills_reported_out = []
+    for bill_id, curr_bill in current_by_id.items():
+        if bill_id not in previous_by_id:
+            continue
+        prev_bill = previous_by_id[bill_id]
+        if not prev_bill.get("reported_out", False) and curr_bill.get(
+            "reported_out", False
+        ):
+            bills_reported_out.append(bill_id)
+
+    # Find bills that added summaries
+    # (summary_present changed from False to True)
+    bills_with_new_summaries = []
+    for bill_id, curr_bill in current_by_id.items():
+        if bill_id not in previous_by_id:
+            continue
+        prev_bill = previous_by_id[bill_id]
+        if not prev_bill.get("summary_present", False) and curr_bill.get(
+            "summary_present", False
+        ):
+            bills_with_new_summaries.append(bill_id)
+
+    # Calculate time interval
+    time_delta = current_date - previous_date
+    days_ago = time_delta.days
+    if days_ago == 1:
+        time_interval = "1 day"
+    else:
+        time_interval = f"{days_ago} days"
+
+    return {
+        "time_interval": time_interval,
+        "previous_date": str(previous_date),
+        "current_date": str(current_date),
+        "compliance_delta": round(compliance_delta, 2),
+        "new_bills_count": len(new_bill_ids),
+        "new_bills": new_bill_ids,
+        "bills_with_new_hearings": bills_with_new_hearings,
+        "bills_reported_out": bills_reported_out,
+        "bills_with_new_summaries": bills_with_new_summaries,
+    }
