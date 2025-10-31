@@ -387,7 +387,9 @@ def run_basic_compliance(
         # Generate analysis (LLM or fallback)
         analysis = None
         if diff_report is not None:
-            analysis = generate_llm_analysis(diff_report, results, cfg)
+            analysis = generate_llm_analysis(
+                diff_report, results, cfg, committee.name
+            )
             if analysis is None:
                 analysis = generate_fallback_analysis(diff_report)
 

@@ -343,7 +343,8 @@ def format_bill_details_for_prompt(
 def generate_llm_analysis(
     diff_report: dict,
     current_bills: list[dict],
-    config: Config
+    config: Config,
+    committee_name: str = "Unknown Committee"
 ) -> Optional[str]:
     """Generate LLM analysis of diff report.
 
@@ -351,6 +352,7 @@ def generate_llm_analysis(
         diff_report: The diff report dictionary
         current_bills: List of current bill dictionaries
         config: Configuration object
+        committee_name: Name of the committee being analyzed
 
     Returns:
         Analysis string from LLM, or None if LLM unavailable/disabled
@@ -399,6 +401,7 @@ def generate_llm_analysis(
 
     # Format prompt
     prompt = config.llm.diff_report_analysis_prompt.format(
+        committee_name=committee_name,
         previous_date=diff_report.get("previous_date", "N/A"),
         current_date=diff_report.get("current_date", "N/A"),
         time_interval=diff_report.get("time_interval", "N/A"),
