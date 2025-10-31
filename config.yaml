@@ -21,42 +21,49 @@ llm:
   port: 11434
   model: "qwen3:4b"
   prompt: |
-    You are verifying whether this document is evidence of a legislative BILL SUMMARY or a VOTE RECORD for bill {bill_id}.
+    You are verifying whether this document is evidence of a legislative BILL SUMMARY or VOTE RECORD for bill {bill_id}.
 
     Input metadata:
     - bill_id: {bill_id}
     - doc_type (predicted): {doc_type}
     - content: """{content}"""
-
+    
     Respond with exactly one word: **yes**, **no**, or **unsure**.
-
+    
     Rules:
-    1. **Bill ID check**
-      - Strong positive if the correct bill ID appears (case-insensitive, format H|S followed by number, with or without punctuation/spaces, e.g. H174, H.174, S 91).
-      - Strong negative if a *different* bill ID appears.
-      - If no bill ID is present, treat this as neutral.
-
+    
+    1. **Bill ID relevance**
+       - If the correct bill ID (e.g., H174, H.174, S 91) appears in the *title line, heading, or the first occurrence of a “Bill Summary” section*, that is a **strong positive**.
+       - If multiple bill IDs appear, decide whether the focus or summary *centers on* {bill_id}:
+           • YES if {bill_id} is the one directly attached to “Bill Summary,” “Summary of,” or similar heading.
+           • YES if the paragraph structure clearly treats {bill_id} as the subject and others as comparisons or references.
+           • UNSURE if {bill_id} only appears in a side note or list with no focused summary text.
+           • NO if a *different* bill ID is used in headings or summary sections instead.
+       - Wrong or conflicting bill IDs are strong negatives.
+    
     2. **If `doc_type` = "summary":**
-      - YES if the document:
-        - Contains the word "Summary" or "Bill Summary" (case-insensitive), OR
-        - Has a malegislature.gov URL whose filename includes the bill ID and the word “Summary”, OR
-        - Contains paragraph-style policy or topic text clearly describing a bill’s intent, scope, or subject.
-      - NO if it is mainly navigation, headers, login pages, meeting notices, or hearing agendas.
-
+       - YES if it includes:
+           • “Summary” or “Bill Summary” near {bill_id}, OR
+           • A malegislature.gov link with filename containing {bill_id} + “Summary”, OR
+           • Policy or explanatory prose describing what the bill *does* (not navigation or metadata).
+       - NO if it’s only navigation, boilerplate, or meeting text.
+    
     3. **If `doc_type` = "vote":**
-      - YES if it contains vote-related terms such as:
-        - "vote", "yea", "nay", "favorable", "ought to pass", "ought not to pass", "recommendation", "committee report".
-      - NO if it only lists hearing dates or bill descriptions without any votes or recommendations.
+       - YES if it includes vote-related words or patterns:
+           “vote”, “yea”, “nay”, “favorable”, “ought to pass”, “ought not to pass”, “recommendation”, “committee report”, “referred to”.
+       - NO if it lacks any of those or if votes are for unrelated bills.
+    
+    4. **Ignore irrelevant material**
+       - Ignore unrelated bill references unless they dominate the document.
+       - Ignore navigation, login, or template text.
+    
+    5. **Decision logic**
+       - YES only if strong indicators for {bill_id} and document type align.
+       - NO if strong conflicting evidence or unrelated focus.
+       - Otherwise, UNSURE.
+    
+    Output exactly one token: `yes`, `no`, or `unsure`. Do not add explanations or punctuation.
 
-    4. **Ignore boilerplate**
-      - Ignore navigation links, footers, and legislative site chrome.
-
-    5. **Confidence logic**
-      - YES only if clear indicators match and no contradictions.
-      - NO only if clear evidence against it.
-      - Otherwise, UNSURE.
-
-    Output exactly one token: `yes`, `no`, or `unsure`. Do not explain.
   timeout: 120
   audit_log:
     enabled: true
@@ -71,4 +78,5 @@ document_cache:
   max_size_mb: 5120                   # Maximum cache size in MB (5GB)
   max_age_days: 180                   # Maximum age of cached documents in days
   validate_after_days: 7              # Validate cached documents after N days
+
   store_extracted_text: true          # Store extracted text from PDFs/DOCX
