@@ -1,4 +1,4 @@
-""" Utility functions for the Massachusetts Legislature website. """
+"""Utility functions for the Massachusetts Legislature website."""
 
 import json
 import hashlib
@@ -1351,59 +1351,40 @@ def get_previous_output_dir(base_dir: str = "out") -> Optional[Path]:
     Returns:
         Path to the previous date directory, or None if none exist
     """
-    # Get today's date in Boston timezone
     boston_tz = ZoneInfo("US/Eastern")
     today = datetime.now(boston_tz).date()
-
     base_path = Path(base_dir)
     if not base_path.exists():
         return None
-
     previous_date = None
     previous_path = None
-
-    # Scan for year directories
     for year_dir in base_path.iterdir():
         if not year_dir.is_dir() or not year_dir.name.isdigit():
             continue
-
         try:
             year = int(year_dir.name)
         except ValueError:
             continue
-
-        # Scan for month directories
         for month_dir in year_dir.iterdir():
             if not month_dir.is_dir() or not month_dir.name.isdigit():
                 continue
-
             try:
                 month = int(month_dir.name)
             except ValueError:
                 continue
-
-            # Scan for day directories
             for day_dir in month_dir.iterdir():
                 if not day_dir.is_dir() or not day_dir.name.isdigit():
                     continue
-
                 try:
                     day = int(day_dir.name)
-                    # Create date object for comparison
                     dir_date = date(year, month, day)
-
-                    # Only consider dates before today
                     if dir_date >= today:
                         continue
-
-                    # Check if this is the most recent previous date
                     if previous_date is None or dir_date > previous_date:
                         previous_date = dir_date
                         previous_path = day_dir
                 except (ValueError, OverflowError):
-                    # Invalid date (e.g., month 13 or day 32)
                     continue
-
     return previous_path
 
 
@@ -1418,13 +1399,13 @@ def get_date_from_output_dir(output_dir: Path) -> Optional[date]:
         Date object, or None if path format is invalid
     """
     try:
-        # Path should be: out/YYYY/MM/DD
         parts = output_dir.parts
-        if len(parts) >= 3:
-            year = int(parts[-3])
-            month = int(parts[-2])
-            day = int(parts[-1])
-            return date(year, month, day)
+        if len(parts) < 3:
+            return None
+        year = int(parts[-3])
+        month = int(parts[-2])
+        day = int(parts[-1])
+        return date(year, month, day)
     except (ValueError, IndexError):
         pass
     return None
@@ -1447,24 +1428,16 @@ def load_previous_committee_json(
     previous_dir = get_previous_output_dir(base_dir)
     if previous_dir is None:
         return None, None
-
     previous_date = get_date_from_output_dir(previous_dir)
     if previous_date is None:
         return None, None
-
     json_path = previous_dir / f"basic_{committee_id}.json"
     if not json_path.exists():
         return None, previous_date
-
     try:
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            # Handle both old format (array) and new format (object)
-            if isinstance(data, list):
-                return data, previous_date
-            elif isinstance(data, dict) and "bills" in data:
-                return data["bills"], previous_date
-            return None, previous_date
+            return data["bills"], previous_date
     except (json.JSONDecodeError, IOError):
         return None, previous_date
 
@@ -1488,24 +1461,18 @@ def generate_diff_report(
     """
     if previous_bills is None or previous_date is None:
         return None
-
-    # Create lookup dictionaries by bill_id
     current_by_id = {bill["bill_id"]: bill for bill in current_bills}
     previous_by_id = {bill["bill_id"]: bill for bill in previous_bills}
-
-    # Calculate compliance percentages
     def count_compliant(bills: list[dict]) -> int:
         return sum(
             1 for b in bills
             if b.get("state") in ("Compliant", "Unknown")
         )
-
     def count_non_compliant_incomplete(bills: list[dict]) -> int:
         return sum(
             1 for b in bills
             if b.get("state") in ("Non-Compliant", "Incomplete")
         )
-
     prev_compliant = count_compliant(previous_bills)
     prev_non_compliant_incomplete = (
         count_non_compliant_incomplete(previous_bills)
@@ -1514,8 +1481,6 @@ def generate_diff_report(
     curr_non_compliant_incomplete = (
         count_non_compliant_incomplete(current_bills)
     )
-
-    # Calculate compliance delta
     prev_total = len(previous_bills)
     curr_total = len(current_bills)
     prev_compliant_pct = (
@@ -1538,15 +1503,10 @@ def generate_diff_report(
         (curr_compliant_pct - curr_non_compliant_pct) -
         (prev_compliant_pct - prev_non_compliant_pct)
     )
-
-    # Find new bills (exist in current but not in previous)
     new_bill_ids = [
         bill_id for bill_id in current_by_id
         if bill_id not in previous_by_id
     ]
-
-    # Find bills that announced hearings
-    # (didn't have announcement_date before, now do)
     bills_with_new_hearings = []
     for bill_id, curr_bill in current_by_id.items():
         if bill_id not in previous_by_id:
@@ -1556,9 +1516,6 @@ def generate_diff_report(
         curr_announced = curr_bill.get("announcement_date") is not None
         if not prev_announced and curr_announced:
             bills_with_new_hearings.append(bill_id)
-
-    # Find bills that reported out
-    # (reported_out changed from False to True)
     bills_reported_out = []
     for bill_id, curr_bill in current_by_id.items():
         if bill_id not in previous_by_id:
@@ -1568,9 +1525,6 @@ def generate_diff_report(
             "reported_out", False
         ):
             bills_reported_out.append(bill_id)
-
-    # Find bills that added summaries
-    # (summary_present changed from False to True)
     bills_with_new_summaries = []
     for bill_id, curr_bill in current_by_id.items():
         if bill_id not in previous_by_id:
@@ -1580,15 +1534,12 @@ def generate_diff_report(
             "summary_present", False
         ):
             bills_with_new_summaries.append(bill_id)
-
-    # Calculate time interval
     time_delta = current_date - previous_date
     days_ago = time_delta.days
     if days_ago == 1:
         time_interval = "1 day"
     else:
         time_interval = f"{days_ago} days"
-
     return {
         "time_interval": time_interval,
         "previous_date": str(previous_date),
