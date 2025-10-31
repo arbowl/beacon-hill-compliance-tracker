@@ -6,9 +6,10 @@ up, but for now it's good enough.
 
 from os import getenv
 
-from components.utils import Cache, get_latest_output_dir
+from components.utils import Cache
 from components.committees import get_committees
 from components.sender import IngestClient
+from components.utils import get_latest_output_dir
 
 
 def get_committee_selection(
@@ -164,12 +165,12 @@ def submit_data(committees: list[str], cache: Cache) -> None:
         return
     print("Sending data...")
     client = IngestClient(
-        base_url="http://192.168.0.124:5000/",
-        signing_key_id=getenv("A", "bhct_bvxogzozxb1kva6fcj0ljro6"),
-        signing_key_secret=getenv("B", "1JH4H-uzFJJiV1rAGdIoBjFGahnl1PCEYprEjgkvN3M"),
+        base_url="https://beacon-hill-tracker.onrender.com/",
+        signing_key_id=getenv("SIGNING_ID", ""),
+        signing_key_secret=getenv("SIGNING_SECRET", ""),
     )
+    print(client.upload_file(cache.path, kind="cache"))
     print(client.upload_file(str(cache.path), kind="cache"))
-
     # Find the latest output directory
     latest_dir = get_latest_output_dir()
     if latest_dir is None:
@@ -209,7 +210,7 @@ def submit_changelog() -> None:
     client = IngestClient(
         base_url="https://beacon-hill-tracker.onrender.com/",
         signing_key_id=getenv("SIGNING_ID", ""),
-        signing_key_secret=getenv("SIGNING_SECRET"),
+        signing_key_secret=getenv("SIGNING_SECRET", ""),
     )
     result = client.upload_changelog()
     print("Response:", result)

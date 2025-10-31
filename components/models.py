@@ -85,7 +85,8 @@ class SummaryInfo:
             result["parser_module"] = self.parser_module
         return result
 
-    def from_dict(self, data: dict) -> 'SummaryInfo':
+    @staticmethod
+    def from_dict(data: dict) -> 'SummaryInfo':
         """Create SummaryInfo from a dictionary."""
         return SummaryInfo(
             present=data.get("present", False),
@@ -143,7 +144,8 @@ class VoteInfo:  # pylint: disable=too-many-instance-attributes
             )
         return result
 
-    def from_dict(self, data: dict) -> VoteInfo:
+    @staticmethod
+    def from_dict(data: dict) -> VoteInfo:
         """Create VoteInfo from a dictionary."""
         records_data = data.get("records")
         records = (
