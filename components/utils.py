@@ -1495,7 +1495,10 @@ def generate_diff_report(
 
     # Calculate compliance percentages
     def count_compliant(bills: list[dict]) -> int:
-        return sum(1 for b in bills if b.get("state") == "Compliant")
+        return sum(
+            1 for b in bills
+            if b.get("state") in ("Compliant", "Unknown")
+        )
 
     def count_non_compliant_incomplete(bills: list[dict]) -> int:
         return sum(

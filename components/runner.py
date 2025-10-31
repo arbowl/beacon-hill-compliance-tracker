@@ -25,9 +25,8 @@ from components.utils import (
     load_previous_committee_json,
     generate_diff_report,
 )
-from components.llm import (
-    generate_llm_analysis,
-    generate_fallback_analysis,
+from components.templates import (
+    generate_deterministic_analysis,
 )
 from components.models import (
     DeferredReviewSession,
@@ -384,14 +383,12 @@ def run_basic_compliance(
                 results, previous_bills, current_date, previous_date
             )
 
-        # Generate analysis (LLM or fallback)
+        # Generate analysis using deterministic templates
         analysis = None
         if diff_report is not None:
-            analysis = generate_llm_analysis(
-                diff_report, results, cfg, committee.name
+            analysis = generate_deterministic_analysis(
+                diff_report, results, previous_bills, committee.name
             )
-            if analysis is None:
-                analysis = generate_fallback_analysis(diff_report)
 
         # Create output structure with bills, diff_report, and analysis
         output_data = {
