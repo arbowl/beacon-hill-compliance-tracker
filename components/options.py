@@ -6,7 +6,7 @@ up, but for now it's good enough.
 
 from os import getenv
 
-from components.utils import Cache
+from components.utils import Cache, get_latest_output_dir
 from components.committees import get_committees
 from components.sender import IngestClient
 
@@ -164,14 +164,29 @@ def submit_data(committees: list[str], cache: Cache) -> None:
         return
     print("Sending data...")
     client = IngestClient(
-        base_url="https://beacon-hill-tracker.onrender.com/",
-        signing_key_id=getenv("SIGNING_ID", ""),
-        signing_key_secret=getenv("SIGNING_SECRET"),
+        base_url="http://192.168.0.124:5000/",
+        signing_key_id=getenv("A", "bhct_bvxogzozxb1kva6fcj0ljro6"),
+        signing_key_secret=getenv("B", "1JH4H-uzFJJiV1rAGdIoBjFGahnl1PCEYprEjgkvN3M"),
     )
-    print(client.upload_file(cache.path, kind="cache"))
+    print(client.upload_file(str(cache.path), kind="cache"))
+
+    # Find the latest output directory
+    latest_dir = get_latest_output_dir()
+    if latest_dir is None:
+        print(
+            "No output directories found. "
+            "Skipping committee data upload."
+        )
+        return
+
+    print(f"Using latest output directory: {latest_dir}")
     for committee in committees:
         print("Sending committee:", committee)
-        print(client.upload_file(f"out/basic_{committee}.json", kind="basic"))
+        json_path = latest_dir / f"basic_{committee}.json"
+        if json_path.exists():
+            print(client.upload_file(str(json_path), kind="basic"))
+        else:
+            print(f"Warning: File not found: {json_path}")
     print("Data submission complete.")
 
 

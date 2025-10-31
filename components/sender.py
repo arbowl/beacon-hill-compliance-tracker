@@ -179,9 +179,6 @@ class IngestClient:
         if kind == "cache":
             return self._upload_cache(payload, dry_run=dry_run)
         if kind == "basic":
-            items = payload if isinstance(payload, list) else payload.get("items", [])
-            if not isinstance(items, list):
-                raise ValueError("Expected a list of items for basic/report uploads.")
             cid = committee_id or infer_committee_id(path)
             if not cid:
                 raise ValueError(
@@ -190,7 +187,7 @@ class IngestClient:
                 )
             rid = run_id or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             return self._upload_basic(
-                cid, items, rid, batch_size=batch_size, dry_run=dry_run
+                cid, payload, rid, batch_size=batch_size, dry_run=dry_run
             )
         raise ValueError(f"Unsupported kind: {kind}")
 
@@ -216,7 +213,7 @@ class IngestClient:
     def _upload_basic(
         self,
         committee_id: str,
-        items: list[dict[str, Any]],
+        payload: dict[str, Any] | list[dict[str, Any]],
         run_id: str,
         batch_size: int = 0,
         dry_run: bool = False,
@@ -224,20 +221,51 @@ class IngestClient:
         path = "/ingest/basic"
         url = self.base_url + path
         results: list[dict[str, Any]] = []
-        batches = _chunked(items, batch_size) if batch_size and batch_size > 0 else [items]
-        for idx, batch in enumerate(batches, start=1):
-            body = {"committee_id": committee_id, "run_id": run_id, "items": batch}
+        # If payload is a list (old format), wrap it in the new structure
+        if isinstance(payload, list):
+            payload = {"bills": payload}
+        # Add committee_id and run_id to the payload
+        body = {
+            "committee_id": committee_id,
+            "run_id": run_id,
+            **payload
+        }
+        # If batch_size is specified and payload has "bills", batch the bills
+        if batch_size > 0 and isinstance(payload.get("bills"), list):
+            items = payload["bills"]
+            batches = _chunked(items, batch_size)
+            for idx, batch in enumerate(batches, start=1):
+                batch_body = {
+                    "committee_id": committee_id,
+                    "run_id": run_id,
+                    **{k: v for k, v in payload.items() if k != "bills"},
+                    "bills": batch
+                }
+                extra = self._signed_headers("POST", path, batch_body)
+                headers = {**self.headers, **extra}
+                if dry_run:
+                    results.append({
+                        "status": 0,
+                        "batch": idx,
+                        "dry_run": True,
+                        "payload_preview": json.dumps(batch_body)[:4000]
+                    })
+                    continue
+                resp = self.session.post(url, json=batch_body, headers=headers)
+                results.append(_safe_json(resp))
+        else:
+            # Send the entire payload as-is
             extra = self._signed_headers("POST", path, body)
             headers = {**self.headers, **extra}
             if dry_run:
-                results.append({"status": 0,
-                    "batch": idx,
+                results.append({
+                    "status": 0,
                     "dry_run": True,
                     "payload_preview": json.dumps(body)[:4000]
                 })
-                continue
-            resp = self.session.post(url, json=body, headers=headers)
-            results.append(_safe_json(resp))
+            else:
+                resp = self.session.post(url, json=body, headers=headers)
+                results.append(_safe_json(resp))
         return {"endpoint": url, "results": results}
 
     def upload_changelog(
