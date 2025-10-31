@@ -5,9 +5,10 @@ template-based analysis generation.
 """
 
 from enum import Enum
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Union, Sequence
 from dataclasses import dataclass, field
 from datetime import date
+import random
 
 from components.compliance import NOTICE_REQUIREMENT_START_DATE
 
@@ -225,6 +226,32 @@ class AnalysisTemplateBuilder:
     }
 
     @classmethod
+    def _get_template(
+        cls, template_value: Union[str, Sequence[str], None]
+    ) -> str:
+        """Randomly select a template string from a value (string or sequence).
+
+        Args:
+            template_value: Either a string template, sequence of templates,
+                or None
+
+        Returns:
+            A randomly selected template string (or the string itself if it's
+            already a string)
+
+        Raises:
+            ValueError: If template_value is None or empty sequence
+        """
+        if template_value is None:
+            raise ValueError("Template value cannot be None")
+        if isinstance(template_value, str):
+            return template_value
+        # Handle tuple, list, or other sequence types
+        if len(template_value) == 0:
+            raise ValueError("Template sequence cannot be empty")
+        return random.choice(template_value)
+
+    @classmethod
     def get_delta_summary(cls, context: AnalysisContext) -> str:
         """Generate the delta summary component.
 
@@ -234,7 +261,8 @@ class AnalysisTemplateBuilder:
         Returns:
             Formatted delta summary string
         """
-        template = cls.DELTA_TEMPLATES[context.delta_direction]
+        template_value = cls.DELTA_TEMPLATES[context.delta_direction]
+        template = cls._get_template(template_value)
         return template.format(delta_abs=context.delta_abs)
 
     @classmethod
@@ -280,16 +308,18 @@ class AnalysisTemplateBuilder:
 
         # Handle no activity
         if not activities:
-            return cls.ACTIVITY_TEMPLATES[ActivityType.NONE]
+            template_value = cls.ACTIVITY_TEMPLATES[ActivityType.NONE]
+            return cls._get_template(template_value)
 
         # Handle single activity
         if len(activities) == 1:
             activity_type = activities[0][2]
             count = activities[0][1]
-            template = cls.ACTIVITY_TEMPLATES[activity_type]
+            template_value = cls.ACTIVITY_TEMPLATES[activity_type]
+            template = cls._get_template(template_value)
             return template.format(
                 count=count,
-                plural="" if count == 1 else "s",
+                plural_s="" if count == 1 else "s",
                 verb="was" if count == 1 else "were",
             )
 
@@ -323,7 +353,8 @@ class AnalysisTemplateBuilder:
         """
         # Stable delta - just administrative updates
         if context.delta_direction == DeltaDirection.STABLE:
-            return cls.ATTRIBUTION_TEMPLATES["stable_update"]
+            template_value = cls.ATTRIBUTION_TEMPLATES["stable_update"]
+            return cls._get_template(template_value)
 
         # No activity but delta exists - external updates
         if (
@@ -332,7 +363,8 @@ class AnalysisTemplateBuilder:
             and context.bills_with_new_summaries_count == 0
             and context.new_bills_count == 0
         ):
-            return cls.ATTRIBUTION_TEMPLATES["no_attribution"]
+            template_value = cls.ATTRIBUTION_TEMPLATES["no_attribution"]
+            return cls._get_template(template_value)
 
         # Reported out activity is a strong driver
         if context.bills_reported_out_count > 0:
@@ -345,29 +377,37 @@ class AnalysisTemplateBuilder:
                 ]
                 if improved_from_reported:
                     count = len(improved_from_reported)
-                    return cls.ATTRIBUTION_TEMPLATES[
+                    template_value = cls.ATTRIBUTION_TEMPLATES[
                         "compliance_improvements"
-                    ].format(
+                    ]
+                    template = cls._get_template(template_value)
+                    return template.format(
                         bill_count=count,
                         plural="" if count == 1 else "s",
                     )
-            return cls.ATTRIBUTION_TEMPLATES["reported_out_driver"]
+            template_value = cls.ATTRIBUTION_TEMPLATES["reported_out_driver"]
+            return cls._get_template(template_value)
 
         # Check for other compliance improvements/degradations
         if context.bills_improved_compliance:
             count = len(context.bills_improved_compliance)
-            return cls.ATTRIBUTION_TEMPLATES["compliance_improvements"].format(
+            template_value = cls.ATTRIBUTION_TEMPLATES["compliance_improvements"]
+            template = cls._get_template(template_value)
+            return template.format(
                 bill_count=count, plural="" if count == 1 else "s"
             )
 
         if context.bills_degraded_compliance:
             count = len(context.bills_degraded_compliance)
-            return cls.ATTRIBUTION_TEMPLATES["compliance_degradations"].format(
+            template_value = cls.ATTRIBUTION_TEMPLATES["compliance_degradations"]
+            template = cls._get_template(template_value)
+            return template.format(
                 bill_count=count, plural="" if count == 1 else "s"
             )
 
         # Default to mixed/administrative
-        return cls.ATTRIBUTION_TEMPLATES["mixed_attribution"]
+        template_value = cls.ATTRIBUTION_TEMPLATES["mixed_attribution"]
+        return cls._get_template(template_value)
 
     @classmethod
     def get_transparency_note(
@@ -392,13 +432,17 @@ class AnalysisTemplateBuilder:
             context.exempt_hearings_count == total_hearings
             and context.short_notice_hearings_count == 0
         ):
-            return cls.TRANSPARENCY_TEMPLATES["all_exempt"]
+            template_value = cls.TRANSPARENCY_TEMPLATES["all_exempt"]
+            if template_value is None:
+                return None
+            return cls._get_template(template_value)
 
         # Some short notice
         if context.short_notice_hearings_count > 0:
-            template = cls.TRANSPARENCY_TEMPLATES["some_short_notice"]
-            if template is None:
+            template_value = cls.TRANSPARENCY_TEMPLATES["some_short_notice"]
+            if template_value is None:
                 return None
+            template = cls._get_template(template_value)
             return template.format(
                 count=context.short_notice_hearings_count,
                 total=total_hearings,
@@ -414,9 +458,10 @@ class AnalysisTemplateBuilder:
 
         # All compliant, but some may be exempt
         if context.exempt_hearings_count > 0:
-            template = cls.TRANSPARENCY_TEMPLATES["mixed_notice"]
-            if template is None:
+            template_value = cls.TRANSPARENCY_TEMPLATES["mixed_notice"]
+            if template_value is None:
                 return None
+            template = cls._get_template(template_value)
             return template.format(
                 exempt_count=context.exempt_hearings_count,
                 exempt_plural=""
@@ -428,7 +473,10 @@ class AnalysisTemplateBuilder:
             )
 
         # All compliant, none exempt
-        return cls.TRANSPARENCY_TEMPLATES["all_compliant"]
+        template_value = cls.TRANSPARENCY_TEMPLATES["all_compliant"]
+        if template_value is None:
+            return None
+        return cls._get_template(template_value)
 
     @classmethod
     def generate_analysis(cls, context: AnalysisContext) -> str:
@@ -457,7 +505,7 @@ class AnalysisTemplateBuilder:
             components.append(transparency)
 
         # Join with periods and spaces
-        return ". ".join(components) + "."
+        return " ".join(components) + " "
 
 
 def build_analysis_context(
