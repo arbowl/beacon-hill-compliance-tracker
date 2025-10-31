@@ -2,13 +2,13 @@ base_url: "https://malegislature.gov"
 collect_input: true  # Whether to let the user select committees
 include_chambers: ["House", "Joint"]
 runner:
-  committee_ids: ["all"]  # list of committee IDs, or ["all"] for all committees
+  committee_ids: ["J10"]  # list of committee IDs, or ["all"] for all committees
   limit_hearings: 999       # keep small for fast tests; increase later
   check_extensions: false  # whether to check for bill extensions (time-consuming)
 review_mode: "deferred"  # "on" = immediate review, "off" = auto-accept, "deferred" = batch review at end
 popup_review: false  # true = Tkinter popups, false = console review (headless/SSH friendly)
 threading:
-  max_workers: 1  # Number of concurrent threads for bill processing (1 = no threading/sequential)
+  max_workers: 24  # Number of concurrent threads for bill processing (1 = no threading/sequential)
 # Deferred review settings (only used when review_mode: "deferred")
 deferred_review:
   reprocess_after_review: true     # Re-run processing after confirmation
@@ -19,67 +19,44 @@ llm:
   enabled: true
   host: "192.168.0.170"
   port: 11434
-  model: "mistral:7b-instruct"
+  model: "qwen3:4b"
   prompt: |
-    bill_id: {bill_id}
-    doc_type: {doc_type}
-    content: """{content}"""
+    You are verifying whether this document is evidence of a legislative BILL SUMMARY or a VOTE RECORD for bill {bill_id}.
 
-    Answer one word (yes/no/unsure) using these rules:
-    - Bill id massively increases confidence if present (H or S + number, with/without dot/space).
-    - Wrong bill id is a strong negative indicator; use context to see how the bill id is used.
-    - summary → must have:
-        • "Summary" near it (case insensitive), OR
-        • a malegislature.gov link whose filename/title has bill id + "Summary", OR
-        • policy/topic-style prose (not navigation, login, or site boilerplate).
-    - vote record → look for ("vote"|"yea"|"nay"|"favorable"|"recommendation"|"committee")
-    - Ignore boilerplate.
-    Output exactly: yes|no|unsure.
-  diff_report_analysis_prompt: |
-    You are a legislative data analyst generating a daily operational brief for the Massachusetts Beacon Hill Compliance Tracker.
+    Input metadata:
+    - bill_id: {bill_id}
+    - doc_type (predicted): {doc_type}
+    - content: """{content}"""
 
-    **Massachusetts Legislative Committee Compliance Analysis**
-    **Committee:** {committee_name}
-    **Period:** {previous_date} to {current_date} ({time_interval} ago)
+    Respond with exactly one word: **yes**, **no**, or **unsure**.
 
-    **Reported Metrics**
-    - Compliance delta: {compliance_delta} percentage points
-    - New bills: {new_bills_count}
-    - Bills with new hearings: {bills_with_new_hearings_count}
-    - Bills reported out of committee: {bills_reported_out_count}
-    - Bills with new summaries: {bills_with_new_summaries_count}
+    Rules:
+    1. **Bill ID check**
+      - Strong positive if the correct bill ID appears (case-insensitive, format H|S followed by number, with or without punctuation/spaces, e.g. H174, H.174, S 91).
+      - Strong negative if a *different* bill ID appears.
+      - If no bill ID is present, treat this as neutral.
 
-    **New Bills**
-    {new_bills_details}
+    2. **If `doc_type` = "summary":**
+      - YES if the document:
+        - Contains the word "Summary" or "Bill Summary" (case-insensitive), OR
+        - Has a malegislature.gov URL whose filename includes the bill ID and the word “Summary”, OR
+        - Contains paragraph-style policy or topic text clearly describing a bill’s intent, scope, or subject.
+      - NO if it is mainly navigation, headers, login pages, meeting notices, or hearing agendas.
 
-    **Bills with New Hearings**
-    {bills_with_new_hearings_details}
+    3. **If `doc_type` = "vote":**
+      - YES if it contains vote-related terms such as:
+        - "vote", "yea", "nay", "favorable", "ought to pass", "ought not to pass", "recommendation", "committee report".
+      - NO if it only lists hearing dates or bill descriptions without any votes or recommendations.
 
-    **Bills Reported Out**
-    {bills_reported_out_details}
+    4. **Ignore boilerplate**
+      - Ignore navigation links, footers, and legislative site chrome.
 
-    **Bills with New Summaries**
-    {bills_with_new_summaries_details}
+    5. **Confidence logic**
+      - YES only if clear indicators match and no contradictions.
+      - NO only if clear evidence against it.
+      - Otherwise, UNSURE.
 
-    **Legislative Transparency Context**
-    In 2025, the Massachusetts Legislature strengthened its joint rules to improve public visibility: hearings must be publicly noticed at least ten days in advance, committee votes and attendance must be posted, and plain-language summaries must be available before or soon after hearings.  
-    Your analysis should interpret changes in light of these obligations.
-    
-    **IMPORTANT: Committee Scope**
-    This analysis focuses specifically on the {committee_name} committee. The dataset you are commenting on belongs to this committee alone, not the whole Massachusetts Legislature. The tracker monitors approximately 35 committees, but this report reflects changes only for {committee_name}. Daily changes typically reflect a small number of committee postings for this specific committee, not system-wide policy shifts.
-    You aren't seeing all the bills analyzed in this dataset--you're just seeing day-to-day differences, so don't make too many assumptions about the relationship between what's new and what's required. New items generally need time to have documentation posted.
-
-    **Your Task**
-    Write a concise 3–4 sentence brief that:
-
-    1. States whether compliance rose, fell, or remained stable — quantify the change.  
-    2. Identifies which activities (hearings, reports, summaries) most affected the shift.  
-    3. Notes any behavior that aligns with or deviates from transparency requirements (e.g., delayed postings, clustering before deadlines). 
-
-    Tone: neutral, factual, and concise.  
-    Avoid adjectives such as "promising," "concerning," or "disappointing."  
-    Use analytic verbs — "rose," "declined," "remained," "corresponded," "reflected."  
-    Each sentence should deliver a verifiable observation, not interpretation.
+    Output exactly one token: `yes`, `no`, or `unsure`. Do not explain.
   timeout: 120
   audit_log:
     enabled: true
