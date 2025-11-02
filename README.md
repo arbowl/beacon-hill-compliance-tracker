@@ -25,7 +25,7 @@ This project automates the collection of that information and classifies each bi
 The purpose of having an "incomplete" status is to highlight nearly-compliant bills for developers to hone in on potential errors stopping a bill from being recognized as compliant. However, it's trivial for dashboards to reinterpret the information gathered by this tool as is appropriate.
 
 I used "Unknown" in development because the final status of the bill is presently unknown. Others have suggested "Monitoring",
-"Pending", or "Provisional" instead, so user-facing applications may choose to relabel it like that instead.
+"Pending", or "Provisional" instead, so user-facing applications may choose to relabel it as such for clarity.
 
 ## Quick Start
 
@@ -565,5 +565,6 @@ deferred_review:
 5. Submit a pull request
 
 The codebase is designed to be easily understood and extended by students, hobbyists, and grassroots organizations tracking legislative compliance.
+
 
 
