@@ -51,7 +51,7 @@ class LLMParser:
 
     def is_available(self) -> bool:
         """Check if the LLM service is available."""
-        if not self.config.enabled:
+        if not self.config.llm.enabled:
             return False
         try:
             response = requests.get(
@@ -83,7 +83,7 @@ class LLMParser:
             "yes", "no", "unsure", or None if LLM is unavailable
         """
         # Always log the attempt, even if LLM is disabled or unavailable
-        if not self.config.enabled:
+        if not self.config.llm.enabled:
             limited_content = self._truncate_content(content)
             self._log_audit_entry(
                 content, doc_type, bill_id, None, "disabled", limited_content
@@ -108,7 +108,7 @@ class LLMParser:
         limited_content = self._truncate_content(content)
 
         # Format the prompt with the provided variables
-        formatted_prompt = self.config.prompt.format(
+        formatted_prompt = self.config.llm.prompt.format(
             content=limited_content,
             doc_type=doc_type,
             bill_id=bill_id
@@ -118,7 +118,7 @@ class LLMParser:
             response = requests.post(
                 f"{self.base_url}/api/generate",
                 json={
-                    "model": self.config.model,
+                    "model": self.config.llm.model,
                     "prompt": formatted_prompt,
                     "stream": False,
                     "options": {
@@ -126,7 +126,7 @@ class LLMParser:
                         "top_p": 0.9
                     }
                 },
-                timeout=self.config.timeout
+                timeout=self.config.llm.timeout
             )
 
             if response.status_code == 200:
@@ -298,7 +298,7 @@ class LLMParser:
             audit_entry.update({
                 "model": self.config.llm.model,
                 "host": self.config.llm.host,
-                "port": self.config.llm.port
+                "port": str(self.config.llm.port)
             })
         # Log as JSON for easy parsing
         self.audit_logger.info(json.dumps(audit_entry, ensure_ascii=False))

@@ -59,7 +59,7 @@ def _get_legislator_email(url: str) -> str:
 
 
 def get_committee_contact(
-    base_url: str, committee: Committee, cache: Optional[Cache]=None
+    base_url: str, committee: Committee, cache: Optional[Cache] = None
 ) -> CommitteeContact:
     """
     On the committee detail page, scrape both Senate and House Contact blocks
@@ -67,9 +67,13 @@ def get_committee_contact(
     """
     # Check cache first if available
     if cache:
-        cached_contact : dict[str, str]= cache.get_committee_contact(committee.id)
+        cached_contact: Optional[dict[str, str]] = cache.get_committee_contact(
+            committee.id
+        )
         if cached_contact:
-            logging.info("Using cached contact info for committee %s", committee.id)
+            logging.info(
+                "Using cached contact info for committee %s", committee.id
+            )
             return CommitteeContact(
                 committee_id=cached_contact["committee_id"],
                 name=cached_contact["name"],

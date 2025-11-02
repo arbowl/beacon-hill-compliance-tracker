@@ -7,7 +7,7 @@ from typing import Optional
 from urllib.parse import urljoin
 
 import PyPDF2
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
@@ -39,8 +39,18 @@ class SummaryCommitteePdfParser(ParserInterface):
                 if re.search(r"/Download/DownloadDocument/", href, re.I):
                     return urljoin(base_url, href)
                 text = a.get_text(strip=True).lower()
-                if (re.search(r"committee.*summary|summary.*committee", text, re.I) or
-                    re.search(r"committee.*summary|summary.*committee", href, re.I)):
+                if (
+                    re.search(
+                        r"committee.*summary|summary.*committee",
+                        text,
+                        re.I
+                    ) or
+                    re.search(
+                        r"committee.*summary|summary.*committee",
+                        href,
+                        re.I
+                    )
+                ):
                     return urljoin(base_url, href)
             except (AttributeError, TypeError):
                 continue
@@ -69,7 +79,9 @@ class SummaryCommitteePdfParser(ParserInterface):
                 full_text = re.sub(r'\s+', ' ', full_text).strip()
                 return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
+            logger.warning(
+                "Could not extract text from PDF %s: %s", pdf_url, e
+            )
             return None
         return None
 
@@ -121,7 +133,10 @@ class SummaryCommitteePdfParser(ParserInterface):
                 0.9,
             )
         else:
-            preview = f"Found Committee Summary PDF for {bill.bill_id} (text extraction failed)"
+            preview = (
+                f"Found Committee Summary PDF for {bill.bill_id} "
+                "(text extraction failed)"
+            )
             return ParserInterface.DiscoveryResult(
                 preview,
                 "",

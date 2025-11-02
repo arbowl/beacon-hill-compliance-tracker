@@ -6,20 +6,25 @@ up, but for now it's good enough.
 
 from os import getenv
 
-from components.utils import Cache
+from collectors.extension_orders import collect_all_extension_orders
 from components.committees import get_committees
+from components.runner import run_basic_compliance
 from components.sender import IngestClient
-from components.utils import get_latest_output_dir
+from components.utils import Cache, Config, get_latest_output_dir
+from version import __version__
 
 
 def get_committee_selection(
-    base_url: str, include_chambers: list[str]
+    base_url: str, include_chambers: tuple[str]
 ) -> list[str]:
     """Interactive committee selection with various input options."""
     print("\n" + "="*60)
     print("COMMITTEE SELECTION")
     print("="*60)
-    all_committees = get_committees(base_url, include_chambers)
+    all_committees = get_committees(
+        base_url,
+        include_chambers
+    )
     print(f"\nAvailable committees ({len(all_committees)} total):")
     for i, committee in enumerate(all_committees, 1):
         print(f"  {i:2d}. {committee.id} - {committee.name}")
@@ -64,9 +69,8 @@ def get_committee_selection(
                             committee_ids.append(part)
                 if committee_ids:
                     return committee_ids
-                else:
-                    print("No valid committee IDs found. Please try again.")
-                    continue
+                print("No valid committee IDs found. Please try again.")
+                continue
         try:
             committee_ids = []
             for part in selection.split(','):
@@ -79,14 +83,19 @@ def get_committee_selection(
                         for i in range(start_idx, end_idx + 1):
                             committee_ids.append(all_committees[i].id)
                     else:
-                        print(f"Range {part} is out of bounds. Please try again.")
+                        print(
+                            f"Range {part} is out of bounds. Please try again."
+                        )
                         break
                 else:
                     idx = int(part) - 1
                     if 0 <= idx < len(all_committees):
                         committee_ids.append(all_committees[idx].id)
                     else:
-                        print(f"Number {part} is out of bounds. Please try again.")
+                        print(
+                            f"Number {part} is out of bounds. Please "
+                            "try again."
+                        )
                         break
             else:
                 if committee_ids:
@@ -105,7 +114,9 @@ def get_hearing_limit() -> int:
     print("  - Enter a number (e.g., 5)")
     print("  - Leave blank to process all hearings")
     while True:
-        limit_input = input("\nNumber of hearings (or blank for all): ").strip()
+        limit_input = input(
+            "\nNumber of hearings (or blank for all): "
+        ).strip()
         if not limit_input:
             return 999
         try:
@@ -125,7 +136,10 @@ def get_extension_check_preference(cache: Cache) -> bool:
     print("="*60)
     if cache.search_for_keyword('extensions'):
         print("✓ Cache contains extension data.")
-        print("You can skip this unless you want to use the latest data (it just takes a while).")
+        print(
+            "You can skip this unless you want to use the latest data "
+            "(it just takes a while)."
+        )
     else:
         print("⚠ Cache does not contain extension data.")
         print("You should run it once to collect extension data.")
@@ -169,7 +183,7 @@ def submit_data(committees: list[str], cache: Cache) -> None:
         signing_key_id=getenv("SIGNING_ID", ""),
         signing_key_secret=getenv("SIGNING_SECRET", ""),
     )
-    print(client.upload_file(cache.path, kind="cache"))
+    print(client.upload_file(str(cache.path), kind="cache"))
     print(client.upload_file(str(cache.path), kind="cache"))
     # Find the latest output directory
     latest_dir = get_latest_output_dir()
@@ -219,3 +233,77 @@ def submit_changelog() -> None:
     else:
         print("[FAIL] Failed to send changelog.")
         print("  Check your API credentials and network connection.")
+
+
+def runner_loop(config: Config, cache: Cache) -> None:
+    """Runs a simple collection and submission loop"""
+    while True:
+        print()
+        print(f"Beacon Hill Compliance Tracker v{__version__}")
+        print()
+        submit_data(
+            [committee.id for committee in get_committees(
+                config.base_url, tuple(config.include_chambers)
+            )],
+            cache
+        )
+        submit_changelog()
+        check_extensions = config.runner.check_extensions
+        if config.collect_input:
+            committee_ids = get_committee_selection(
+                config.base_url, tuple(config.include_chambers)  # type: ignore
+            )
+            limit_hearings: int = get_hearing_limit()
+            check_extensions = get_extension_check_preference(cache)
+            print_options_summary(
+                committee_ids,
+                limit_hearings,
+                check_extensions
+            )
+            prompt = "\nProceed with these settings? (y/n): "
+            confirm = input(prompt).strip().lower()
+            if confirm not in ['y', 'yes']:
+                print("Aborted.")
+                return
+        else:
+            print_options_summary(
+                config.runner.committee_ids,
+                config.runner.limit_hearings,
+                config.runner.check_extensions
+            )
+        extension_lookup: dict[str, list] = {}
+        if check_extensions:
+            print("Collecting all extension orders...")
+            all_extension_orders = collect_all_extension_orders(
+                config.base_url, cache
+            )
+            print(f"Found {len(all_extension_orders)} total extension orders")
+            for eo in all_extension_orders:
+                if eo.bill_id not in extension_lookup:
+                    extension_lookup[eo.bill_id] = []
+                extension_lookup[eo.bill_id].append(eo)
+            cache.force_save()
+            print("Cache saved after extension order collection")
+        else:
+            print("Extension checking disabled - using cached data only")
+        for committee_id in committee_ids:
+            print(f"\n{'='*60}")
+            print(f"Processing Committee: {committee_id}")
+            print(f"{'='*60}")
+            run_basic_compliance(
+                base_url=config.base_url,
+                include_chambers=tuple(
+                    config.include_chambers   # type: ignore
+                ),
+                committee_id=committee_id,
+                limit_hearings=limit_hearings,
+                cfg=config,
+                cache=cache,
+                extension_lookup=extension_lookup,
+                write_json=True
+            )
+            cache.force_save()
+            print(f"Cache saved after processing committee {committee_id}")
+        cache.force_save()
+        print("Final cache save completed")
+        input("Collection complete! Press Enter to continue.")

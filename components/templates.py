@@ -1,88 +1,112 @@
-"""Deterministic analysis generation using composable f-string templates.
+"""
+Deterministic, rule-based analysis generation.
 
-This module replaces LLM-based analysis with deterministic, reproducible
-template-based analysis generation.
+Public API preserved:
+- AnalysisContext
+- build_analysis_context(...)
+- generate_deterministic_analysis(...)
+
+Behavioral guarantees:
+- No randomness (fully reproducible).
+- Never assert activity that isn't present.
+- One clear sentence per section (Delta, Activity, Attribution, Transparency).
+- Canonical wording, consistent punctuation, correct grammar.
 """
 
+from __future__ import annotations
+
 from enum import Enum
-from typing import Optional, Union, Sequence
+import json
+from typing import Optional
 from dataclasses import dataclass, field
 from datetime import date
-import random
 
-from components.compliance import NOTICE_REQUIREMENT_START_DATE
-
-
-class AnalysisComponent(str, Enum):
-    """The four required components of an analysis."""
-
-    DELTA_SUMMARY = "delta_summary"
-    ACTIVITY_SUMMARY = "activity_summary"
-    ATTRIBUTION = "attribution"
-    TRANSPARENCY_NOTE = "transparency_note"
+try:
+    from components.compliance import NOTICE_REQUIREMENT_START_DATE
+except ImportError:
+    # Fallback if unit testing below
+    NOTICE_REQUIREMENT_START_DATE = date(2025, 6, 26)
 
 
 class DeltaDirection(str, Enum):
-    """Direction of compliance movement."""
+    """Direction of compliance change."""
 
     STABLE = "stable"
     ROSE = "rose"
     DECLINED = "declined"
 
 
-class ActivityType(str, Enum):
-    """Types of activity that can occur."""
+class State(str, Enum):
+    """The bill's status"""
 
-    NEW_BILLS = "new_bills"
-    NEW_HEARINGS = "new_hearings"
-    REPORTED_OUT = "reported_out"
-    NEW_SUMMARIES = "new_summaries"
-    NONE = "none"
-
-
-class ActivityJoiner(str, Enum):
-    """Joiner templates for multiple activity items."""
-
-    SINGLE = "single"
-    PAIR = "pair"
-    TRIPLE = "triple"
-    MANY = "many"
+    COMPLIANT = "Compliant"
+    NONCOMPLIANT = "Non-Compliant"
+    INCOMPLETE = "Incomplete"
+    UNKNOWN = "Unknown"
 
 
-class ActivityPattern(str, Enum):
-    """Patterns for activity item substrings."""
-
-    REPORTED_OUT = "reported_out"
-    HEARINGS = "hearings"
-    SUMMARIES = "summaries"
-    NEW_BILLS = "new_bills"
-
-
-class AttributionTemplate(str, Enum):
-    """Types of attribution scenarios."""
-
-    STABLE_UPDATE = "stable_update"
-    REPORTED_OUT_DRIVER = "reported_out_driver"
-    COMPLIANCE_IMPROVEMENTS = "compliance_improvements"
-    COMPLIANCE_DEGRADATIONS = "compliance_degradations"
-    MIXED_ATTRIBUTION = "mixed_attribution"
-    NO_ATTRIBUTION = "no_attribution"
+def _plural(
+    n: int,
+    singular: str,
+    plural: Optional[str] = None,
+    capitalize: bool = False,
+) -> str:
+    """Return grammatically correct token for n with singular/plural noun."""
+    if n == 1:
+        return f"{_num(1, capitalize)} {singular}"
+    return f"{_num(n, capitalize)} {plural or singular + 's'}"
 
 
-class TransparencyTemplate(str, Enum):
-    """Types of transparency note scenarios."""
+def _join_with_commas(parts: list[str]) -> str:
+    """Oxford-comma joiner for human-readable lists."""
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return parts[0]
+    if len(parts) == 2:
+        return f"{parts[0]} and {parts[1]}"
+    return f"{', '.join(parts[:-1])}, and {parts[-1]}"
 
-    NO_HEARINGS = "no_hearings"
-    ALL_COMPLIANT = "all_compliant"
-    SOME_SHORT_NOTICE = "some_short_notice"
-    ALL_EXEMPT = "all_exempt"
-    MIXED_NOTICE = "mixed_notice"
+
+def _num(number: int, capitalize: bool = False) -> str:
+    """Grammar rule: spell numbers below 10 out."""
+    if number < 0:
+        raise ValueError(f"{number} cannot be less than 0.")
+    if number > 9:
+        return str(number)
+    number_map: dict[int, str] = {
+        1: "one",
+        2: "two",
+        3: "three",
+        4: "four",
+        5: "five",
+        6: "six",
+        7: "seven",
+        8: "eight",
+        9: "nine",
+    }
+    if capitalize:
+        return number_map[number].capitalize()
+    return number_map[number]
 
 
+def _print_preview(list_of_bills: list[str], limit: int = 5) -> str:
+    """Limits how many bills are mentioned by name"""
+    if len(list_of_bills) < (limit + 1):
+        return _join_with_commas(list_of_bills)
+    return (
+        f"{', '.join(list_of_bills[limit:])}, and "
+        f"{len(list_of_bills) - limit} more"
+    )
+
+
+# pylint: disable=too-many-instance-attributes
+# Needed here to mimic the JSON output
 @dataclass
 class AnalysisContext:
-    """Context data needed to generate analysis components."""
+    """Normalized facts used by the generator."""
 
+    # Delta
     compliance_delta: float
     delta_abs: float
     delta_direction: DeltaDirection
@@ -97,465 +121,199 @@ class AnalysisContext:
     bills_reported_out_count: int
     bills_with_new_summaries_count: int
 
-    # Activity lists (bill IDs)
+    # Activity lists (IDs)
     new_bills: list[str]
     bills_with_new_hearings: list[str]
     bills_reported_out: list[str]
     bills_with_new_summaries: list[str]
 
-    # Bill objects for detailed analysis
+    # Bill dicts
     current_bills_by_id: dict[str, dict]
     previous_bills_by_id: Optional[dict[str, dict]]
 
-    # Transparency metrics (computed)
+    # Transparency
     short_notice_hearings_count: int = 0
     exempt_hearings_count: int = 0
 
-    # State transitions (computed)
+    # State transitions
     bills_improved_compliance: list[str] = field(default_factory=list)
     bills_degraded_compliance: list[str] = field(default_factory=list)
 
 
-class AnalysisTemplateBuilder:
-    """
-    Structured-variety templates for committee daily briefs.
-    - Never introduce numbers not passed in.
-    - Keep verbs neutral and analytic.
-    - Sentence blocks: delta, activity, attribution, transparency.
+class _Renderer:
+    """Pure functions that render each section from facts with strict
+    precedence.
     """
 
-    # ---------- DELTA SUMMARY ----------
-    # Args: delta_abs (float)
-    delta_templates: dict[DeltaDirection, str] = {
-        DeltaDirection.STABLE: (
-            "Compliance remained stable.",
-            "Compliance did not change.",
-            "Compliance was unchanged over the period.",
-        ),
-        DeltaDirection.ROSE: (
-            "Compliance rose by {delta_abs:.1f} percentage points.",
-            "The compliance rate increased by {delta_abs:.1f} percentage points.",
-            "Compliance improved by {delta_abs:.1f} percentage points.",
-        ),
-        DeltaDirection.DECLINED: (
-            "Compliance declined by {delta_abs:.1f} percentage points.",
-            "The compliance rate decreased by {delta_abs:.1f} percentage points.",
-            "Compliance fell by {delta_abs:.1f} percentage points.",
-        ),
-    }
-
-    # ---------- ACTIVITY SUMMARY ----------
-    # Single-activity sentences.
-    # Args: count (int), plural_s ("s" if count!=1 else ""),
-    # verb ("was"|"were"), noun ("bill"|"bills")
-    activity_templates: dict[ActivityType, str] = {
-        ActivityType.NONE: (
-            "No new hearings, reports, or summaries were recorded.",
-            "No new hearings, report-outs, or summaries were posted.",
-            "No hearings, report-outs, or summaries were added in this period.",
-        ),
-        ActivityType.NEW_BILLS: (
-            "{count} new bill{plural_s} {verb} added to the tracker.",
-            "{count} bill{plural_s} {verb} newly added.",
-            "The tracker added {count} bill{plural_s}.",
-        ),
-        ActivityType.NEW_HEARINGS: (
-            "{count} bill{plural_s} {verb} assigned new hearings.",
-            "{count} hearing{plural_s} {verb} posted for bill{plural_s}.",
-            "New hearings were posted for {count} bill{plural_s}.",
-        ),
-        ActivityType.REPORTED_OUT: (
-            "{count} bill{plural_s} {verb} reported out of committee.",
-            "{count} report-out{plural_s} {verb} recorded.",
-            "Committee report-outs were posted for {count} bill{plural_s}.",
-        ),
-        ActivityType.NEW_SUMMARIES: (
-            "{count} bill{plural_s} {verb} posted with new summaries.",
-            "Plain-language summaries were posted for {count} bill{plural_s}.",
-            "{count} new summar{y_ies} {verb} posted for bill{plural_s}.",
-        ),
-    }
-
-    # Mixed-activity fragments (compose a single sentence listing the nonzero buckets).
-    # Build item strings like:
-    # "1 reported-out bill",
-    # "3 with new hearings",
-    # "2 with new summaries",
-    # "4 new bills"
-    # Args for joiners: item(s) are already fully formatted substrings.
-    activity_joiners: dict[ActivityJoiner, str] = {
-        ActivityJoiner.SINGLE: "{a}.",
-        ActivityJoiner.PAIR: "{a} and {b}.",
-        ActivityJoiner.TRIPLE: "{a}, {b}, and {c}.",
-        ActivityJoiner.MANY: "{items}, and {last}.",  # 'items' should already be comma-separated
-    }
-
-    # Helpers for building item substrings (kept as patterns so wording is consistent).
-    # Args: n (int)
-    activity_patterns: dict[ActivityPattern, str] = {
-        ActivityPattern.REPORTED_OUT: (
-            "{n} reported-out bill" if "{n}" == "1" else "{n} reported-out bills"
-        ),
-        ActivityPattern.HEARINGS: (
-            "{n} with new hearing" if "{n}" == "1" else "{n} with new hearings"
-        ),
-        ActivityPattern.SUMMARIES: (
-            "{n} with new summary" if "{n}" == "1" else "{n} with new summaries"
-        ),
-        ActivityPattern.NEW_BILLS: (
-            "{n} new bill" if "{n}" == "1" else "{n} new bills"
-        ),
-    }
-
-    # ---------- ATTRIBUTION ----------
-    # Keep to factual linkage; no speculation.
-    # Args: bill_count (int), plural_s ("s" if bill_count!=1 else "")
-    attribution_templates: dict[AttributionTemplate, str] = {
-        AttributionTemplate.STABLE_UPDATE: (
-            "Compliance remained neutral with respect to the latest activity.",
-            "The shift reflected routine activity.",
-            "No significant shift occurred over the latest observation period.",
-        ),
-        AttributionTemplate.REPORTED_OUT_DRIVER: (
-            "The shift corresponded to reporting activity.",
-            "Movement corresponded to committee report-outs.",
-            "Reporting activity aligned with the observed change.",
-        ),
-        AttributionTemplate.COMPLIANCE_IMPROVEMENTS: (
-            "Improvement was recorded on {bill_count} bill{plural_s}.",
-            "Compliance improvements were observed for {bill_count} bill{plural_s}.",
-            "Updates moved {bill_count} bill{plural_s} toward compliance.",
-        ),
-        AttributionTemplate.COMPLIANCE_DEGRADATIONS: (
-            "Compliance declined for {bill_count} bill{plural_s}.",
-            "Degradations were observed for {bill_count} bill{plural_s}.",
-            "Updates moved {bill_count} bill{plural_s} away from compliance.",
-        ),
-        AttributionTemplate.MIXED_ATTRIBUTION: (
-            "The change reflected a combination of reporting and administrative updates.",
-            "Both reporting and administrative updates were present during the period.",
-            "The observed movement corresponds to a mix of report-outs and routine updates.",
-        ),
-        AttributionTemplate.NO_ATTRIBUTION: (
-            "The shift reflected updates outside today's postings.",
-            "No specific activity in this window explains the change.",
-            "The change corresponds to updates recorded outside this period.",
-        ),
-    }
-    transparency_templates: dict[TransparencyTemplate, str] = {
-        TransparencyTemplate.NO_HEARINGS: (
-            "No new hearings were posted in this period.",
-            "There were no hearing postings in this window.",
-            "No hearings were recorded during the period.",
-        ),
-        TransparencyTemplate.ALL_COMPLIANT: (
-            "Hearing postings aligned with the 10-day notice requirement.",
-            "All hearings in this window appear to meet the 10-day notice rule.",
-            "Posted hearings were publicly noticed at least ten days in advance.",
-        ),
-        TransparencyTemplate.SOME_SHORT_NOTICE: (
-            "{count} of {total} new hearing{plural} {verb} posted with "
-            "less than 10 days' notice"
-        ),
-        TransparencyTemplate.ALL_EXEMPT: (
-            "Some hearings were exempt from the 10-day rule based on earlier announcements.",
-            "Exempt hearings (announced before 2025-06-26) were included in this window.",
-            "The set includes hearings exempt from the 10-day requirement by announcement date.",
-        ),
-        TransparencyTemplate.MIXED_NOTICE: (
-            "Hearing postings align with the 10-day notice requirement; "
-            "{exempt_count} hearing{exempt_plural} {exempt_verb} exempt "
-            "due to announcement before the requirement took effect"
-        ),
-    }
-
-    @classmethod
-    def _get_template(
-        cls, template_value: Union[str, Sequence[str], None]
-    ) -> str:
-        """Randomly select a template string from a value (string or sequence).
-
-        Args:
-            template_value: Either a string template, sequence of templates,
-                or None
-
-        Returns:
-            A randomly selected template string (or the string itself if it's
-            already a string)
-
-        Raises:
-            ValueError: If template_value is None or empty sequence
-        """
-        if template_value is None:
-            raise ValueError("Template value cannot be None")
-        if isinstance(template_value, str):
-            return template_value
-        if len(template_value) == 0:
-            raise ValueError("Template sequence cannot be empty")
-        return random.choice(template_value)
-
-    @classmethod
-    def get_delta_summary(cls, context: AnalysisContext) -> str:
-        """Generate the delta summary component.
-
-        Args:
-            context: Analysis context with delta information
-
-        Returns:
-            Formatted delta summary string
-        """
-        template_value = cls.delta_templates[context.delta_direction]
-        template = cls._get_template(template_value)
-        return template.format(delta_abs=context.delta_abs)
-
-    @classmethod
-    def get_activity_summary(cls, context: AnalysisContext) -> str:
-        """Generate the activity summary component.
-
-        Args:
-            context: Analysis context with activity information
-
-        Returns:
-            Formatted activity summary string
-        """
-        activities = []
-        if context.new_bills_count > 0:
-            activities.append(
-                ("new bills", context.new_bills_count, ActivityType.NEW_BILLS)
+    @staticmethod
+    def delta(ctx: AnalysisContext) -> str:
+        """Emit at most one line."""
+        if ctx.delta_direction is DeltaDirection.ROSE:
+            return (
+                f"Compliance within the {ctx.committee_name} increased by "
+                f"{ctx.delta_abs:.1f} percentage points over the past "
+                f"{ctx.time_interval}."
             )
-        if context.bills_with_new_hearings_count > 0:
-            activities.append(
-                (
-                    "hearings",
-                    context.bills_with_new_hearings_count,
-                    ActivityType.NEW_HEARINGS,
-                )
+        if ctx.delta_direction is DeltaDirection.DECLINED:
+            return (
+                f"Compliance within the {ctx.committee_name} decreased by "
+                f"{ctx.delta_abs:.1f} percentage points over the past "
+                f"{ctx.time_interval}."
             )
-        if context.bills_reported_out_count > 0:
-            activities.append(
-                (
-                    "reported out",
-                    context.bills_reported_out_count,
-                    ActivityType.REPORTED_OUT,
-                )
-            )
-        if context.bills_with_new_summaries_count > 0:
-            activities.append(
-                (
-                    "summaries",
-                    context.bills_with_new_summaries_count,
-                    ActivityType.NEW_SUMMARIES,
-                )
-            )
-        if not activities:
-            template_value = cls.activity_templates[ActivityType.NONE]
-            return cls._get_template(template_value)
-        if len(activities) == 1:
-            activity_type = activities[0][2]
-            count = activities[0][1]
-            template_value = cls.activity_templates[activity_type]
-            template = cls._get_template(template_value)
-            return template.format(
-                count=count,
-                plural_s="" if count == 1 else "s",
-                y_ies="y" if count == 1 else "ies",
-                verb="was" if count == 1 else "were",
-            )
-        parts = []
-        for label, count, _ in activities:
-            if count == 1:
-                parts.append(f"{count} bill with {label}")
-            else:
-                parts.append(f"{count} bills with {label}")
-        if len(parts) == 2:
-            return f"Activity included {parts[0]} and {parts[1]}"
-        if len(parts) == 3:
-            return f"Activity included {parts[0]}, {parts[1]}, and {parts[2]}"
         return (
-            f"Activity included {', '.join(parts[:-1])}, "
-            f"and {parts[-1]}"
+            f"Compliance was unchanged within the {ctx.committee_name} "
+            f"over the past {ctx.time_interval}."
         )
 
-    @classmethod
-    def get_attribution(cls, context: AnalysisContext) -> str:
-        """Generate the attribution component.
+    @staticmethod
+    def activity(ctx: AnalysisContext) -> str:
+        """Emit at most one line."""
+        nb = ctx.new_bills_count
+        hr = ctx.bills_with_new_hearings_count
+        ro = ctx.bills_reported_out_count
+        sm = ctx.bills_with_new_summaries_count
+        total = nb + hr + ro + sm
+        if total == 0:
+            # Keep a concise negative statement for parity with prior behavior.
+            return "No new hearings, report-outs, or summaries were detected."
+        # If more than one bucket is non-zero, emit a single mixed sentence.
+        nonzero_parts = 0
+        parts: list[str] = []
+        if ro > 0:
+            noun = "reported-out bill" if ro == 1 else "reported-out bills"
+            parts.append(_plural(ro, noun, noun))
+            nonzero_parts += 1
+        if hr > 0:
+            phrase = "heard at a hearing" if hr == 1 else "heard at hearings"
+            parts.append(_plural(hr, "bill", "bills") + f" {phrase}")
+            nonzero_parts += 1
+        if sm > 0:
+            phrase = "with a new summary" if sm == 1 else "with new summaries"
+            parts.append(_plural(sm, "bill", "bills") + f" {phrase}")
+            nonzero_parts += 1
+        if nb > 0:
+            parts.append(_plural(nb, "new bill", "new bills"))
+            nonzero_parts += 1
 
-        Args:
-            context: Analysis context with attribution information
+        if nonzero_parts > 1:
+            return f"Activity included {_join_with_commas(parts)}."
 
-        Returns:
-            Formatted attribution string
-        """
-        if context.delta_direction == DeltaDirection.STABLE:
-            template_value = cls.attribution_templates[
-                AttributionTemplate.STABLE_UPDATE
-            ]
-            return cls._get_template(template_value)
+        # Single-bucket canonical sentences
+        if ro > 0:
+            return (
+                f"{_plural(ro, 'bill was', 'bills were', True)} reported out "
+                f"of committee ({_print_preview(ctx.bills_reported_out, 2)})."
+            )
+        if hr > 0:
+            return (
+                f"New hearings were posted for "
+                f"{_plural(hr, 'bill', 'bills', False)} "
+                f"({_print_preview(ctx.bills_with_new_hearings, 2)})."
+            )
+        if sm > 0:
+            return (
+                f"Plain-language summaries were posted for "
+                f"{_plural(sm, 'bill', 'bills', False)} "
+                f"({_print_preview(ctx.bills_with_new_summaries, 2)})."
+            )
+        # nb > 0 only
+        return (
+            f"{_plural(nb, 'bill was', 'bills were', True)} newly detected by "
+            "the compliance tracking algorithm "
+            f"({_print_preview(ctx.new_bills, 2)})."
+        )
+
+    @staticmethod
+    def attribution(ctx: AnalysisContext) -> str:
+        """Emit at most one line. Prefer specific, suppress filler."""
+        nb = ctx.new_bills_count
+        hr = ctx.bills_with_new_hearings_count
+        ro = ctx.bills_reported_out_count
+        sm = ctx.bills_with_new_summaries_count
+        any_activity = (nb + hr + ro + sm) > 0
+
+        if ctx.delta_direction is DeltaDirection.ROSE:
+            # Strongest specific cause first
+            if ro > 0:
+                return "The movement aligns with committee report-outs."
+            if ctx.bills_improved_compliance:
+                k = len(ctx.bills_improved_compliance)
+                return (
+                    f"Updates moved {_plural(k, 'bill', 'bills')} "
+                    f"({_print_preview(ctx.bills_improved_compliance, 5)}) "
+                    "toward compliance."
+                )
+        elif ctx.delta_direction is DeltaDirection.DECLINED:
+            if ro > 0:
+                # Decline with report-outs doesn't imply cause; keep neutral.
+                return "The change coincided with committee report-outs."
+            if ctx.bills_degraded_compliance:
+                k = len(ctx.bills_degraded_compliance)
+                return (
+                    f"{_plural(k, 'bill', 'bills', True)} "
+                    f"({_print_preview(ctx.bills_degraded_compliance, 5)}) "
+                    "dropped below compliance thresholds this period."
+                )
+        else:
+            # Stable: avoid speculation; only emit if we truly have
+            # nothing moving.
+            return (
+                "No material shift is attributable to activity in this "
+                "window."
+            )
+
         if (
-            context.bills_reported_out_count == 0
-            and context.bills_with_new_hearings_count == 0
-            and context.bills_with_new_summaries_count == 0
-            and context.new_bills_count == 0
+            not any_activity
+            and ctx.delta_direction is not DeltaDirection.STABLE
         ):
-            template_value = cls.attribution_templates[
-                AttributionTemplate.NO_ATTRIBUTION
-            ]
-            return cls._get_template(template_value)
-        if context.bills_reported_out_count > 0:
-            if context.bills_improved_compliance:
-                improved_from_reported = [
-                    bid
-                    for bid in context.bills_reported_out
-                    if bid in context.bills_improved_compliance
-                ]
-                if improved_from_reported:
-                    count = len(improved_from_reported)
-                    template_value = cls.attribution_templates[
-                        AttributionTemplate.COMPLIANCE_IMPROVEMENTS
-                    ]
-                    template = cls._get_template(template_value)
-                    return template.format(
-                        bill_count=count,
-                        plural_s="" if count == 1 else "s",
-                    )
-            template_value = cls.attribution_templates[
-                AttributionTemplate.REPORTED_OUT_DRIVER
-            ]
-            return cls._get_template(template_value)
-        if context.bills_improved_compliance:
-            count = len(context.bills_improved_compliance)
-            template_value = cls.attribution_templates[
-                AttributionTemplate.COMPLIANCE_IMPROVEMENTS
-            ]
-            template = cls._get_template(template_value)
-            return template.format(
-                bill_count=count, plural_s="" if count == 1 else "s"
+            return (
+                "The change reflects updates recorded outside this "
+                "window."
             )
-        if context.bills_degraded_compliance:
-            count = len(context.bills_degraded_compliance)
-            template_value = cls.attribution_templates[
-                AttributionTemplate.COMPLIANCE_DEGRADATIONS
-            ]
-            template = cls._get_template(template_value)
-            return template.format(
-                bill_count=count, plural_s="" if count == 1 else "s"
+
+        # If we get here, skip attribution instead of emitting filler.
+        return ""
+
+    @staticmethod
+    def transparency(ctx: AnalysisContext) -> str:
+        """Emit at most one line."""
+        total = ctx.bills_with_new_hearings_count
+        if total == 0:
+            return ""
+
+        short_ = ctx.short_notice_hearings_count
+        exempt = ctx.exempt_hearings_count
+
+        if total == exempt and short_ == 0:
+            return (
+                "All hearings in this window are exempt from the "
+                "10-day notice rule."
             )
-        template_value = cls.attribution_templates[
-            AttributionTemplate.MIXED_ATTRIBUTION
-        ]
-        return cls._get_template(template_value)
-
-    @classmethod
-    def get_transparency_note(
-        cls, context: AnalysisContext
-    ) -> Optional[str]:
-        """Generate the transparency note component.
-
-        Args:
-            context: Analysis context with transparency information
-
-        Returns:
-            Formatted transparency note string, or None if not applicable
-        """
-        if context.bills_with_new_hearings_count == 0:
-            return None
-        total_hearings = context.bills_with_new_hearings_count
-        if (
-            context.exempt_hearings_count == total_hearings
-            and context.short_notice_hearings_count == 0
-        ):
-            template_value = cls.transparency_templates[
-                TransparencyTemplate.ALL_EXEMPT
-            ]
-            if template_value is None:
-                return None
-            return cls._get_template(template_value)
-        if context.short_notice_hearings_count > 0:
-            template_value = cls.transparency_templates[
-                TransparencyTemplate.SOME_SHORT_NOTICE
-            ]
-            if template_value is None:
-                return None
-            template = cls._get_template(template_value)
-            return template.format(
-                count=context.short_notice_hearings_count,
-                total=total_hearings,
-                plural_s=(
-                    "" if context.short_notice_hearings_count == 1
-                    else "s"
-                ),
-                verb=(
-                    "was" if context.short_notice_hearings_count == 1
-                    else "were"
-                ),
+        if short_ > 0:
+            return (
+                f"{_plural(short_, 'hearing was', 'hearings were', True)} "
+                f"posted with less than 10 days’ notice "
+                f"({short_} of {total})."
             )
-        if context.exempt_hearings_count > 0:
-            template_value = cls.transparency_templates[
-                TransparencyTemplate.MIXED_NOTICE
-            ]
-            if template_value is None:
-                return None
-            template = cls._get_template(template_value)
-            return template.format(
-                exempt_count=context.exempt_hearings_count,
-                exempt_plural=""
-                if context.exempt_hearings_count == 1
-                else "s",
-                exempt_verb="was"
-                if context.exempt_hearings_count == 1
-                else "were",
+        if exempt > 0:
+            return (
+                "Hearings met the 10-day notice rule; "
+                f"{_plural(exempt, 'hearing is', 'hearings are', True)} "
+                "exempt based on earlier announcements."
             )
-        template_value = cls.transparency_templates[
-            TransparencyTemplate.ALL_COMPLIANT
-        ]
-        if template_value is None:
-            return None
-        return cls._get_template(template_value)
-
-    @classmethod
-    def generate_analysis(cls, context: AnalysisContext) -> str:
-        """Generate the complete analysis by composing all components.
-
-        Args:
-            context: Analysis context with all required information
-
-        Returns:
-            Complete analysis string with all four components
-        """
-        components = []
-        components.append(cls.get_delta_summary(context))
-        components.append(cls.get_activity_summary(context))
-        components.append(cls.get_attribution(context))
-        transparency = cls.get_transparency_note(context)
-        if transparency:
-            components.append(transparency)
-        return " ".join(components) + " "
+        return "All hearings met the 10-day notice requirement."
 
 
 def build_analysis_context(
     diff_report: dict,
     current_bills: list[dict],
     previous_bills: Optional[list[dict]],
-    committee_name: str = "Unknown Committee",
+    committee_name: str = "The Committee",
 ) -> AnalysisContext:
-    """Build an AnalysisContext from diff report and bill data.
-
-    This function enriches the diff_report with computed fields needed
-    for template selection, including:
-    - Delta direction calculation
-    - State transitions for attribution
-    - Transparency metrics (notice gaps, exemptions)
-
-    Args:
-        diff_report: The diff report dictionary
-        current_bills: List of current bill dictionaries
-        previous_bills: List of previous bill dictionaries (or None)
-        committee_name: Name of the committee
-
-    Returns:
-        AnalysisContext object with all computed fields
+    """Normalize incoming packet into facts. This is the only place that
+    transforms counts/lists.
     """
-    compliance_delta = diff_report.get("compliance_delta", 0.0)
+    compliance_delta = float(diff_report.get("compliance_delta", 0.0))
     delta_abs = abs(compliance_delta)
     if delta_abs < 0.05:
         delta_direction = DeltaDirection.STABLE
@@ -563,64 +321,69 @@ def build_analysis_context(
         delta_direction = DeltaDirection.ROSE
     else:
         delta_direction = DeltaDirection.DECLINED
-    current_bills_by_id = {bill["bill_id"]: bill for bill in current_bills}
-    previous_bills_by_id = (
-        {bill["bill_id"]: bill for bill in previous_bills}
-        if previous_bills
-        else None
-    )
-    bills_improved_compliance = []
-    bills_degraded_compliance = []
+
+    current_bills_by_id = {b["bill_id"]: b for b in current_bills}
+    previous_bills_by_id = {
+        b["bill_id"]: b for b in (previous_bills or [])
+    } or None
+
+    # Track state transitions for attribution
+    improved: list[str] = []
+    degraded: list[str] = []
     if previous_bills_by_id:
-        for bill_id, current_bill in current_bills_by_id.items():
-            if bill_id not in previous_bills_by_id:
+        for bill_id, curr in current_bills_by_id.items():
+            prev = previous_bills_by_id.get(bill_id)
+            if not prev:
                 continue
-            prev_bill = previous_bills_by_id[bill_id]
-            prev_state = prev_bill.get("state", "")
-            curr_state = current_bill.get("state", "")
+            prev_state = prev.get("state", "")
+            curr_state = curr.get("state", "")
             if (prev_state in ("Non-Compliant", "Incomplete") and
                     curr_state in ("Compliant", "Unknown")):
-                bills_improved_compliance.append(bill_id)
+                improved.append(bill_id)
             elif prev_state in ("Compliant", "Unknown") and curr_state in (
-                "Non-Compliant",
-                "Incomplete",
+                "Non-Compliant", "Incomplete"
             ):
-                bills_degraded_compliance.append(bill_id)
+                degraded.append(bill_id)
 
-    # --- NEW: Filter diff lists so newly added bills aren't double-counted as reported-out/hearings/summaries ---
-    new_bills_list = list(diff_report.get("new_bills", []))
-    reported_out_raw = list(diff_report.get("bills_reported_out", []))
-    hearings_raw = list(diff_report.get("bills_with_new_hearings", []))
-    summaries_raw = list(diff_report.get("bills_with_new_summaries", []))
+    # Lists from diff report
+    new_bills_raw = list(diff_report.get("new_bills", []))
+    ro_raw = list(diff_report.get("bills_reported_out", []))
+    hr_raw = list(diff_report.get("bills_with_new_hearings", []))
+    sm_raw = list(diff_report.get("bills_with_new_summaries", []))
 
-    # Exclude any bill IDs that are in new_bills from other activity categories.
-    reported_out = [bid for bid in reported_out_raw if bid not in new_bills_list]
-    bills_with_new_hearings = [bid for bid in hearings_raw if bid not in new_bills_list]
-    bills_with_new_summaries = [bid for bid in summaries_raw if bid not in new_bills_list]
+    # Prevent double counting: remove newly added bills from other buckets.
+    new_set = set(new_bills_raw)
+    reported_out = [bid for bid in ro_raw if bid not in new_set]
+    bills_with_new_hearings = [bid for bid in hr_raw if bid not in new_set]
+    bills_with_new_summaries = [bid for bid in sm_raw if bid not in new_set]
 
-    short_notice_count = 0
-    exempt_count = 0
-    # iterate over the filtered hearings list for transparency calculations
-    for bill_id in bills_with_new_hearings:
-        if bill_id not in current_bills_by_id:
+    # Transparency: compute short notice & exemptions only over the filtered
+    # hearing list.
+    short_notice = 0
+    exempt = 0
+    for bid in bills_with_new_hearings:
+        bill = current_bills_by_id.get(bid)
+        if not bill:
             continue
-        bill = current_bills_by_id[bill_id]
         announcement_date_str = bill.get("announcement_date")
         notice_gap_days = bill.get("notice_gap_days")
-        reason: str = bill.get("reason", "")
+        reason: str = str(bill.get("reason", "") or "")
+
         if announcement_date_str:
             try:
                 announcement_date = date.fromisoformat(announcement_date_str)
                 if announcement_date < NOTICE_REQUIREMENT_START_DATE:
-                    exempt_count += 1
+                    exempt += 1
                     continue
-            except (ValueError, TypeError):
+            except Exception:  # pylint: disable=broad-exception-caught
+                # If date is malformed, fall through to other checks.
                 pass
         if "exempt" in reason.lower():
-            exempt_count += 1
+            exempt += 1
             continue
         if notice_gap_days is not None and notice_gap_days < 10:
-            short_notice_count += 1
+            short_notice += 1
+
     return AnalysisContext(
         compliance_delta=compliance_delta,
         delta_abs=delta_abs,
@@ -629,20 +392,20 @@ def build_analysis_context(
         previous_date=diff_report.get("previous_date", "N/A"),
         current_date=diff_report.get("current_date", "N/A"),
         committee_name=committee_name,
-        new_bills_count=len(new_bills_list),
+        new_bills_count=len(new_bills_raw),
         bills_with_new_hearings_count=len(bills_with_new_hearings),
         bills_reported_out_count=len(reported_out),
         bills_with_new_summaries_count=len(bills_with_new_summaries),
-        new_bills=new_bills_list,
+        new_bills=new_bills_raw,
         bills_with_new_hearings=bills_with_new_hearings,
         bills_reported_out=reported_out,
         bills_with_new_summaries=bills_with_new_summaries,
         current_bills_by_id=current_bills_by_id,
         previous_bills_by_id=previous_bills_by_id,
-        short_notice_hearings_count=short_notice_count,
-        exempt_hearings_count=exempt_count,
-        bills_improved_compliance=bills_improved_compliance,
-        bills_degraded_compliance=bills_degraded_compliance,
+        short_notice_hearings_count=short_notice,
+        exempt_hearings_count=exempt,
+        bills_improved_compliance=improved,
+        bills_degraded_compliance=degraded,
     )
 
 
@@ -650,22 +413,124 @@ def generate_deterministic_analysis(
     diff_report: dict,
     current_bills: list[dict],
     previous_bills: Optional[list[dict]],
-    committee_name: str = "Unknown Committee",
+    committee_name: str = "The Committee",
 ) -> str:
-    """Generate deterministic analysis using template composition.
-
-    This is the main entry point that replaces generate_llm_analysis().
-
-    Args:
-        diff_report: The diff report dictionary
-        current_bills: List of current bill dictionaries
-        previous_bills: List of previous bill dictionaries (or None)
-        committee_name: Name of the committee
-
-    Returns:
-        Complete analysis string
     """
-    context: AnalysisContext = build_analysis_context(
+    Compose the final paragraph from the four sections.
+    Order: Delta. Activity. Attribution (if any). Transparency (if any).
+    Each section is at most one sentence. Empty sections are skipped.
+    """
+    ctx = build_analysis_context(
         diff_report, current_bills, previous_bills, committee_name
     )
-    return AnalysisTemplateBuilder.generate_analysis(context)
+    lines = [
+        _Renderer.delta(ctx),
+        _Renderer.activity(ctx),
+        _Renderer.attribution(ctx),
+        _Renderer.transparency(ctx),
+    ]
+    # Remove empty lines and join with spaces; guarantee trailing period
+    # only once.
+    text = " ".join([ln.strip() for ln in lines if ln and ln.strip()])
+    return (text + ".") if text and not text.endswith(".") else text
+
+
+# Use the below code to test the template generator.
+# Run this file directly.
+if __name__ == "__main__":
+    def create_bill(
+        bill_id: str,
+        state: str = "Unknown",
+        announcement_date: Optional[date] = None,
+        notice_gap_days: Optional[int] = None,
+        reason: Optional[str] = None,
+    ) -> dict:
+        """Create a bill dictionary."""
+        d: dict[str, str | int] = {"bill_id": bill_id, "state": state}
+        if announcement_date is not None:
+            d["announcement_date"] = str(announcement_date)
+        if notice_gap_days is not None:
+            d["notice_gap_days"] = int(notice_gap_days)
+        if reason is not None:
+            d["reason"] = reason
+        return d
+
+    def run_scenario(
+        bill_name: str,
+        diff_report: dict,
+        current_bills: list[dict],
+        previous_bills: Optional[list[dict]] = None,
+    ) -> None:
+        """Run a scenario and print the results."""
+        print(f"\n=== {bill_name} ===")
+        print(json.dumps(diff_report, indent=2))
+        output = generate_deterministic_analysis(
+            diff_report, current_bills, previous_bills
+        )
+        print("→", output)
+
+    PREVIOUS = [
+        create_bill("A1", state=State.UNKNOWN),
+        create_bill("A2", state=State.UNKNOWN),
+        create_bill("H1", state=State.UNKNOWN),
+        create_bill("H2", state=State.UNKNOWN),
+        create_bill("H3", state=State.UNKNOWN),
+    ]
+
+    CURRENT = [
+        create_bill("A1", state=State.NONCOMPLIANT),
+        create_bill("A2", state=State.NONCOMPLIANT),
+        create_bill(
+            "H1", state=State.UNKNOWN, announcement_date=date(2025, 7, 10),
+            notice_gap_days=12,
+        ),
+        create_bill(
+            "H2", state=State.UNKNOWN, announcement_date=date(2025, 7, 12),
+            notice_gap_days=7,
+        ),
+        create_bill(
+            "H3", state=State.UNKNOWN, announcement_date=date(2025, 6, 10),
+            notice_gap_days=15,  # exempt by date
+        ),
+    ]
+
+    # --- Scenarios ---
+    scenarios = [
+        ("Stable / No activity",
+         {"time_interval": "day", "previous_date": "2025-06-25",
+          "current_date": "2025-06-26",
+          "compliance_delta": 0.0, "new_bills": [],
+          "bills_with_new_hearings": [],
+          "bills_reported_out": [], "bills_with_new_summaries": []}),
+
+        ("Rose / Report-outs",
+         {"time_interval": "day", "previous_date": "2025-06-25",
+          "current_date": "2025-06-26",
+          "compliance_delta": +1.2, "new_bills": [],
+          "bills_with_new_hearings": [],
+          "bills_reported_out": ["A1", "A2"], "bills_with_new_summaries": []}),
+
+        ("Hearings short notice",
+         {"time_interval": "day", "previous_date": "2025-06-25",
+          "current_date": "2025-06-26",
+          "compliance_delta": -0.2, "new_bills": [],
+          "bills_with_new_hearings": ["H1", "H2"],
+          "bills_reported_out": [], "bills_with_new_summaries": []}),
+
+        ("Lots of new provisional bills",
+         {"time_interval": "day", "previous_date": "2025-10-30",
+          "current_date": "2025-10-31",
+          "compliance_delta": 5.0, "new_bills": [
+            "H123",
+            "H124",
+            "H125",
+            "H126",
+            "H127",
+            "H128",
+            "H129",
+          ], "bills_with_new_hearings": [], "bills_reported_out": [],
+          "bills_with_new_summaries": ["H2"]}),
+    ]
+
+    for name, diff in scenarios:
+        run_scenario(name, diff, CURRENT, PREVIOUS)

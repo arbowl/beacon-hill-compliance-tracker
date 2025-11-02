@@ -3,7 +3,7 @@
 import logging
 from typing import Optional
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
@@ -52,7 +52,9 @@ class VotesBillEmbeddedParser(ParserInterface):
         soup = cls.soup(f"{bill.bill_url}/CommitteeVote")
         # 1) Look for site-specific committee vote panels by class name
         # Example seen in HTML: div.panel.panel-primary committeeVote
-        panels = soup.find_all("div", class_=lambda c: c and "committeeVote" in c)
+        panels = soup.find_all(
+            "div", class_=lambda c: c and "committeeVote" in c
+        )
         for panel in panels:
             if cls._looks_like_vote_table(panel):
                 txt = " ".join(panel.get_text(" ", strip=True).split())
@@ -66,7 +68,9 @@ class VotesBillEmbeddedParser(ParserInterface):
                 )
 
         # 2) Look for a summary block that may contain vote counts/names
-        summaries = soup.find_all("div", class_=lambda c: c and "committeeVoteSummary" in c)
+        summaries = soup.find_all(
+            "div", class_=lambda c: c and "committeeVoteSummary" in c
+        )
         for summ in summaries:
             if cls._looks_like_vote_table(summ):
                 txt = " ".join(summ.get_text(" ", strip=True).split())

@@ -6,11 +6,25 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from threading import Lock
-from typing import Optional, List, TYPE_CHECKING, Any
+from typing import Optional, TYPE_CHECKING, Any
 import uuid
 
 if TYPE_CHECKING:
     from components.interfaces import ParserInterface
+
+
+@dataclass(frozen=True)
+class ComplianceState:
+    """The state a bill can be in"""
+
+    compliant: str = "Compliant"
+    """Bill definitively meets all standards"""
+    noncompliant: str = "Non-Compliant"
+    """Bill definitively doesn't meet multiple standards"""
+    incomplete: str = "Incomplete"
+    """Bill misses exactly one standard (use scrutiny here)"""
+    unknown: str = "Unknown"
+    """Bill is not fully compliant but has no disqualifiers"""
 
 
 @dataclass(frozen=True)
@@ -138,9 +152,11 @@ class VoteInfo:  # pylint: disable=too-many-instance-attributes
             result["tallies"] = self.tallies
         if self.records is not None:
             result["records"] = (
-                [{"member": r.member, "vote": r.vote}
-                 for r in self.records]
-                 if self.records else None
+                [
+                    {"member": r.member, "vote": r.vote}
+                    for r in self.records
+                ]
+                if self.records else None
             )
         return result
 
@@ -149,7 +165,9 @@ class VoteInfo:  # pylint: disable=too-many-instance-attributes
         """Create VoteInfo from a dictionary."""
         records_data = data.get("records")
         records = (
-            [VoteRecord(member=r["member"], vote=r["vote"]) for r in records_data]
+            [VoteRecord(
+                member=r["member"], vote=r["vote"]
+            ) for r in records_data]
             if records_data else None
         )
         return VoteInfo(
@@ -228,7 +246,7 @@ class DeferredReviewSession:
     """Collection of all deferred confirmations for batch review."""
     session_id: str
     committee_id: str
-    confirmations: List[DeferredConfirmation] = field(default_factory=list)
+    confirmations: list[DeferredConfirmation] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.utcnow)
     _lock: Any = field(default=None, init=False, repr=False)
 
@@ -245,12 +263,14 @@ class DeferredReviewSession:
 
     def get_summary_count(self) -> int:
         """Get count of summary confirmations."""
-        return len([c for c in self.confirmations if c.parser_type == "summary"])
+        return len(
+            [c for c in self.confirmations if c.parser_type == "summary"]
+        )
 
     def get_votes_count(self) -> int:
         """Get count of vote confirmations."""
         return len([c for c in self.confirmations if c.parser_type == "votes"])
 
-    def get_bill_ids(self) -> List[str]:
+    def get_bill_ids(self) -> list[str]:
         """Get unique list of bill IDs in this session."""
         return list(set(c.bill_id for c in self.confirmations))

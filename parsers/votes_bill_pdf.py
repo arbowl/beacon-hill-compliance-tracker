@@ -14,7 +14,12 @@ from components.interfaces import ParserInterface
 logger = logging.getLogger(__name__)
 
 PDF_RX = re.compile(r"\.pdf($|\?)", re.I)
-VOTE_HINTS = [r"\bvote\b", r"\bvoting\b", r"\brecorded vote\b", r"\broll[- ]?call\b"]
+VOTE_HINTS = [
+    r"\bvote\b",
+    r"\bvoting\b"
+    r"\brecorded vote\b",
+    r"\broll[- ]?call\b"
+]
 
 
 class VotesBillPdfParser(ParserInterface):
@@ -43,7 +48,9 @@ class VotesBillPdfParser(ParserInterface):
                 full_text = re.sub(r'\s+', ' ', full_text).strip()
                 return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
+            logger.warning(
+                "Could not extract text from PDF %s: %s", pdf_url, e
+            )
             return None
         return None
 
@@ -73,7 +80,9 @@ class VotesBillPdfParser(ParserInterface):
                 if pdf_text:
                     preview = f"Possible vote PDF on bill page: {text or href}"
                     if len(pdf_text) > 200:
-                        preview += f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
+                        preview += (
+                            f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
+                        )
                     else:
                         preview += f"\n\nPDF Content:\n{pdf_text}"
                     return ParserInterface.DiscoveryResult(

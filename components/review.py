@@ -24,7 +24,9 @@ def conduct_batch_review(
     print(f"{'='*64}")
     display_confirmation_summary(session)
     try:
-        proceed = input("\nPress Enter to begin review, or 'q' to quit: ").strip().lower()
+        proceed = input(
+            "\nPress Enter to begin review, or 'q' to quit: "
+        ).strip().lower()
         if proceed == 'q':
             print("Review session cancelled.")
             return {}
@@ -50,7 +52,10 @@ def conduct_batch_review(
                     confirmed=True
                 )
         except (KeyboardInterrupt, EOFError):
-            print(f"\nReview session interrupted. Processed {i-1} of {total} confirmations.")
+            print(
+                f"\nReview session interrupted. Processed "
+                f"{i-1} of {total} confirmations."
+            )
             break
     return results
 
@@ -60,7 +65,10 @@ def display_confirmation_summary(session: DeferredReviewSession) -> None:
     summary_count = session.get_summary_count()
     votes_count = session.get_votes_count()
     bill_count = len(session.get_bill_ids())
-    print(f"Found {len(session.confirmations)} parser confirmations requiring review:")
+    print(
+        f"Found {len(session.confirmations)} parser confirmations "
+        "requiring review:"
+    )
     if summary_count > 0:
         print(f"  - {summary_count} summaries ({bill_count} bills)")
     if votes_count > 0:
@@ -69,7 +77,10 @@ def display_confirmation_summary(session: DeferredReviewSession) -> None:
     if len(bill_ids) <= 10:
         print(f"\nBills: {', '.join(sorted(bill_ids))}")
     else:
-        print(f"\nBills: {', '.join(sorted(bill_ids[:10]))} ... and {len(bill_ids)-10} more")
+        print(
+            f"\nBills: {', '.join(sorted(bill_ids[:10]))} ..."
+            f" and {len(bill_ids)-10} more"
+        )
 
 
 def review_single_confirmation(
@@ -89,8 +100,10 @@ def review_single_confirmation(
     )
     print(f"{'='*64}")
     print(f"Parser: {confirmation.parser_module}")
-    if (config.deferred_review.show_confidence
-        and confirmation.confidence is not None):
+    if (
+        config.deferred_review.show_confidence
+        and confirmation.confidence is not None
+    ):
         confidence_pct = int(confirmation.confidence * 100)
         confidence_label: str = (
             "High" if confirmation.confidence >= 0.8
@@ -134,7 +147,10 @@ def review_single_confirmation(
             print("Skipped - will remain unconfirmed.")
             return False
         elif choice in ['a', 'all']:
-            print(f"Accepting all remaining confirmations for bill {confirmation.bill_id}")
+            print(
+                f"Accepting all remaining confirmations for bill "
+                f"{confirmation.bill_id}"
+            )
             return True
         elif choice in ['q', 'quit']:
             raise KeyboardInterrupt()
@@ -170,4 +186,7 @@ def apply_review_results(
     print("\nReview session complete:")
     print(f"  - Accepted: {accepted_count}")
     print(f"  - Rejected: {rejected_count}")
-    print(f"  - Skipped: {len(session.confirmations) - accepted_count - rejected_count}")
+    print(
+        f"  - Skipped: "
+        f"{len(session.confirmations) - accepted_count - rejected_count}"
+    )

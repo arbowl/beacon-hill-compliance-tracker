@@ -6,13 +6,14 @@ import re
 from typing import Optional
 from urllib.parse import urljoin
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # type: ignore
 from docx import Document
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
 
 logger = logging.getLogger(__name__)
+
 
 class VotesDocxParser(ParserInterface):
     """Parser for DOCX files containing vote records."""
@@ -37,7 +38,9 @@ class VotesDocxParser(ParserInterface):
                 full_text = re.sub(r'\s+', ' ', full_text).strip()
                 return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not extract text from DOCX %s: %s", docx_url, e)
+            logger.warning(
+                "Could not extract text from DOCX %s: %s", docx_url, e
+            )
             return None
         return None
 
@@ -70,7 +73,9 @@ class VotesDocxParser(ParserInterface):
             'roll call', 'recorded vote', 'committee vote', 'member vote',
             'favorable', 'unfavorable', 'passed', 'failed', 'reported out'
         ]
-        has_vote_keywords = any(keyword in text_lower for keyword in vote_keywords)
+        has_vote_keywords = any(
+            keyword in text_lower for keyword in vote_keywords
+        )
         has_bill_id = bill_id.lower() in text_lower
         return has_vote_keywords and has_bill_id
 
@@ -90,15 +95,22 @@ class VotesDocxParser(ParserInterface):
             bill.hearing_url
         ]
         for location in locations_to_check:
+            if location is None:
+                continue
             try:
                 soup = cls.soup(location)
                 docx_urls = cls._find_docx_files(soup, base_url)
                 for docx_url in docx_urls:
                     docx_text = cls._extract_docx_text(docx_url)
-                    if docx_text and cls._looks_like_vote_docx(docx_text, bill.bill_id):
+                    if docx_text and cls._looks_like_vote_docx(
+                        docx_text, bill.bill_id
+                    ):
                         preview = f"Found vote DOCX for {bill.bill_id}"
                         if len(docx_text) > 200:
-                            preview += f"\n\nDOCX Content Preview:\n{docx_text[:500]}..."
+                            preview += (
+                                f"\n\nDOCX Content Preview:\n"
+                                f"{docx_text[:500]}..."
+                            )
                         else:
                             preview += f"\n\nDOCX Content:\n{docx_text}"
                         return ParserInterface.DiscoveryResult(
@@ -113,7 +125,8 @@ class VotesDocxParser(ParserInterface):
 
     @classmethod
     def parse(
-        cls, _base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
+        cls, _base_url: str, candidate: ParserInterface.DiscoveryResult
+    ) -> dict:
         """Parse the vote DOCX."""
         return {
             "location": cls.location,

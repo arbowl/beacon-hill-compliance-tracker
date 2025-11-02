@@ -88,7 +88,9 @@ class SummaryHearingDocsDocxParser(ParserInterface):
                 full_text = re.sub(r'\s+', ' ', full_text).strip()
                 return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not extract text from DOCX %s: %s", docx_url, e)
+            logger.warning(
+                "Could not extract text from DOCX %s: %s", docx_url, e
+            )
             return None
         return None
 
@@ -122,7 +124,7 @@ class SummaryHearingDocsDocxParser(ParserInterface):
         Returns {"preview","source_url","confidence"} or None.
         """
         logger.debug("Trying %s...", cls.__name__)
-        hearing_docs_url = bill.hearing_url
+        hearing_docs_url = str(bill.hearing_url)
         soup = cls.soup(hearing_docs_url)
         for a in soup.find_all("a", href=True):
             if not hasattr(a, 'get'):

@@ -1,6 +1,7 @@
 """Collect all bills from the committee's Bills tab (with pagination)."""
+
 import re
-from typing import List
+from typing import Optional
 from urllib.parse import urljoin
 
 from components.models import BillAtHearing
@@ -11,12 +12,12 @@ HREF_BILL_RE = re.compile(r"/Bills/(\d+)/(H|S)(\d+)", re.I)
 
 def get_all_committee_bills(
     base_url: str, committee_id: str, session: str = "194"
-) -> List[BillAtHearing]:
+) -> list[BillAtHearing]:
     """
     Scrape all bills from the committee's Bills tab.
     Handles pagination across multiple pages.
     """
-    bills: List[BillAtHearing] = []
+    bills: list[BillAtHearing] = []
     seen_bill_ids = set()
     page_num = 1
     while True:
@@ -34,7 +35,7 @@ def get_all_committee_bills(
         found_bills_on_page = False
         for a in soup.select('a[href*="/Bills/"]'):
             href = a.get("href", "")
-            m = HREF_BILL_RE.search(href)
+            m: Optional[re.Match] = HREF_BILL_RE.search(href)
             if not m:
                 continue
             bill_id = f"{m.group(2)}{m.group(3)}"

@@ -5,7 +5,7 @@ import re
 from typing import Optional
 from urllib.parse import urljoin
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
@@ -34,8 +34,10 @@ class SummaryBillTabTextParser(ParserInterface):
     def _extract_summary_content(text: str) -> Optional[str]:
         """Extract the actual summary content from the page text."""
         summary_patterns = [
-            (r"Bill Section by Section Summary[^–]*–\s*(.+?)"
-            r"(?=\n\n|\n[A-Z]+\s*:|$)"),
+            (
+                r"Bill Section by Section Summary[^–]*–\s*(.+?)"
+                r"(?=\n\n|\n[A-Z]+\s*:|$)"
+            ),
             r"Summary[^–]*–\s*(.+?)(?=\n\n|\n[A-Z]+\s*:|$)",
             r"Bill Summary[^–]*–\s*(.+?)(?=\n\n|\n[A-Z]+\s*:|$)",
         ]
@@ -44,13 +46,21 @@ class SummaryBillTabTextParser(ParserInterface):
             if match:
                 summary_text = match.group(1).strip()
                 summary_text = re.sub(r'\s+', ' ', summary_text)
-                nav_pattern = (r'(Skip to Content|Menu Toggle|Sign in|'
-                            r'MyLegislature).*?(?=Bill|Summary)')
-                summary_text = re.sub(nav_pattern, '', summary_text,
-                                    flags=re.DOTALL | re.IGNORECASE)
+                nav_pattern = (
+                    r'(Skip to Content|Menu Toggle|Sign in|'
+                    r'MyLegislature).*?(?=Bill|Summary)'
+                )
+                summary_text = re.sub(
+                    nav_pattern,
+                    '',
+                    summary_text,
+                    flags=re.DOTALL | re.IGNORECASE
+                )
                 if len(summary_text) > 50:
                     return summary_text
-        headers = ["Bill Section by Section Summary", "Summary", "Bill Summary"]
+        headers = [
+            "Bill Section by Section Summary", "Summary", "Bill Summary"
+        ]
         for header in headers:
             if header in text:
                 start = text.find(header)

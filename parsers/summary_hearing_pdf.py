@@ -5,7 +5,7 @@ import re
 from typing import Optional
 from urllib.parse import urljoin
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
@@ -29,7 +29,9 @@ class SummaryHearingPdfParser(ParserInterface):
     cost = 5
 
     @staticmethod
-    def _find_candidate_pdf(soup: BeautifulSoup, base_url: str) -> Optional[str]:
+    def _find_candidate_pdf(
+        soup: BeautifulSoup, base_url: str
+    ) -> Optional[str]:
         """ Find a candidate PDF on the hearing page. """
         # Strategy: any <a> on the hearing page whose text or filename suggests
         # "summary" and is a PDF.
@@ -53,11 +55,11 @@ class SummaryHearingPdfParser(ParserInterface):
         cache=None,
         config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
-        """Quick probe. Return a Candidate 
+        """Quick probe. Return a Candidate
         or None if nothing plausible is found.
         """
         logger.debug("Trying %s...", cls.__name__)
-        soup = cls.soup(bill.hearing_url)
+        soup = cls.soup(str(bill.hearing_url))
         # Prefer the hearing detail page URL; derive it from known pattern:
         # we stored only IDs in BillAtHearing, so reconstruct if needed:
         hearing_url = f"{base_url}/Events/Hearings/Detail/{bill.hearing_id}"

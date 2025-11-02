@@ -10,7 +10,7 @@ from components.models import SummaryInfo, VoteInfo, BillStatus
 # Bills weren't subject to the 10-day hearing advance notice requirement
 # before this date. Any hearing announced PRIOR to this date is
 # automatically compliant with notice requirements.
-NOTICE_REQUIREMENT_START_DATE = date(2025, 6, 26)
+NOTICE_REQUIREMENT_START_DATE: date = date(2025, 6, 26)
 
 
 class ComplianceState(str, Enum):
@@ -142,7 +142,8 @@ def classify(
 
     # Handle missing notice cases
     if notice_status == NoticeStatus.MISSING:
-        # If there's no evidence at all, this is unknown; otherwise non-compliant
+        # If there's no evidence at all, this is unknown; otherwise
+        # non-compliant
         if present_count == 0:
             return BillCompliance(
                 bill_id=bill_id,
@@ -157,17 +158,16 @@ def classify(
                     "and no other evidence"
                 ),
             )
-        else:
-            return BillCompliance(
-                bill_id=bill_id,
-                committee_id=committee_id,
-                hearing_date=status.hearing_date,
-                summary=summary,
-                votes=votes,
-                status=status,
-                state=ComplianceState.NON_COMPLIANT,
-                reason="No hearing announcement found",
-            )
+        return BillCompliance(
+            bill_id=bill_id,
+            committee_id=committee_id,
+            hearing_date=status.hearing_date,
+            summary=summary,
+            votes=votes,
+            status=status,
+            state=ComplianceState.NON_COMPLIANT,
+            reason="No hearing announcement found",
+        )
 
     if status.effective_deadline and today <= status.effective_deadline:
         return BillCompliance(
@@ -240,7 +240,7 @@ def _get_missing_requirements(
     reported_out: bool, votes_present: bool, summary_present: bool
 ) -> str:
     """Generate a human-readable list of missing requirements."""
-    missing = []
+    missing: list[str] = []
     if not reported_out:
         missing.append("not reported out")
     if not votes_present:

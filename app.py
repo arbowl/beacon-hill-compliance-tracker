@@ -1,94 +1,54 @@
 """Fetches committee data from the Massachusetts Legislature website.
 """
 
-from components.committees import get_committees
-from components.runner import run_basic_compliance
+from argparse import ArgumentParser
+from dataclasses import dataclass
+
 from components.interfaces import Config
-from components.options import (
-    get_committee_selection,
-    get_hearing_limit,
-    get_extension_check_preference,
-    print_options_summary,
-    submit_data,
-    submit_changelog
-)
+from components.options import runner_loop
 from components.utils import Cache
-from collectors.extension_orders import collect_all_extension_orders
-from version import __version__
 
 
-def main() -> None:
+@dataclass
+class Mode:
+    """Command-line arguments"""
+
+    manual: bool = False
+    """Run a loop with verbose prompts and menu options"""
+    one_run: bool = False
+    """Run through a compliance run end-to-end once"""
+    scheduled: bool = False
+    """Run on a schedule (be aware of verification prompts)"""
+
+
+def main(cfg: Config, yaml: Cache, mode: Mode) -> None:
     """Entry point for the compliance pipeline"""
-    while True:
-        cache = Cache(auto_save=False)
-        config = Config("config.yaml")
-        print()
-        print(f"Beacon Hill Compliance Tracker v{__version__}")
-        print()
-        submit_data(
-            [committee.id for committee in get_committees(
-                config.base_url, tuple(config.include_chambers)
-            )],
-            cache
-        )
-        submit_changelog()
-        if config.collect_input:
-            committee_ids = get_committee_selection(
-                config.base_url, tuple(config.include_chambers)
-            )
-            limit_hearings = get_hearing_limit()
-            check_extensions = get_extension_check_preference(cache)
-            print_options_summary(
-                committee_ids,
-                limit_hearings,
-                check_extensions
-            )
-            prompt = "\nProceed with these settings? (y/n): "
-            confirm = input(prompt).strip().lower()
-            if confirm not in ['y', 'yes']:
-                print("Aborted.")
-                return
-        else:
-            print_options_summary(
-                config.runner.committee_ids,
-                config.runner.limit_hearings,
-                config.runner.check_extensions
-            )
-        extension_lookup: dict[str, list] = {}
-        if check_extensions:
-            print("Collecting all extension orders...")
-            all_extension_orders = collect_all_extension_orders(
-                config.base_url, cache
-            )
-            print(f"Found {len(all_extension_orders)} total extension orders")
-            for eo in all_extension_orders:
-                if eo.bill_id not in extension_lookup:
-                    extension_lookup[eo.bill_id] = []
-                extension_lookup[eo.bill_id].append(eo)
-            cache.force_save()
-            print("Cache saved after extension order collection")
-        else:
-            print("Extension checking disabled - using cached data only")
-        for committee_id in committee_ids:
-            print(f"\n{'='*60}")
-            print(f"Processing Committee: {committee_id}")
-            print(f"{'='*60}")
-            run_basic_compliance(
-                base_url=config.base_url,
-                include_chambers=tuple(config.include_chambers),
-                committee_id=committee_id,
-                limit_hearings=limit_hearings,
-                cfg=config,
-                cache=cache,
-                extension_lookup=extension_lookup,
-                write_json=True
-            )
-            cache.force_save()
-            print(f"Cache saved after processing committee {committee_id}")
-        cache.force_save()
-        print("Final cache save completed")
-        input("Collection complete! Press Enter to continue.")
+    match mode:
+        case Mode(manual=True):
+            runner_loop(cfg, yaml)
+        case Mode(one_run=True):
+            raise NotImplementedError("One-run mode not implemented")
+        case Mode(scheduled=True):
+            raise NotImplementedError("Scheduled mode not implemented")
+        case _:
+            raise ValueError("Invalid run mode")
 
 
 if __name__ == "__main__":
-    main()
+    config = Config("config.yaml")
+    cache = Cache(auto_save=False)
+    parser = ArgumentParser(
+        description="Massachusetts Legislature compliance scraper"
+    )
+    parser.add_argument(
+        "-m", "--manual", action="store_true", help=Mode.manual.__doc__
+    )
+    parser.add_argument(
+        "-o", "--one-run", action="store_true", help=Mode.one_run.__doc__
+    )
+    parser.add_argument(
+        "-s", "--scheduled", action="store_true", help=Mode.scheduled.__doc__
+    )
+    args = parser.parse_args()
+    run_mode = Mode(**vars(args))
+    main(config, cache, run_mode)

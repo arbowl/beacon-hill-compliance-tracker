@@ -7,7 +7,7 @@ from typing import Optional, List, Dict, Any
 from urllib.parse import urljoin
 
 import PyPDF2
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
@@ -21,7 +21,7 @@ class VotesCommitteeDocumentsParser(ParserInterface):
     parser_type = ParserInterface.ParserType.VOTES
     location = "Committee page Documents tab"
     cost = 3
-    _bill_vote_data = {}
+    _bill_vote_data: dict = {}
 
     @staticmethod
     def _extract_pdf_text(pdf_url: str) -> Optional[str]:
@@ -39,34 +39,45 @@ class VotesCommitteeDocumentsParser(ParserInterface):
                 full_text = "\n".join(text_content)
                 return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
+            logger.warning(
+                "Could not extract text from PDF %s: %s", pdf_url, e
+            )
             return None
         return None
 
     @staticmethod
     def _normalize_bill_id(bill_text: str) -> Optional[str]:
-        """Normalize bill ID from various formats like 'House 475', 'H.475', 'H475' to 'H475'."""
+        """Normalize bill ID from various formats like 'House 475',
+        'H.475', 'H475' to 'H475'.
+        """
         if not bill_text:
             return None
         bill_text = bill_text.strip().upper()
         patterns = [
-            r'HOUSE\s+(\d+)',  # "House 475" -> "H475"
-            r'SENATE\s+(\d+)', # "Senate 123" -> "S123"
-            r'H\.?\s*(\d+)',   # "H.475" or "H 475" -> "H475"
-            r'S\.?\s*(\d+)',   # "S.123" or "S 123" -> "S123"
-            r'^([HS]\d+)$',    # Already normalized "H475", "S123"
+            r'HOUSE\s+(\d+)',   # "House 475" -> "H475"
+            r'SENATE\s+(\d+)',  # "Senate 123" -> "S123"
+            r'H\.?\s*(\d+)',    # "H.475" or "H 475" -> "H475"
+            r'S\.?\s*(\d+)',    # "S.123" or "S 123" -> "S123"
+            r'^([HS]\d+)$',     # Already normalized "H475", "S123"
         ]
         for pattern in patterns:
             match = re.search(pattern, bill_text)
             if match:
                 number = match.group(1)
-                prefix = 'H' if 'HOUSE' in bill_text or 'H' in bill_text else 'S'
+                prefix = (
+                    'H'
+                    if 'HOUSE' in bill_text
+                    or 'H' in bill_text
+                    else 'S'
+                )
                 return f"{prefix}{number}"
         return None
 
     @classmethod
     def _parse_vote_table(cls, pdf_text: str) -> List[Dict[str, Any]]:
-        """Parse vote table from PDF text to extract bill numbers and vote results."""
+        """Parse vote table from PDF text to extract bill numbers and vote
+        results.
+        """
         if not pdf_text:
             return []
         lines = pdf_text.split('\n')
@@ -77,7 +88,9 @@ class VotesCommitteeDocumentsParser(ParserInterface):
             if any(
                 keyword
                 in line_lower
-                for keyword in ['bill number', 'bill', 'vote', 'result', 'status']
+                for keyword in [
+                    'bill number', 'bill', 'vote', 'result', 'status'
+                ]
             ):
                 header_line_idx = i
                 break
@@ -91,11 +104,19 @@ class VotesCommitteeDocumentsParser(ParserInterface):
                 keyword
                 in line.lower()
                 for keyword in [
-                    'bill number', 'bill', 'vote', 'result', 'status', '---', '==='
+                    'bill number',
+                    'bill',
+                    'vote',
+                    'result',
+                    'status',
+                    '---',
+                    '==='
                 ]
             ):
                 continue
-            bill_match = re.search(r'([HS]\d+|HOUSE\s+\d+|SENATE\s+\d+)', line, re.I)
+            bill_match = re.search(
+                r'([HS]\d+|HOUSE\s+\d+|SENATE\s+\d+)', line, re.I
+            )
             if bill_match:
                 bill_id = cls._normalize_bill_id(bill_match.group(1))
                 if bill_id:
@@ -111,9 +132,13 @@ class VotesCommitteeDocumentsParser(ParserInterface):
     def _extract_vote_result(line: str) -> str:
         """Extract vote result from a line of text."""
         line_lower = line.lower()
-        if any(word in line_lower for word in ['passed', 'favorable', 'yea', 'yes']):
+        if any(word in line_lower for word in [
+            'passed', 'favorable', 'yea', 'yes'
+        ]):
             return 'Passed'
-        elif any(word in line_lower for word in ['failed', 'unfavorable', 'nay', 'no']):
+        elif any(word in line_lower for word in [
+            'failed', 'unfavorable', 'nay', 'no'
+        ]):
             return 'Failed'
         elif any(word in line_lower for word in ['reported', 'reported out']):
             return 'Reported Out'
@@ -122,7 +147,9 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         return 'Unknown'
 
     @staticmethod
-    def _find_committee_documents_pdf(soup: BeautifulSoup, base_url: str) -> Optional[str]:
+    def _find_committee_documents_pdf(
+        soup: BeautifulSoup, base_url: str
+    ) -> Optional[str]:
         """Find PDF documents in the committee Documents tab."""
         for a in soup.find_all("a", href=True):
             href = a.get("href", "")
@@ -146,7 +173,9 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         logger.debug("Trying %s...", cls.__name__)
         # Construct committee Documents URL
         # Format: /Committees/Detail/{committee_id}/194/Documents
-        committee_documents_url = f"{base_url}/Committees/Detail/{bill.committee_id}/194/Documents"
+        committee_documents_url = (
+            f"{base_url}/Committees/Detail/{bill.committee_id}/194/Documents"
+        )
         soup = cls.soup(committee_documents_url)
         pdf_url = cls._find_committee_documents_pdf(soup, base_url)
         if not pdf_url:
@@ -161,7 +190,10 @@ class VotesCommitteeDocumentsParser(ParserInterface):
                 bill_vote_record = record
                 break
         if bill_vote_record:
-            preview = f"Found vote record for {bill.bill_id}: {bill_vote_record['vote_result']}"
+            preview = (
+                f"Found vote record for {bill.bill_id}: "
+                f"{bill_vote_record['vote_result']}"
+            )
             if len(pdf_text) > 200:
                 preview += f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
             else:
@@ -181,15 +213,19 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         cls, _base_url: str, candidate: ParserInterface.DiscoveryResult
     ) -> dict:
         """Parse the committee vote document."""
-        vote_data: dict = VotesCommitteeDocumentsParser._bill_vote_data[candidate.preview]
+        vote_data: dict = VotesCommitteeDocumentsParser._bill_vote_data[
+            candidate.preview
+        ]
         return {
             "location": "committee_documents",
             "source_url": candidate.source_url,
-            "motion": f"Committee vote on {vote_data.get('bill_id', 'unknown bill')}",
+            "motion": (
+                f"Committee vote on {vote_data.get('bill_id', 'unknown bill')}"
+            ),
             "date": None,  # Could be extracted from PDF if available
             "tallies": {
                 "passed": 1 if vote_data.get('vote_result') == 'Passed' else 0,
                 "failed": 1 if vote_data.get('vote_result') == 'Failed' else 0
             },
-            "records": []  # Individual member votes not available in this format
+            "records": []  # Indiv member votes not available in this format
         }

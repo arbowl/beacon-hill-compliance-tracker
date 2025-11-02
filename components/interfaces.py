@@ -15,9 +15,9 @@ import threading
 import logging
 from datetime import datetime
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # type: ignore
 import requests  # type: ignore
-from requests.adapters import HTTPAdapter
+from requests.adapters import HTTPAdapter  # type: ignore
 from urllib3.util.retry import Retry
 from yaml import safe_load  # type: ignore
 
@@ -293,18 +293,28 @@ def _fetch_binary(
                 headers["If-Modified-Since"] = cached_entry["last_modified"]
             if headers:
                 try:
-                    response = session.get(url, timeout=timeout, headers=headers)
+                    response = session.get(
+                        url, timeout=timeout, headers=headers
+                    )
                     if response.status_code == 304:
                         logger.debug("Document not modified (304): %s", url)
-                        cache_entry = cache.data["document_cache"]["by_url"][url]
+                        cache_entry = cache.data[
+                            "document_cache"
+                        ]["by_url"][url]
                         cache_entry["last_validated"] = (
-                            datetime.utcnow().isoformat(timespec="seconds") + "Z"
+                            datetime.utcnow().isoformat(
+                                timespec="seconds"
+                            ) + "Z"
                         )
                         cache.save()
-                        cached_file_path = Path(cached_entry["cached_file_path"])
+                        cached_file_path = Path(
+                            cached_entry["cached_file_path"]
+                        )
                         return cached_file_path.read_bytes()
                     elif response.status_code == 200:
-                        logger.debug("Document modified, updating cache: %s", url)
+                        logger.debug(
+                            "Document modified, updating cache: %s", url
+                        )
                         content = response.content
                         cache.cache_document(
                             url=url,
@@ -317,8 +327,11 @@ def _fetch_binary(
                             last_modified=response.headers.get("Last-Modified")
                         )
                         return content
-                except Exception as e:  # pylint: disable=broad-exception-caught
-                    logger.debug("Conditional request failed: %s, fetching normally", e)
+                # pylint: disable=broad-exception-caught
+                except Exception as e:
+                    logger.debug(
+                        "Conditional request failed: %s, fetching normally", e
+                    )
     session = _SESSION_MANAGER.get_session()
     logger.debug("Fetching document: %s", url)
     response = session.get(url, timeout=timeout)
@@ -428,7 +441,9 @@ class ParserInterface(ABC):
         cache: Optional[Any] = None,
         config: Optional[Any] = None
     ) -> bytes:
-        """Fetch binary content (PDFs, images) via global session with caching."""
+        """Fetch binary content (PDFs, images) via global session with
+        caching.
+        """
         return _fetch_binary(url, timeout, cache, config)
 
     @classmethod
@@ -483,7 +498,7 @@ class Config:
     class Runner:
         """Runner configuration."""
 
-        def __init__(self, config: dict[str, str | dict[str, str]]) -> None:
+        def __init__(self, config: dict[str, dict[str, str]]) -> None:
             self.runner = config.get("runner", {})
 
         @property
@@ -504,7 +519,7 @@ class Config:
     @property
     def runner(self) -> Config.Runner:
         """Runner configuration."""
-        return Config.Runner(self.config)
+        return Config.Runner(self.config)  # type: ignore
 
     @property
     def review_mode(self) -> bool:
@@ -519,7 +534,7 @@ class Config:
     class DeferredReview:
         """Deferred review configuration."""
 
-        def __init__(self, config: dict[str, str | dict[str, str]]) -> None:
+        def __init__(self, config: dict[str, dict[str, str]]) -> None:
             self.deferred_review = config.get("deferred_review", {})
 
         @property
@@ -549,12 +564,12 @@ class Config:
     @property
     def deferred_review(self) -> Config.DeferredReview:
         """Deferred review configuration."""
-        return Config.DeferredReview(self.config)
+        return Config.DeferredReview(self.config)  # type: ignore
 
     class Llm:
         """LLM configuration."""
 
-        def __init__(self, config: dict[str, str | dict[str, str]]) -> None:
+        def __init__(self, config: dict[str, dict[str, str]]) -> None:
             self.llm = config.get("llm", {})
 
         @property
@@ -609,12 +624,12 @@ bill_id: {bill_id}
     @property
     def llm(self) -> Config.Llm:
         """LLM configuration."""
-        return Config.Llm(self.config)
+        return Config.Llm(self.config)  # type: ignore
 
     class AuditLog:
         """Audit log for LLM decisions."""
 
-        def __init__(self, config: dict[str, str | dict[str, str]]) -> None:
+        def __init__(self, config: dict[str, dict[str, str]]) -> None:
             self.audit_log = config.get("audit_log", {})
 
         @property
@@ -640,12 +655,12 @@ bill_id: {bill_id}
     @property
     def audit_log(self) -> Config.AuditLog:
         """LLM records decisions here."""
-        return Config.AuditLog(self.config)
+        return Config.AuditLog(self.config)  # type: ignore
 
     class Threading:
         """Threading configuration."""
 
-        def __init__(self, config: dict[str, str | dict[str, str]]) -> None:
+        def __init__(self, config: dict[str, dict[str, str]]) -> None:
             self.threading = config.get("threading", {})
 
         @property
@@ -656,12 +671,12 @@ bill_id: {bill_id}
     @property
     def threading(self) -> Config.Threading:
         """Threading configuration."""
-        return Config.Threading(self.config)
+        return Config.Threading(self.config)  # type: ignore
 
     class DocumentCache:
         """Document cache configuration."""
 
-        def __init__(self, config: dict[str, str | dict[str, str]]) -> None:
+        def __init__(self, config: dict[str, dict[str, str]]) -> None:
             self.document_cache = config.get("document_cache", {})
 
         @property
@@ -706,4 +721,4 @@ bill_id: {bill_id}
     @property
     def document_cache(self) -> Config.DocumentCache:
         """Document cache configuration."""
-        return Config.DocumentCache(self.config)
+        return Config.DocumentCache(self.config)  # type: ignore

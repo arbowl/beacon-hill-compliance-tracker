@@ -8,10 +8,11 @@ from typing import Optional, TYPE_CHECKING
 from urllib.parse import urljoin
 
 import requests  # type: ignore
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # type: ignore
 
+from components.committees import get_committees
 from components.interfaces import ParserInterface
-from components.models import ExtensionOrder
+from components.models import ExtensionOrder, Committee
 if TYPE_CHECKING:
     from components.utils import Cache
 
@@ -47,7 +48,10 @@ def _extract_extension_date(text: str) -> Optional[date]:
     return None
 
 
-def _extract_committee_from_text(text: str) -> Optional[str]:
+def _extract_committee_from_text(
+    text: str,
+    base_url: str,
+) -> Optional[str]:
     """Extract committee ID from extension order text."""
     # Look for committee patterns in the text
     committee_patterns = [
@@ -55,22 +59,18 @@ def _extract_committee_from_text(text: str) -> Optional[str]:
         r'Joint Committee on ([^,\n]+)',
         r'Committee on ([^,\n]+)',
     ]
+    committees: list[Committee] = get_committees(
+        base_url,
+        ["House", "Joint"]
+    )
+    committee_mapping = {
+        committee.name: committee.id for committee in committees
+    }
     for pattern in committee_patterns:
         match = re.search(pattern, text, re.I)
         if not match:
             continue
         committee_name = match.group(1).strip()
-        # Map common committee names to IDs (this could be expanded)
-        committee_mapping = {
-            'Telecommunications, Utilities, and Energy': 'J33',
-            'Environment and Natural Resources': 'J16',
-            'Education': 'J37',
-            'Housing': 'J39',
-            'Transportation': 'J40',
-            'Economic Development and Emerging Technologies': 'J41',
-            'Public Health': 'J42',
-            # Add more mappings as needed
-        }
         return committee_mapping.get(committee_name)
     return None
 
@@ -160,7 +160,7 @@ def _parse_extension_order_page(
             extension_date = date(1900, 1, 1)  # Placeholder date
             is_date_fallback = True
         # Extract committee ID
-        committee_id = _extract_committee_from_text(text)
+        committee_id = _extract_committee_from_text(text, _base_url)
         if not committee_id:
             # Default to unknown committee if we can't determine it
             committee_id = "UNKNOWN"

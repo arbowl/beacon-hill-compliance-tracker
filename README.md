@@ -18,11 +18,14 @@ Massachusetts House and Joint committees are required to:
 
 This project automates the collection of that information and classifies each bill as **compliant**, **non-compliant**, **incomplete**, or **unknown**:
 - **Compliant:** All requirements satisfied.
-- **Incomplete:** Exactly one requirement missing.
+- **Incomplete:** Exactly one requirement missing. Non-compliant in calculations, but clues developers into potential gaps.
 - **Non-compliant:** Two or more requirements missing.
-- **Unknown:** No disqualifying factors present, but not fully compliant (yet).
+- **Unknown:** No disqualifying factors present, but whether it will be compliant in the end is unknown.
 
 The purpose of having an "incomplete" status is to highlight nearly-compliant bills for developers to hone in on potential errors stopping a bill from being recognized as compliant. However, it's trivial for dashboards to reinterpret the information gathered by this tool as is appropriate.
+
+I used "Unknown" in development because the final status of the bill is presently unknown. Others have suggested "Monitoring",
+"Pending", or "Provisional" instead, so user-facing applications may choose to relabel it like that instead.
 
 ## Quick Start
 
@@ -45,7 +48,7 @@ python app.py
 
 ### The Cache
 
-This is the "sourdough starter" of this project; if you run it, you'll want a cache from a trusted user. The "cache" is a JSON file aptly named
+This is the "sourdough starter" of this project; if you run this project, you'll want a cache from a trusted user. The "cache" is a JSON file aptly named
 "cache.json" which contains metadata about bills and committees that make the algorithm run faster over time. The code will generate it on its
 own, but using a trusted user's version will get you up and running much sooner.
 
@@ -53,7 +56,7 @@ own, but using a trusted user's version will get you up and running much sooner.
 
 The tool generates two types of reports:
 
-### HTML Report (`out/basic_J33.html`)
+### HTML Report (`out/basic_<committee ID>.html`)
 A human-readable report containing:
 
 **Committee Contact Information:**
@@ -68,7 +71,7 @@ A human-readable report containing:
 - Summary and vote availability
 - Compliance status and reason
 
-### JSON Data (`out/basic_J33.json`)
+### JSON Data (`out/basic_<committee ID>.json`)
 Machine-readable data for each bill including:
 - All compliance information
 - Notice gap data (announcement date, hearing date, gap days, status)
@@ -95,6 +98,7 @@ The `components/` folder contains the unique actions in the processing pipeline.
 - **`review.py`**: Batch review manager for handling low-confidence captures at the end of a run.
 - **`runner.py`**: Performs a full scan of a single committee start to finish.
 - **`sender.py`**: Sends collected info to the dashboard's API.
+- **`templates.py`**: Converts changes in compliance over time into plain English text blurbs.
 - **`utils.py`**: Cache management, configuration loading, and UI helpers.
 
 ### Data Flow
@@ -131,7 +135,6 @@ beacon-hill-compliance-tracker/
 │   ├── summary_bill_tab_text.py
 │   ├── votes_bill_embedded.py
 │   └── votes_bill_pdf.py
-├── tests/                # Test scripts
 └── out/                  # Generated reports
 ```
 
@@ -177,14 +180,14 @@ class ExampleParser(ParserInterface):
 
 ### Registering Parser
 
-When you make a new parser, insert it in `pipeline.py` so that it can be imported at startup and accessed at runtime:
+When you make a new parser, register it in `pipeline.py` so that it can be imported at startup and accessed at runtime:
 
 ```python
 # components/pipeline.py
 ...
 from parsers.example_parser import ExampleParser
 
-PARSER_REGISTRY: dict[str, ParserInterface] = {
+PARSER_REGISTRY: dict[str, type[ParserInterface]] = {
     module.__module__: module for module in [
       ...
       ExampleParser,
@@ -194,14 +197,18 @@ PARSER_REGISTRY: dict[str, ParserInterface] = {
 
 ## Adding Collectors
 
-Collectors fetch data from the Massachusetts Legislature website. They follow a simple pattern:
+Collectors fetch generic data from the Massachusetts Legislature website. I organized it like this:
+
+- Parsers try to find compliance data which may or may not exist.
+- Collectors fetch supplementary data or scaffolding which is generally guaranteed to exist.
+
+Collectors follow a simpler pattern than parsers:
 
 ```python
 # collectors/custom_data.py
-from typing import List
 from components.models import YourModel
 
-def fetch_custom_data(base_url: str, params: dict) -> List[YourModel]:
+def fetch_custom_data(base_url: str, params: dict) -> list[YourModel]:
     """Fetch and return a list of YourModel objects."""
     # Your collection logic here
     return results
@@ -284,7 +291,7 @@ Each committee entry includes:
 
 All chair/vice-chair fields default to empty strings if not found or not applicable.
 
-#### Bill Cache Fields (New)
+#### Bill Cache Fields
 
 Each bill entry can include additional cached data:
 
@@ -373,7 +380,9 @@ llm:
 
 ### How LLM Integration Works
 
-1. **Document Discovery**: When parsers discover potential documents (summaries or vote records), the system first tries to use the LLM to determine if they match the requirements.
+1. **Document Discovery**: When parsers discover potential documents (summaries or vote records), the system first tries
+to pattern-match and generate a confidence score of its discovery. If the score is below a certain confidence threshold, it then tries
+to use the LLM to add an additional layer of scrutiny.
 
 2. **LLM Decision**: The LLM analyzes the document content and returns:
    - `"yes"` - Document matches requirements, automatically accept

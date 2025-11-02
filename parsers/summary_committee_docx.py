@@ -6,7 +6,7 @@ import re
 from typing import Optional
 from urllib.parse import urljoin
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # type: ignore
 from docx import Document
 
 from components.models import BillAtHearing
@@ -28,7 +28,9 @@ class SummaryCommitteeDocxParser(ParserInterface):
         cache=None,
         config=None
     ) -> Optional[str]:
-        """Extract text content from a DOCX URL (paragraphs, tables, headers, footers)."""
+        """Extract text content from a DOCX URL (paragraphs, tables, headers,
+        footers).
+        """
         try:
             content = ParserInterface._fetch_binary(
                 docx_url, timeout=30, cache=cache, config=config
@@ -62,7 +64,9 @@ class SummaryCommitteeDocxParser(ParserInterface):
                 full_text = re.sub(r'\s+', ' ', full_text).strip()
                 return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not extract text from DOCX %s: %s", docx_url, e)
+            logger.warning(
+                "Could not extract text from DOCX %s: %s", docx_url, e
+            )
             return None
         return None
 
@@ -71,8 +75,8 @@ class SummaryCommitteeDocxParser(ParserInterface):
         soup: BeautifulSoup, base_url: str
     ) -> Optional[str]:
         """Find the Committee Summary DOCX link."""
-        # Look for any DOCX file on the page - Committee Summary pages typically
-        # have only one DOCX file which is the summary
+        # Look for any DOCX file on the page - Committee Summary pages
+        # typically have only one DOCX file which is the summary
         for a in soup.find_all("a", href=True):
             if not hasattr(a, 'get'):
                 continue
@@ -83,13 +87,24 @@ class SummaryCommitteeDocxParser(ParserInterface):
                 # Check if it's a DOCX file
                 if not re.search(r"\.docx($|\?)", href, re.I):
                     continue
-                # Check if it's a download document (typical pattern for summaries)
+                # Check if it's a download document (typical pattern
+                # for summaries)
                 if re.search(r"/Download/DownloadDocument/", href, re.I):
                     return urljoin(base_url, href)
                 # Also check for committee summary patterns in text or href
                 text = a.get_text(strip=True).lower()
-                if (re.search(r"committee.*summary|summary.*committee", text, re.I) or
-                    re.search(r"committee.*summary|summary.*committee", href, re.I)):
+                if (
+                    re.search(
+                        r"committee.*summary|summary.*committee",
+                        text,
+                        re.I
+                    ) or
+                    re.search(
+                        r"committee.*summary|summary.*committee",
+                        href,
+                        re.I
+                    )
+                ):
                     return urljoin(base_url, href)
             except (AttributeError, TypeError):
                 continue
@@ -150,7 +165,10 @@ class SummaryCommitteeDocxParser(ParserInterface):
             )
         else:
             # Fallback to simple preview if text extraction fails
-            preview = f"Found Committee Summary DOCX for {bill.bill_id} (text extraction failed)"
+            preview = (
+                f"Found Committee Summary DOCX for {bill.bill_id} "
+                "(text extraction failed)"
+            )
             return ParserInterface.DiscoveryResult(
                 preview,
                 "",

@@ -50,7 +50,8 @@ class SummaryHearingDocsPdfParser(ParserInterface):
         """Check if the link text looks like a summary for the bill."""
         # We accept if:
         #   - "summary" appears (with flexible word boundaries) AND
-        #   - bill_id ("H96") appears in either the link text or the Title= param
+        #   - bill_id ("H96") appears in either the link text or the
+        # Title= param
         has_summary = bool(
             re.search(r"\bsummary\b", link_text, re.I) or
             re.search(r"\bsummary\b", title_param, re.I) or
@@ -85,7 +86,9 @@ class SummaryHearingDocsPdfParser(ParserInterface):
                 return full_text
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
+            logger.warning(
+                "Could not extract text from PDF %s: %s", pdf_url, e
+            )
             return None
 
         return None
@@ -118,11 +121,12 @@ class SummaryHearingDocsPdfParser(ParserInterface):
         config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """
-        Probe the hearing 'Documents' tab for a Summary PDF that matches this bill.
+        Probe the hearing 'Documents' tab for a Summary PDF that matches this
+        bill.
         Returns {"preview","source_url","confidence"} or None.
         """
         logger.debug("Trying %s...", cls.__name__)
-        hearing_docs_url = bill.hearing_url
+        hearing_docs_url = str(bill.hearing_url)
         soup = cls.soup(hearing_docs_url)
         for a in soup.find_all("a", href=True):
             if not hasattr(a, 'get'):
@@ -145,12 +149,16 @@ class SummaryHearingDocsPdfParser(ParserInterface):
                     "Found potential summary link for %s: text='%s', "
                     "title='%s', matches=%s",
                     bill.bill_id, text, title_param,
-                    cls._looks_like_summary_for_bill(text, title_param, bill_id)
+                    cls._looks_like_summary_for_bill(
+                        text, title_param, bill_id
+                    )
                 )
             if cls._looks_like_summary_for_bill(text, title_param, bill_id):
                 pdf_url = urljoin(base_url, href)
-                preview = (f"Found '{title_param or text}' in hearing "
-                        f"Documents for {bill.bill_id}")
+                preview = (
+                    f"Found '{title_param or text}' in hearing "
+                    f"Documents for {bill.bill_id}"
+                )
                 return ParserInterface.DiscoveryResult(
                     preview,
                     "",
@@ -185,9 +193,11 @@ class SummaryHearingDocsPdfParser(ParserInterface):
                     bill_summary_line = cls._find_bill_summary_in_pdf_text(
                         pdf_text, bill.bill_id)
                     if bill_summary_line:
-                        preview = (f"Found summary in PDF content: "
-                                f"'{bill_summary_line[:100]}...' "
-                                f"for {bill.bill_id}")
+                        preview = (
+                            f"Found summary in PDF content: "
+                            f"'{bill_summary_line[:100]}...' "
+                            f"for {bill.bill_id}"
+                        )
                         return ParserInterface.DiscoveryResult(
                             preview,
                             pdf_text,

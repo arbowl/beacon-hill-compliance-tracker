@@ -13,8 +13,10 @@ Usage:
     )
 
     # 1) Let the client auto-detect from filename + content
-    client.upload_file("/path/to/cache.json")                # -> POST /ingest (no committee_id)
-    client.upload_file("/path/to/basic_J14.json")           # -> POST /ingest?committee_id=J14
+    client.upload_file("/path/to/cache.json")
+    # -> POST /ingest (no committee_id)
+    client.upload_file("/path/to/basic_J14.json")
+    # -> POST /ingest?committee_id=J14
 
     # 2) Or force the type and/or committee id
     client.upload_file("/path/to/foo.json", kind="cache")  # -> POST /ingest
@@ -23,12 +25,15 @@ Usage:
     )  # -> POST /ingest?committee_id=J14
 
 Notes:
-- 'basic' uploads expect a list of items. The client sends them directly as JSON array.
-- committee_id can be inferred from filenames like 'basic_J14.json' or 'basic-J14-2025.json'.
+- 'basic' uploads expect a list of items. The client sends them directly as
+    JSON array.
+- committee_id can be inferred from filenames like 'basic_J14.json' or
+    'basic-J14-2025.json'.
 - You can batch large 'basic' lists with batch_size.
 """
 from __future__ import annotations
 
+from enum import Enum
 import json
 import os
 import time
@@ -37,15 +42,25 @@ import hmac
 import re
 from typing import Any, Optional, Literal
 
-import requests
-from requests.adapters import HTTPAdapter
+import requests  # type: ignore
+from requests.adapters import HTTPAdapter  # type: ignore
 from urllib3.util import Retry
 
 from components.utils import parse_changelog, get_user_agent
 from version import __version__
 
 
-def detect_kind(path: str) -> str:
+class Out(str, Enum):
+    """The type of payload to send to the server"""
+
+    CACHE = "cache"
+    BASIC = "basic"
+
+
+OutputData = Literal[Out.CACHE, Out.BASIC, "cache", "basic"]
+
+
+def detect_kind(path: str) -> OutputData:
     """Detect 'cache' or 'basic' by filename and/or JSON shape.
 
     Heuristics:
@@ -54,10 +69,10 @@ def detect_kind(path: str) -> str:
     Raises ValueError if undecidable.
     """
     name = os.path.basename(path).lower()
-    if "cache" in name:
-        return "cache"
-    if name.startswith("basic") or "basic_" in name or "report" in name:
-        return "basic"
+    if Out.CACHE in name:
+        return Out.CACHE
+    if name.startswith(Out.BASIC) or "basic_" in name or "report" in name:
+        return Out.BASIC
     raise ValueError("Report type not recognized.")
 
 
@@ -68,7 +83,11 @@ def infer_committee_id(path: str) -> Optional[str]:
     """
     name = os.path.basename(path)
     # Try common patterns
-    m = re.search(r"(?:basic|report)[-_]?([A-Za-z0-9]+)\b", name, re.IGNORECASE)
+    m: Optional[re.Match] = re.search(
+        r"(?:basic|report)[-_]?([A-Za-z0-9]+)\b",
+        name,
+        re.IGNORECASE
+    )
     if m:
         return m.group(1)
     return None
@@ -100,10 +119,14 @@ def _wrap_timeout(fn, timeout: int):
 
 def _safe_json(resp: requests.Response) -> dict[str, Any]:
     try:
-        return {"ok": resp.ok, "status": resp.status_code, "body": resp.json()}
+        return {
+            "ok": resp.ok, "status": resp.status_code, "body": resp.json()
+        }
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(e)
-        return {"ok": resp.ok, "status": resp.status_code, "text": resp.text[:2000]}
+        return {
+            "ok": resp.ok, "status": resp.status_code, "text": resp.text[:2000]
+        }
 
 
 def _chunked(seq: list[Any], size: int) -> list[list[Any]]:
@@ -132,16 +155,24 @@ class IngestClient:
         self.signing_key_id = signing_key_id
         self.signing_key_secret = signing_key_secret
 
-    def _signed_headers(self, method: str, path: str, body: dict) -> dict[str, str]:
+    def _signed_headers(
+        self, method: str, path: str, body: dict
+    ) -> dict[str, str]:
         if not (self.signing_key_id and self.signing_key_secret):
             return {}
         ts = str(int(time.time()))
         body_hash = hashlib.sha256(
-            json.dumps(body, separators=(",", ":"),
-            ensure_ascii=False).encode("utf-8")
+            json.dumps(
+                body, separators=(",", ":"),
+                ensure_ascii=False
+            ).encode("utf-8")
         ).hexdigest()
         msg = f"{ts}.{method.upper()}.{path}.{body_hash}".encode("utf-8")
-        sig = hmac.new(self.signing_key_secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
+        sig = hmac.new(
+            self.signing_key_secret.encode("utf-8"),
+            msg,
+            hashlib.sha256
+        ).hexdigest()
         return {
             "X-Ingest-Key-Id": self.signing_key_id,
             "X-Ingest-Timestamp": ts,
@@ -151,7 +182,7 @@ class IngestClient:
     def upload_file(
         self,
         path: str,
-        kind: Optional[Literal["cache", "basic"]] = None,
+        kind: Optional[OutputData] = None,
         committee_id: Optional[str] = None,
         run_id: Optional[str] = None,
         batch_size: int = 0,
@@ -161,11 +192,16 @@ class IngestClient:
 
         Args:
             path: Path to JSON file.
-            kind: 'cache' or 'basic'. If omitted, we try to detect from filename and content.
-            committee_id: Required for 'basic' (inferred from filename if possible).
-            run_id: Optional run id; defaults to current UTC timestamp for 'basic'.
-            batch_size: If >0 and kind == 'basic', split items into batches of this size.
-            dry_run: If True, do not send HTTP requests; return the would-be payload(s).
+            kind: 'cache' or 'basic'. If omitted, we try to detect from
+                filename and content.
+            committee_id: Required for 'basic' (inferred from filename if
+                possible).
+            run_id: Optional run id; defaults to current UTC timestamp for
+                'basic'.
+            batch_size: If >0 and kind == 'basic', split items into batches of
+                this size.
+            dry_run: If True, do not send HTTP requests; return the would-be
+                payload(s).
 
         Returns:
             A dict with 'endpoint' and 'results' (list per batch or single).
@@ -176,13 +212,13 @@ class IngestClient:
         with open(path, "r", encoding="utf-8") as f:
             payload = json.load(f)
         kind = kind or detect_kind(path)
-        if kind == "cache":
+        if kind == Out.CACHE:
             return self._upload_cache(payload, dry_run=dry_run)
-        if kind == "basic":
+        if kind == Out.BASIC:
             cid = committee_id or infer_committee_id(path)
             if not cid:
                 raise ValueError(
-                    "committee_id is required for basic/report" \
+                    "committee_id is required for basic/report"
                     "uploads and could not be inferred from filename."
                 )
             rid = run_id or time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())

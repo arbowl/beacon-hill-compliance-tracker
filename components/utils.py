@@ -21,25 +21,33 @@ from version import __version__
 _DEFAULT_PATH = Path("cache/cache.json")
 
 
+# pylint: disable=too-many-public-methods
+# This mimics the structure of the YAML file, so the number of methods is
+# just a consequence of the type of data we're working with.
 class Cache:
     """Cache for the parser results."""
 
-    def __init__(self, path: Path = _DEFAULT_PATH, auto_save: bool = True):
-        self.path = path
+    def __init__(
+        self, path: Path = _DEFAULT_PATH, auto_save: bool = True
+    ) -> None:
+        self.path: Path = path
         self.data: dict[str, Any] = {}
-        self.auto_save = auto_save
-        self.unsaved_changes = False
+        self.auto_save: bool = auto_save
+        self.unsaved_changes: bool = False
         self._committee_bills_cache: dict[str, set[str]] = {}
-        self._lock = threading.RLock()  # Reentrant lock for nested calls
+        # Reentrant lock for nested calls:
+        self._lock: threading.RLock = threading.RLock()
         if path.exists():
             try:
                 self.data = json.loads(path.read_text(encoding="utf-8"))
-                committee_bills: dict[str, dict[str, str]] = self.data.get("committee_bills", {})
-                for committee_id, data in committee_bills.items():
-                    bills_list = data.get("bills", [])
+                comm_bills: dict[str, dict[str, list[str]]] = self.data.get(
+                    "committee_bills", {}
+                )
+                for committee_id, data in comm_bills.items():
+                    bills_list: list[str] = data.get("bills", [])
                     self._committee_bills_cache[committee_id] = set(bills_list)
             except Exception:  # pylint: disable=broad-exception-caught
-                self.data: dict[str, dict[str, str]] = {}
+                self.data = {}
 
     def save(self) -> None:
         """Save the cache to the file (respects auto_save flag)."""
@@ -281,7 +289,8 @@ class Cache:
             bill_id: Bill ID (e.g., "H3444")
         """
         with self._lock:
-            # Use in-memory set cache for O(1) lookups (avoids O(n²) list scans)
+            # Use in-memory set cache for O(1) lookups (avoids O(n²)
+            # list scans)
             if committee_id not in self._committee_bills_cache:
                 self._committee_bills_cache[committee_id] = set()
             # O(1) set lookup instead of O(n) list scan
@@ -407,7 +416,10 @@ class Cache:
         """Determine file extension from content type or URL."""
         if "pdf" in content_type.lower():
             return "pdf"
-        elif "wordprocessing" in content_type.lower() or "docx" in content_type.lower():
+        elif (
+            "wordprocessing" in content_type.lower()
+            or "docx" in content_type.lower()
+        ):
             return "docx"
         elif "msword" in content_type.lower() or "doc" in content_type.lower():
             return "doc"
@@ -499,10 +511,18 @@ class Cache:
             if bill_id and bill_id not in cache_entry["bill_ids"]:
                 cache_entry["bill_ids"].append(bill_id)
             self.data["document_cache"]["by_url"][url] = cache_entry
-            if content_hash not in self.data["document_cache"]["by_content_hash"]:
-                self.data["document_cache"]["by_content_hash"][content_hash] = []
-            if url not in self.data["document_cache"]["by_content_hash"][content_hash]:
-                self.data["document_cache"]["by_content_hash"][content_hash].append(url)
+            if content_hash not in self.data[
+                "document_cache"
+            ]["by_content_hash"]:
+                self.data[
+                    "document_cache"
+                ]["by_content_hash"][content_hash] = []
+            if url not in self.data["document_cache"][
+                "by_content_hash"
+            ][content_hash]:
+                self.data["document_cache"][
+                    "by_content_hash"
+                ][content_hash].append(url)
             self.data["document_cache"]["metadata"]["total_documents"] = len(
                 self.data["document_cache"]["by_url"]
             )
@@ -533,7 +553,10 @@ class Cache:
             cache_entry["last_accessed"] = (
                 datetime.utcnow().isoformat(timespec="seconds") + "Z"
             )
-            cache_entry["access_count"] = cache_entry.get("access_count", 0) + 1
+            cache_entry["access_count"] = (
+                cache_entry.get("access_count", 0)
+                + 1
+            )
             self.save()
         return cached_file_path.read_bytes()
 
@@ -635,12 +658,14 @@ class Cache:
                 if content_hash_from_path not in (
                     self.data["document_cache"]["by_content_hash"]
                 ):
-                    if file_path.exists():
-                        try:
-                            file_path.unlink()
-                            stats["files_deleted"] += 1
-                        except Exception:  # pylint: disable=broad-exception-caught
-                            pass
+                    if not file_path.exists():
+                        continue
+                    try:
+                        file_path.unlink()
+                        stats["files_deleted"] += 1
+                    # pylint: disable=broad-exception-caught
+                    except Exception:
+                        pass
             self.data["document_cache"]["metadata"]["last_cleanup"] = (
                 datetime.utcnow().isoformat(timespec="seconds") + "Z"
             )
@@ -1463,16 +1488,19 @@ def generate_diff_report(
         return None
     current_by_id = {bill["bill_id"]: bill for bill in current_bills}
     previous_by_id = {bill["bill_id"]: bill for bill in previous_bills}
+
     def count_compliant(bills: list[dict]) -> int:
         return sum(
             1 for b in bills
             if b.get("state") in ("Compliant", "Unknown")
         )
+
     def count_non_compliant_incomplete(bills: list[dict]) -> int:
         return sum(
             1 for b in bills
             if b.get("state") in ("Non-Compliant", "Incomplete")
         )
+
     prev_compliant = count_compliant(previous_bills)
     prev_non_compliant_incomplete = (
         count_non_compliant_incomplete(previous_bills)

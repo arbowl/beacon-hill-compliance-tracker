@@ -9,7 +9,7 @@ from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
 
-import requests
+import requests  # type: ignore
 
 from components.pipeline import (
     resolve_summary_for_bill,
@@ -78,7 +78,7 @@ def _update_progress(
             remaining_bills / bills_per_second if bills_per_second > 0 else 0
         )
         time_remaining_str = _format_time_remaining(
-            estimated_remaining_seconds
+            round(estimated_remaining_seconds)
         )
         speed_str = f"{bills_per_minute:.1f} bills/min"
     else:
@@ -103,7 +103,7 @@ def _process_single_bill(
     deferred_session
 ) -> dict:
     """Process a single bill (thread-safe).
-    
+
     Args:
         base_url: Base URL for the legislature website
         cfg: Configuration object
@@ -111,7 +111,7 @@ def _process_single_bill(
         row: BillAtHearing instance
         extension_lookup: Dictionary of extension orders
         deferred_session: Deferred review session (thread-safe)
-        
+
     Returns:
         Dictionary with bill processing results
     """
@@ -126,7 +126,8 @@ def _process_single_bill(
                 if row.hearing_date:
                     extension_until = row.hearing_date + timedelta(days=90)
                     logger.debug(
-                        "  Using 30-day fallback extension: %s", extension_until
+                        "  Using 30-day fallback extension: %s",
+                        extension_until
                     )
             else:
                 extension_until = latest_extension.extension_date
@@ -139,30 +140,45 @@ def _process_single_bill(
                     ).date()
                     if cached_date == date(1900, 1, 1):
                         if row.hearing_date:
-                            extension_until = row.hearing_date + timedelta(days=90)
+                            extension_until = row.hearing_date + timedelta(
+                                days=90
+                            )
                             logger.debug(
-                                "  Using cached 30-day fallback: %s", extension_until
+                                "  Using cached 30-day fallback: %s",
+                                extension_until
                             )
                     else:
                         extension_until = cached_date
                 except (ValueError, KeyError):
                     extension_until = None
-        status: BillStatus = build_status_row(base_url, row, cache, extension_until)
-        summary = resolve_summary_for_bill(base_url, cfg, cache, row, deferred_session)
-        votes = resolve_votes_for_bill(base_url, cfg, cache, row, deferred_session)
+        status: BillStatus = build_status_row(
+            base_url, row, cache, extension_until
+        )
+        summary = resolve_summary_for_bill(
+            base_url, cfg, cache, row, deferred_session
+        )
+        votes = resolve_votes_for_bill(
+            base_url, cfg, cache, row, deferred_session
+        )
         comp = classify(row.bill_id, row.committee_id, status, summary, votes)
-        bill_title = cache.get_title(row.bill_id)
+        bill_title: Optional[str] = cache.get_title(row.bill_id)
         if bill_title is None:
             try:
                 with requests.Session() as _:
-                    bill_title: Optional[str] = get_bill_title(row.bill_url)
+                    bill_title = get_bill_title(row.bill_url)
                     if bill_title:
                         cache.set_title(row.bill_id, bill_title)
             except Exception:  # pylint: disable=broad-exception-caught
                 bill_title = None
-        hearing_str = str(status.hearing_date) if status.hearing_date else "N/A"
-        d60_str = str(status.deadline_60) if status.deadline_60 else "N/A"
-        eff_str = str(status.effective_deadline) if status.effective_deadline else "N/A"
+        hearing_str = str(
+            status.hearing_date
+        ) if status.hearing_date else "N/A"
+        d60_str = str(
+            status.deadline_60
+        ) if status.deadline_60 else "N/A"
+        eff_str = str(
+            status.effective_deadline
+        ) if status.effective_deadline else "N/A"
         bill_info = (
             f"{row.bill_id:<6} heard {hearing_str} "
             f"→ D60 {d60_str} / Eff {eff_str} | "
@@ -220,15 +236,20 @@ def _process_single_bill(
             ),
         }
     except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.error("Error processing bill %s: %s", row.bill_id, e, exc_info=True)
-        return None
+        logger.error(
+            "Error processing bill %s: %s",
+            row.bill_id,
+            e,
+            exc_info=True
+        )
+        return {}
 
 
 def run_basic_compliance(
     base_url: str,
     include_chambers: bool,
     committee_id: str,
-    limit_hearings: bool,
+    limit_hearings: int,
     cfg: Config,
     cache: Cache,
     extension_lookup: dict[str, list[ExtensionOrder]],
@@ -298,7 +319,8 @@ def run_basic_compliance(
     max_workers = cfg.threading.max_workers
     if cfg.review_mode == "on":
         logger.info(
-            "Interactive review mode enabled - forcing single-threaded execution"
+            "Interactive review mode enabled - forcing single-threaded "
+            "execution"
         )
         max_workers = 1
     if max_workers > 1:
@@ -314,7 +336,10 @@ def run_basic_compliance(
             with results_lock:
                 processed_count[0] += 1
                 _update_progress(
-                    processed_count[0], total_bills, row.bill_id, start_time
+                    processed_count[0],
+                    total_bills,
+                    row.bill_id,
+                    int(start_time),
                 )
             return result
 
@@ -330,7 +355,8 @@ def run_basic_compliance(
                     if result:
                         with results_lock:
                             results.append(result)
-                except Exception as e:  # pylint: disable=broad-exception-caught
+                # pylint: disable=broad-exception-caught
+                except Exception as e:
                     logger.error(
                         "Exception processing %s: %s",
                         row.bill_id,
@@ -340,13 +366,23 @@ def run_basic_compliance(
     else:
         logger.info("Using single-threaded sequential processing")
         for i, row in enumerate(rows, 1):
-            _update_progress(i - 1, total_bills, row.bill_id, start_time)
+            _update_progress(
+                i - 1,
+                total_bills,
+                row.bill_id,
+                int(start_time),
+            )
             result = _process_single_bill(
                 base_url, cfg, cache, row, extension_lookup, deferred_session
             )
             if result:
                 results.append(result)
-        _update_progress(total_bills, total_bills, "Complete", start_time)
+        _update_progress(
+            total_bills,
+            total_bills,
+            "Complete",
+            int(start_time),
+        )
     if (cfg.review_mode == "deferred" and deferred_session and
             deferred_session.confirmations):
         logger.info("Processing complete. Conducting batch review...")

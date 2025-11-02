@@ -22,6 +22,7 @@ VOTE_DOC_PATTERNS = [
     r"roll.*call.*vote"
 ]
 
+
 class VotesHearingCommitteeDocumentsParser(ParserInterface):
     """Parser for committee member vote documents on hearing pages."""
 
@@ -46,7 +47,9 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
                 full_text = re.sub(r'\s+', ' ', full_text).strip()
                 return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning("Could not extract text from PDF %s: %s", pdf_url, e)
+            logger.warning(
+                "Could not extract text from PDF %s: %s", pdf_url, e
+            )
             return None
         return None
 
@@ -71,7 +74,7 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover committee vote documents on the hearing page."""
         logger.debug("Trying %s...", cls.__name__)
-        soup = cls.soup(bill.hearing_url)
+        soup = cls.soup(str(bill.hearing_url))
         document_links = soup.find_all("a", href=True)
         for link in document_links:
             if not hasattr(link, 'get'):
@@ -94,10 +97,15 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
                     pdf_url = urljoin(base_url, href)
                     pdf_text = cls._extract_pdf_text(pdf_url)
                     if pdf_text:
-                        preview = (f"Committee vote document found for "
-                                f"{bill.bill_id}: {link_text or title_param}")
+                        preview = (
+                            f"Committee vote document found for "
+                            f"{bill.bill_id}: {link_text or title_param}"
+                        )
                         if len(pdf_text) > 200:
-                            preview += f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
+                            preview += (
+                                f"\n\nPDF Content Preview:\n"
+                                f"{pdf_text[:500]}..."
+                            )
                         else:
                             preview += f"\n\nPDF Content:\n{pdf_text}"
                         return ParserInterface.DiscoveryResult(
@@ -107,9 +115,12 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
                             0.95,
                         )
                     else:
-                        preview = (f"Committee vote document found for "
-                                f"{bill.bill_id}: "
-                                f"{link_text or title_param} (text extraction failed)")
+                        preview = (
+                            f"Committee vote document found for "
+                            f"{bill.bill_id}: "
+                            f"{link_text or title_param} "
+                            "(text extraction failed)"
+                        )
                         return ParserInterface.DiscoveryResult(
                             preview,
                             "",
