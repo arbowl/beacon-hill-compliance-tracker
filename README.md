@@ -25,7 +25,7 @@ This project automates the collection of that information and classifies each bi
 The purpose of having an "incomplete" status is to highlight nearly-compliant bills for developers to hone in on potential errors stopping a bill from being recognized as compliant. However, it's trivial for dashboards to reinterpret the information gathered by this tool as is appropriate.
 
 I used "Unknown" in development because the final status of the bill is presently unknown. Others have suggested "Monitoring",
-"Pending", or "Provisional" instead, so user-facing applications may choose to relabel it as such for clarity.
+"Pending", or "Provisional" instead, so user-facing applications may choose to relabel it like that instead.
 
 ## Quick Start
 
@@ -42,9 +42,47 @@ pip install -r requirements.txt
 
 ### Running
 
+The tool supports three execution modes:
+
+#### Manual Mode (Default)
+Interactive mode with prompts and menu options:
+
 ```bash
+python app.py --manual
+# or simply:
 python app.py
 ```
+
+#### One-Run Mode
+Run a single end-to-end compliance check for all committees automatically:
+
+```bash
+python app.py --one-run
+```
+
+Optional: Enable extension checking (slower but more comprehensive):
+
+```bash
+python app.py --one-run --check-extensions
+```
+
+This mode processes all committees, generates reports, and automatically submits data and changelog without user interaction.
+
+#### Scheduled Mode
+Run automatically on a daily schedule (like a cron job):
+
+```bash
+python app.py --scheduled --at "02:00"
+```
+
+This runs daily at 2:00 AM. You can specify any time in `HH:MM` format (24-hour):
+
+```bash
+python app.py --scheduled --at "14:30"  # 2:30 PM daily
+python app.py --scheduled --at "02:00" --check-extensions  # With extension checking
+```
+
+The scheduled mode runs continuously, executing the compliance check at the specified time each day. Press `Ctrl+C` to stop.
 
 ### The Cache
 
@@ -565,6 +603,5 @@ deferred_review:
 5. Submit a pull request
 
 The codebase is designed to be easily understood and extended by students, hobbyists, and grassroots organizations tracking legislative compliance.
-
 
 
