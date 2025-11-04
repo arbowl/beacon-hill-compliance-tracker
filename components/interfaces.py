@@ -152,7 +152,7 @@ class _SessionManager:
                     retry_strategy = Retry(
                         total=3,
                         backoff_factor=1,
-                        status_forcelist=[429, 500, 502, 503, 504],
+                        status_forcelist=[429, 502, 503, 504],
                         allowed_methods=["GET", "POST"]
                     )
                     adapter = HTTPAdapter(
@@ -722,3 +722,4 @@ bill_id: {bill_id}
     def document_cache(self) -> Config.DocumentCache:
         """Document cache configuration."""
         return Config.DocumentCache(self.config)  # type: ignore
+
