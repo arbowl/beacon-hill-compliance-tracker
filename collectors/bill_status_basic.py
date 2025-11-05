@@ -213,6 +213,27 @@ def build_status_row(
                 ).date()
             except ValueError:
                 pass
+        # Re-fetch if we have a hearing_date but no cached announcement,
+        # or if the cached hearing date doesn't match the current hearing_date
+        should_refetch = False
+        if row.hearing_date is not None:
+            # If we have a hearing date but no cached announcement, re-fetch
+            if announce_date is None or sched_hearing is None:
+                should_refetch = True
+            # If the cached hearing date doesn't match the current, re-fetch
+            elif sched_hearing != row.hearing_date:
+                should_refetch = True
+        if should_refetch:
+            announce_date, sched_hearing = (
+                _hearing_announcement_from_bill_page(
+                    row.bill_url, row.hearing_date
+                )
+            )
+            announce_date_str = str(announce_date) if announce_date else None
+            sched_hearing_str = str(sched_hearing) if sched_hearing else None
+            cache.set_hearing_announcement(
+                row.bill_id, announce_date_str, sched_hearing_str, row.bill_url
+            )
     else:
         announce_date, sched_hearing = (
             _hearing_announcement_from_bill_page(
@@ -238,3 +259,4 @@ def build_status_row(
         announcement_date=announce_date,
         scheduled_hearing_date=sched_hearing,
     )
+
