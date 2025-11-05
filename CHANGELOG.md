@@ -5,6 +5,19 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2025-11-05
+
+## Added
+- Fast-fail when Legislature document server is down
+
+## Changed
+- Auto-generated analysis tweaked for grammar and verbosity
+  
+## Fixed
+- Bills with hearings added not always updating compliance
+- Trend percentage now absolute, rather than multiplicative
+
+
 ## [1.1.1] - 2025-10-31
 
 ### Fixed
@@ -43,4 +56,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Implemented document content hashing for cache validation
 - Added secure configuration management via YAML
+
 
