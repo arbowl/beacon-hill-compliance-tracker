@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.2] - 2025-11-05
 
-## Added
+### Added
 - Fast-fail when Legislature document server is down
 
-## Changed
+### Changed
 - Auto-generated analysis tweaked for grammar and verbosity
   
-## Fixed
+### Fixed
 - Bills with hearings added not always updating compliance
 - Trend percentage now absolute, rather than multiplicative
 
@@ -56,5 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Implemented document content hashing for cache validation
 - Added secure configuration management via YAML
+
 
 
