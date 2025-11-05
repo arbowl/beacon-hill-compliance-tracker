@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Fast-fail when Legislature document server is down
+- Track votes in the trend analysis
 
 ### Changed
 - Auto-generated analysis tweaked for grammar and verbosity
@@ -56,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Implemented document content hashing for cache validation
 - Added secure configuration management via YAML
+
 
 
 
