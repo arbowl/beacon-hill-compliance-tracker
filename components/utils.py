@@ -1526,7 +1526,11 @@ def generate_diff_report(
         (curr_non_compliant_incomplete / curr_total * 100)
         if curr_total > 0 else 0
     )
-    compliance_delta = curr_compliant_pct - prev_compliant_pct
+
+    compliance_delta = (
+        (curr_compliant_pct - curr_non_compliant_pct) -
+        (prev_compliant_pct - prev_non_compliant_pct)
+    )
     new_bill_ids = [
         bill_id for bill_id in current_by_id
         if bill_id not in previous_by_id
@@ -1558,6 +1562,15 @@ def generate_diff_report(
             "summary_present", False
         ):
             bills_with_new_summaries.append(bill_id)
+    bills_with_new_votes = []
+    for bill_id, curr_bill in current_by_id.items():
+        if bill_id not in previous_by_id:
+            continue
+        prev_bill = previous_by_id[bill_id]
+        if not prev_bill.get("votes_present", False) and curr_bill.get(
+            "votes_present", False
+        ):
+            bills_with_new_votes.append(bill_id)
     time_delta = current_date - previous_date
     days_ago = time_delta.days
     if days_ago == 1:
@@ -1574,4 +1587,5 @@ def generate_diff_report(
         "bills_with_new_hearings": bills_with_new_hearings,
         "bills_reported_out": bills_reported_out,
         "bills_with_new_summaries": bills_with_new_summaries,
+        "bills_with_new_votes": bills_with_new_votes,
     }
