@@ -1526,11 +1526,7 @@ def generate_diff_report(
         (curr_non_compliant_incomplete / curr_total * 100)
         if curr_total > 0 else 0
     )
-
-    compliance_delta = (
-        (curr_compliant_pct - curr_non_compliant_pct) -
-        (prev_compliant_pct - prev_non_compliant_pct)
-    )
+    compliance_delta = curr_compliant_pct - prev_compliant_pct
     new_bill_ids = [
         bill_id for bill_id in current_by_id
         if bill_id not in previous_by_id
