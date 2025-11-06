@@ -8,7 +8,7 @@ runner:
 review_mode: "deferred"  # "on" = immediate review, "off" = auto-accept, "deferred" = batch review at end
 popup_review: false  # true = Tkinter popups, false = console review (headless/SSH friendly)
 threading:
-  max_workers: 2  # Number of concurrent threads for bill processing (1 = no threading/sequential)
+  max_workers: 16  # Number of concurrent threads for bill processing (1 = no threading/sequential)
 # Deferred review settings (only used when review_mode: "deferred")
 deferred_review:
   reprocess_after_review: true     # Re-run processing after confirmation
@@ -16,7 +16,7 @@ deferred_review:
   group_by_bill: false            # Group confirmations by bill vs chronological
   auto_accept_high_confidence: 0.9 # Auto-accept if confidence > threshold (0.0-1.0)
 llm:
-  enabled: true
+  enabled: false
   host: "192.168.0.170"
   port: 11434
   model: "qwen3:4b"
