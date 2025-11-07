@@ -33,13 +33,24 @@ class SummaryBillTabTextParser(ParserInterface):
     @staticmethod
     def _extract_summary_content(text: str) -> Optional[str]:
         """Extract the actual summary content from the page text."""
+        # Common field labels that might appear after the summary
+        field_label_pattern = (
+            r'(?:Topic|Bill History|Cosponsor|Petitioners'
+            r'|Status|Legislative History)\s*:'
+        )
         summary_patterns = [
             (
-                r"Bill Section by Section Summary[^–]*–\s*(.+?)"
-                r"(?=\n\n|\n[A-Z]+\s*:|$)"
+                r"Bill Section by Section Summary[^–:]*[–:]\s*(.+?)"
+                r"(?=\n\n|\n[A-Z]+\s*:|" + field_label_pattern + r"|$)"
             ),
-            r"Summary[^–]*–\s*(.+?)(?=\n\n|\n[A-Z]+\s*:|$)",
-            r"Bill Summary[^–]*–\s*(.+?)(?=\n\n|\n[A-Z]+\s*:|$)",
+            (
+                r"Summary[^–:]*[–:]\s*(.+?)(?=\n\n|\n[A-Z]+\s*:|" +
+                field_label_pattern + r"|$)"
+            ),
+            (
+                r"Bill Summary[^–:]*[–:]\s*(.+?)(?=\n\n|\n[A-Z]+\s*:|" +
+                field_label_pattern + r"|$)"
+            ),
         ]
         for pattern in summary_patterns:
             match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
@@ -69,14 +80,20 @@ class SummaryBillTabTextParser(ParserInterface):
                         text[content_start] in "–-: "):
                     content_start += 1
                 remaining_text = text[content_start:]
+                # Updated end patterns to work with flattened text
                 end_patterns = [
-                    r'\n[A-Z][A-Z\s]+\s*:',
-                    r'\n\n[A-Z][A-Z\s]+$',
-                    r'\n\s*$',
+                    r'\n[A-Z][A-Z\s]+\s*:',  # Newline + all caps label
+                    r'\n\n[A-Z][A-Z\s]+$',   # Two newlines + all caps at end
+                    r'\n\s*$',                # Newline + whitespace at end
+                    field_label_pattern,      # Field labels
+                    (
+                        r'\s+(?:Topic|Bill History|Cosponsor|Petitioners|'
+                        r'Status|Legislative History)\s*:'
+                    ),  # Field labels with space
                 ]
                 end_pos = len(remaining_text)
                 for pattern in end_patterns:
-                    match = re.search(pattern, remaining_text, re.MULTILINE)
+                    match = re.search(pattern, remaining_text, re.IGNORECASE)
                     if match:
                         end_pos = min(end_pos, match.start())
                 summary_text = remaining_text[:end_pos].strip()
