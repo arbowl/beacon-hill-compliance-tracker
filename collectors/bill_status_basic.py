@@ -99,7 +99,7 @@ def _hearing_announcement_from_bill_page(
         action_cell = cells[2].get_text(strip=True) if len(cells) > 2 else ""
         # Look for "Hearing scheduled for" pattern
         hearing_match = re.search(
-            r'hearing scheduled for (\d{2}/\d{2}/\d{4})', 
+            r"(?i)hearing scheduled for (\d{1,2}/\d{1,2}/\d{4})",
             action_cell,
             re.I
         )
@@ -259,4 +259,5 @@ def build_status_row(
         announcement_date=announce_date,
         scheduled_hearing_date=sched_hearing,
     )
+
 
