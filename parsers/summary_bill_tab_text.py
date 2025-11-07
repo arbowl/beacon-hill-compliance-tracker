@@ -21,6 +21,27 @@ class SummaryBillTabTextParser(ParserInterface):
     cost = 2
 
     @staticmethod
+    def _normalize_bill_url(bill_url: str) -> str:
+        """
+        Normalize bill URL by removing trailing /Bills/<chamber>/ patterns.
+
+        Some bill URLs end with patterns like /Bills/Joint/, /Bills/House/, or
+        /Bills/Senate/. These need to be stripped before appending paths like
+        /PrimarySponsorSummary, otherwise the resulting URL will 404.
+
+        Examples:
+        - https://malegislature.gov/Bills/194/S404/Bills/Joint/
+          -> https://malegislature.gov/Bills/194/S404/
+        - https://malegislature.gov/Bills/194/H123/
+          -> https://malegislature.gov/Bills/194/H123/
+        """
+        # Remove trailing /Bills/<chamber>/ patterns
+        # Match: /Bills/Joint/, /Bills/House/, /Bills/Senate/ at the end
+        normalized = re.sub(r'/Bills/(?:Joint|House|Senate)/?$', '', bill_url)
+        # Remove trailing slashes to cleanly append /PrimarySponsorSummary
+        return normalized.rstrip('/')
+
+    @staticmethod
     def _find_summary_tab_link(
         soup: BeautifulSoup, base_url: str
     ) -> Optional[str]:
@@ -112,7 +133,7 @@ class SummaryBillTabTextParser(ParserInterface):
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the summary."""
         logger.debug("Trying %s...", cls.__name__)
-        bill_url = bill.bill_url
+        bill_url = cls._normalize_bill_url(bill.bill_url)
         soup = cls.soup(f"{bill_url}/PrimarySponsorSummary")
         tab_panel = soup.find("div", attrs={
             "aria-labelledby": re.compile("PrimarySponsorSummary",
