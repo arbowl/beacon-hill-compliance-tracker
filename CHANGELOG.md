@@ -5,6 +5,19 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2025-11-06
+
+### Added
+- Implemented support for more date formats (e.g. 11/04/2025 vs. 11/4/2025 vs. 11-4-2025, etc.)
+
+### Changed
+- Bills which have announcements but aren't linked in a hearing docket yet will be considered "announced"
+- Increased confidence level for on-page summaries with unusual formatting
+
+### Fixed
+- Tweaked user-facing language when a hearing gap was computed but a date was not listed
+
+
 ## [1.1.2] - 2025-11-05
 
 ### Added
@@ -57,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Implemented document content hashing for cache validation
 - Added secure configuration management via YAML
+
 
 
 
