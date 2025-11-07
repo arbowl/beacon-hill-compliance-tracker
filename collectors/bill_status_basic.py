@@ -49,7 +49,9 @@ def _reported_out_from_bill_page(
             continue
 
         action_text = cells[2].get_text(" ", strip=True)
-        if any(re.search(pat, action_text, re.I) for pat in _REPORTED_PATTERNS):
+        if any(
+            re.search(pat, action_text, re.I) for pat in _REPORTED_PATTERNS
+        ):
             reported = True
 
             # Try to parse a date from the first cell of the same row; prefer
@@ -77,12 +79,12 @@ def _hearing_announcement_from_bill_page(
     target_hearing_date: Optional[date] = None
 ) -> tuple[Optional[date], Optional[date]]:
     """Extract 'Hearing scheduled for ...' announcement.
-    
+
     Args:
         bill_url: URL of the bill page
         target_hearing_date: If provided, find announcement for this date.
                            If None, find the earliest hearing announcement.
-    
+
     Returns (announcement_date, scheduled_hearing_date) or (None, None).
     """
     soup = ParserInterface.soup(bill_url)
@@ -188,9 +190,6 @@ def build_status_row(
     _base_url: str, row: BillAtHearing, cache: Cache, extension_until=None
 ) -> BillStatus:
     """Build the status row."""
-    d60, d90, effective = compute_deadlines(
-        row.hearing_date, extension_until, row.bill_id
-    )
     # Try to get hearing announcement from cache first
     cached_announcement = cache.get_hearing_announcement(row.bill_id)
     if cached_announcement:
@@ -214,7 +213,8 @@ def build_status_row(
             except ValueError:
                 pass
         # Re-fetch if we have a hearing_date but no cached announcement,
-        # or if the cached hearing date doesn't match the current hearing_date
+        # or if the cached hearing date doesn't match the current hearing_date,
+        # or if we don't have a hearing_date but should check for announcements
         should_refetch = False
         if row.hearing_date is not None:
             # If we have a hearing date but no cached announcement, re-fetch
@@ -222,6 +222,12 @@ def build_status_row(
                 should_refetch = True
             # If the cached hearing date doesn't match the current, re-fetch
             elif sched_hearing != row.hearing_date:
+                should_refetch = True
+        else:
+            # If we don't have a hearing_date from docket, check if we should
+            # fetch announcements (in case bill history has a scheduled
+            # hearing)
+            if announce_date is None or sched_hearing is None:
                 should_refetch = True
         if should_refetch:
             announce_date, sched_hearing = (
@@ -245,11 +251,25 @@ def build_status_row(
         cache.set_hearing_announcement(
             row.bill_id, announce_date_str, sched_hearing_str, row.bill_url
         )
+
+    # Use scheduled_hearing_date as fallback for hearing_date when available
+    # This allows us to process bills that have scheduled hearings in their
+    # history but weren't found in the hearing docket pages.
+    # Both fields are preserved for auditability (to detect discrepancies).
+    effective_hearing_date = (
+        row.hearing_date if row.hearing_date is not None else sched_hearing
+    )
+
+    # Recalculate deadlines using the effective hearing date
+    d60, d90, effective = compute_deadlines(
+        effective_hearing_date, extension_until, row.bill_id
+    )
+
     reported, rdate = _reported_out_from_bill_page(row.bill_url)
     return BillStatus(
         bill_id=row.bill_id,
         committee_id=row.committee_id,
-        hearing_date=row.hearing_date,
+        hearing_date=effective_hearing_date,
         deadline_60=d60,
         deadline_90=d90,
         reported_out=reported,
@@ -259,5 +279,3 @@ def build_status_row(
         announcement_date=announce_date,
         scheduled_hearing_date=sched_hearing,
     )
-
-
