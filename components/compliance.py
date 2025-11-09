@@ -218,22 +218,20 @@ def compute_notice_status(
     Returns:
         Tuple of (NoticeStatus, gap_days) where gap_days is None if missing
     """
-    if (status.announcement_date is None or
-            status.scheduled_hearing_date is None):
+    if (
+        status.announcement_date is None
+        or status.scheduled_hearing_date is None
+        or status.hearing_date is None
+    ):
         return NoticeStatus.MISSING, None
-
-    # Calculate the gap in days
-    gap_days = (status.scheduled_hearing_date - status.announcement_date).days
-
-    # Exemption: hearings announced before NOTICE_REQUIREMENT_START_DATE are
-    # automatically compliant with notice requirements
+    gap_days = (
+        status.scheduled_hearing_date - status.announcement_date
+    ).days
     if status.announcement_date < NOTICE_REQUIREMENT_START_DATE:
         return NoticeStatus.IN_RANGE, gap_days
-
     if gap_days >= min_notice_days:
         return NoticeStatus.IN_RANGE, gap_days
-    else:
-        return NoticeStatus.OUT_OF_RANGE, gap_days
+    return NoticeStatus.OUT_OF_RANGE, gap_days
 
 
 def _get_missing_requirements(
