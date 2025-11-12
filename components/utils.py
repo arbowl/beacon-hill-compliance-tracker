@@ -1,24 +1,33 @@
 """Utility functions for the Massachusetts Legislature website."""
 
-import json
-import hashlib
-import re
 from datetime import date, timedelta, datetime, timezone
+from enum import IntEnum
+import hashlib
+import json
 from pathlib import Path
-from zoneinfo import ZoneInfo
+import re
 import textwrap
 import threading
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 from typing import Optional, Any, Literal
 import webbrowser
+from zoneinfo import ZoneInfo
 
 from components.llm import LLMParser
 from components.interfaces import Config
 from collectors.extension_orders import collect_all_extension_orders
 from version import __version__
 
+
 _DEFAULT_PATH = Path("cache/cache.json")
+
+
+class TimeInterval(IntEnum):
+    """Time intervals for compliance delta calculations."""
+    DAILY = 1
+    WEEKLY = 7
+    MONTHLY = 30
 
 
 # pylint: disable=too-many-public-methods
@@ -1365,24 +1374,30 @@ def get_latest_output_dir(base_dir: str = "out") -> Optional[Path]:
     return latest_path
 
 
-def get_previous_output_dir(base_dir: str = "out") -> Optional[Path]:
-    """Find the most recent date-based output directory before today.
+def get_previous_output_dir(
+    base_dir: str = "out",
+    target_days_ago: int = 1
+) -> Optional[Path]:
+    """Find a date-based output directory closest to the target days ago.
 
     Similar to get_latest_output_dir, but excludes today's directory.
+    Finds the directory closest to (today - target_days_ago).
 
     Args:
         base_dir: Base directory name (default: "out")
+        target_days_ago: Target number of days ago (default: 1 for daily)
 
     Returns:
-        Path to the previous date directory, or None if none exist
+        Path to the closest date directory, or None if none exist
     """
     boston_tz = ZoneInfo("US/Eastern")
     today = datetime.now(boston_tz).date()
+    target_date = today - timedelta(days=target_days_ago)
     base_path = Path(base_dir)
     if not base_path.exists():
         return None
-    previous_date = None
-    previous_path = None
+    best_path = None
+    min_days_diff = None
     for year_dir in base_path.iterdir():
         if not year_dir.is_dir() or not year_dir.name.isdigit():
             continue
@@ -1405,12 +1420,13 @@ def get_previous_output_dir(base_dir: str = "out") -> Optional[Path]:
                     dir_date = date(year, month, day)
                     if dir_date >= today:
                         continue
-                    if previous_date is None or dir_date > previous_date:
-                        previous_date = dir_date
-                        previous_path = day_dir
+                    days_diff = abs((target_date - dir_date).days)
+                    if min_days_diff is None or days_diff < min_days_diff:
+                        min_days_diff = days_diff
+                        best_path = day_dir
                 except (ValueError, OverflowError):
                     continue
-    return previous_path
+    return best_path
 
 
 def get_date_from_output_dir(output_dir: Path) -> Optional[date]:
@@ -1438,19 +1454,21 @@ def get_date_from_output_dir(output_dir: Path) -> Optional[date]:
 
 def load_previous_committee_json(
     committee_id: str,
-    base_dir: str = "out"
+    base_dir: str = "out",
+    days_ago: int = 1
 ) -> tuple[Optional[list[dict]], Optional[date]]:
-    """Load the previous day's JSON data for a committee.
+    """Load previous JSON data for a committee from a specific time interval.
 
     Args:
         committee_id: Committee ID (e.g., "J50")
         base_dir: Base directory name (default: "out")
+        days_ago: Number of days ago to look for data (default: 1 for daily)
 
     Returns:
         Tuple of (list of bill dictionaries, previous date),
         or (None, None) if not found
     """
-    previous_dir = get_previous_output_dir(base_dir)
+    previous_dir = get_previous_output_dir(base_dir, target_days_ago=days_ago)
     if previous_dir is None:
         return None, None
     previous_date = get_date_from_output_dir(previous_dir)
@@ -1486,47 +1504,31 @@ def generate_diff_report(
     """
     if previous_bills is None or previous_date is None:
         return None
+    # Deduplicate by bill_id (keep last occurrence, matching server behavior)
     current_by_id = {bill["bill_id"]: bill for bill in current_bills}
     previous_by_id = {bill["bill_id"]: bill for bill in previous_bills}
 
-    def count_compliant(bills: list[dict]) -> int:
+    def count_compliant(bills_dict: dict[str, dict]) -> int:
+        """Count compliant bills from deduplicated dictionary."""
         return sum(
-            1 for b in bills
-            if b.get("state") in ("Compliant", "Unknown")
+            1 for b in bills_dict.values()
+            if b.get("state", "").lower() in ("compliant", "unknown")
         )
 
-    def count_non_compliant_incomplete(bills: list[dict]) -> int:
-        return sum(
-            1 for b in bills
-            if b.get("state") in ("Non-Compliant", "Incomplete")
-        )
-
-    prev_compliant = count_compliant(previous_bills)
-    prev_non_compliant_incomplete = (
-        count_non_compliant_incomplete(previous_bills)
+    # Count from deduplicated dictionaries, not original lists
+    prev_compliant = count_compliant(previous_by_id)
+    curr_compliant = count_compliant(current_by_id)
+    prev_total = len(previous_by_id)
+    curr_total = len(current_by_id)
+    # Round compliance rates to 2 decimal places (matching server behavior)
+    prev_compliant_pct = round(
+        (prev_compliant / prev_total * 100) if prev_total > 0 else 0, 2
     )
-    curr_compliant = count_compliant(current_bills)
-    curr_non_compliant_incomplete = (
-        count_non_compliant_incomplete(current_bills)
+    curr_compliant_pct = round(
+        (curr_compliant / curr_total * 100) if curr_total > 0 else 0, 2
     )
-    prev_total = len(previous_bills)
-    curr_total = len(current_bills)
-    prev_compliant_pct = (
-        (prev_compliant / prev_total * 100) if prev_total > 0 else 0
-    )
-    prev_non_compliant_pct = (
-        (prev_non_compliant_incomplete / prev_total * 100)
-        if prev_total > 0 else 0
-    )
-    curr_compliant_pct = (
-        (curr_compliant / curr_total * 100)
-        if curr_total > 0 else 0
-    )
-    curr_non_compliant_pct = (
-        (curr_non_compliant_incomplete / curr_total * 100)
-        if curr_total > 0 else 0
-    )
-    compliance_delta = curr_compliant_pct - prev_compliant_pct
+    # Calculate delta from rounded rates, round to 1 decimal (matching server)
+    compliance_delta = round(curr_compliant_pct - prev_compliant_pct, 1)
     new_bill_ids = [
         bill_id for bill_id in current_by_id
         if bill_id not in previous_by_id
@@ -1577,7 +1579,7 @@ def generate_diff_report(
         "time_interval": time_interval,
         "previous_date": str(previous_date),
         "current_date": str(current_date),
-        "compliance_delta": round(compliance_delta, 2),
+        "compliance_delta": compliance_delta,  # Rounded to 1 decimal above
         "new_bills_count": len(new_bill_ids),
         "new_bills": new_bill_ids,
         "bills_with_new_hearings": bills_with_new_hearings,
