@@ -74,17 +74,56 @@ class SummaryHearingDocsDocxParser(ParserInterface):
     def _find_bill_summary_in_docx_text(
         cls, docx_text: str, bill_id: str
     ) -> Optional[str]:
-        """Find a bill summary in DOCX text content."""
+        """Find a bill summary in DOCX text content.
+
+        Extracts only the relevant portion when multiple bills are present
+        in the same line by finding the bill ID and summary, then extracting
+        a context window around them.
+        """
         lines = docx_text.split('\n')
+        normalized_bill_id = cls._norm_bill_id(bill_id)
+        bill_id_pattern = re.compile(
+            r'\b([HS]\d+|HOUSE\s+\d+|SENATE\s+\d+)\b', re.I
+        )
         for line in lines:
             line = line.strip()
             if not line:
                 continue
             normalized_line = cls._norm_bill_id(line)
-            normalized_bill_id = cls._norm_bill_id(bill_id)
-            if (normalized_bill_id in normalized_line and
+            if not (normalized_bill_id in normalized_line and
                     re.search(r'\bsummary\b', line, re.I)):
+                continue
+            bill_id_match = None
+            for pattern in [
+                re.escape(bill_id),
+                bill_id.replace('.', r'\.?\s*'),
+                bill_id.replace('.', ''),
+                normalized_bill_id,
+            ]:
+                match = re.search(pattern, line, re.I)
+                if match:
+                    bill_id_match = match
+                    break
+            if not bill_id_match:
                 return line
+            bill_id_start = bill_id_match.start()
+            search_start = max(0, bill_id_start - 50)
+            search_end = min(len(line), bill_id_start + 200)
+            search_slice = line[search_start:search_end]
+            summary_match = re.search(r'\bsummary\b', search_slice, re.I)
+            if not summary_match:
+                return line
+            summary_abs_pos = search_start + summary_match.start()
+            context_start = min(bill_id_start, summary_abs_pos)
+            window_start = max(0, context_start - 300)
+            window_end = min(len(line), context_start + 500)
+            extracted = line[window_start:window_end]
+            remaining_line = line[window_end:]
+            next_bill_match = bill_id_pattern.search(remaining_line)
+            if next_bill_match:
+                window_end = window_end + next_bill_match.start()
+                extracted = line[window_start:window_end]
+            return extracted.strip()
         return None
 
     @classmethod
