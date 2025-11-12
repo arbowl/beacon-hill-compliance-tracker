@@ -414,6 +414,21 @@ class Cache:
                     ) + "Z"
                 }
             }
+        # Ensure by_url and by_content_hash are dicts (fix corrupted data)
+        if not isinstance(self.data["document_cache"].get("by_url"), dict):
+            self.data["document_cache"]["by_url"] = {}
+        if not isinstance(
+            self.data["document_cache"].get("by_content_hash"), dict
+        ):
+            self.data["document_cache"]["by_content_hash"] = {}
+        if "metadata" not in self.data["document_cache"]:
+            self.data["document_cache"]["metadata"] = {
+                "total_documents": 0,
+                "total_size_bytes": 0,
+                "last_cleanup": datetime.utcnow().isoformat(
+                    timespec="seconds"
+                ) + "Z"
+            }
 
     @staticmethod
     def _compute_content_hash(content: bytes) -> str:
@@ -451,6 +466,16 @@ class Cache:
         self._ensure_document_cache_structure()
         cache_entry = self.data["document_cache"]["by_url"].get(url)
         if not cache_entry:
+            return None
+        # Defensive check: ensure cache_entry is a dict, not a list
+        if not isinstance(cache_entry, dict):
+            logger.warning(
+                "Invalid cache entry type for URL %s: %s, removing",
+                url,
+                type(cache_entry).__name__
+            )
+            del self.data["document_cache"]["by_url"][url]
+            self.save()
             return None
         cached_file_path = Path(cache_entry.get("cached_file_path", ""))
         if not cached_file_path.exists():
