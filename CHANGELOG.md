@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.5] - 2025-11-12
 
 ### Fixed
-- Compliance delta calculations were not properly deduplicating bills, slightly inflating percentage counts for some committees. This did not impact compliance calculations, but may have slightly overstated day-to-day changes in specific cases.
+- Deduplicate bill lists when computing compliance deltas to better align the change percentage with that which is reported by the dashboard
 
 ### Added
 - Retroactive deduplication for historical compliance deltas to correct percentage gains for accurate future trend analysis
@@ -85,4 +85,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Implemented document content hashing for cache validation
 - Added secure configuration management via YAML
+
 
