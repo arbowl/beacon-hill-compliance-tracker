@@ -4,6 +4,7 @@ from datetime import date, timedelta, datetime, timezone
 from enum import IntEnum
 import hashlib
 import json
+import logging
 from pathlib import Path
 import re
 import textwrap
@@ -18,6 +19,8 @@ from components.llm import LLMParser
 from components.interfaces import Config
 from collectors.extension_orders import collect_all_extension_orders
 from version import __version__
+
+logger = logging.getLogger(__name__)
 
 
 _DEFAULT_PATH = Path("cache/cache.json")
@@ -310,6 +313,9 @@ class Cache:
                     "bills": [],
                     "bill_count": 0
                 })
+                # Ensure bills is a list (handle old dict format)
+                if not isinstance(committee_data.get("bills"), list):
+                    committee_data["bills"] = []
                 committee_data["bills"].append(bill_id)
                 committee_data["bill_count"] = len(committee_data["bills"])
                 committee_data["last_updated"] = (
@@ -328,7 +334,14 @@ class Cache:
         """
         committee_bills = self.data.get("committee_bills", {})
         committee_data = committee_bills.get(committee_id, {})
-        return committee_data.get("bills", [])
+        bills = committee_data.get("bills", [])
+        # Ensure bills is a list (handle old dict format)
+        if isinstance(bills, dict):
+            # Convert dict to list of keys (old format)
+            bills = list(bills.keys())
+        elif not isinstance(bills, list):
+            bills = []
+        return bills
 
     def get_committee_parsers(
         self, committee_id: str, parser_type: str
@@ -537,13 +550,27 @@ class Cache:
                 "etag": etag,
                 "last_modified": last_modified,
                 "bill_ids": (
-                    existing_entry.get("bill_ids", [])
-                    if existing_entry else []
+                    list(existing_entry.get("bill_ids", []))
+                    if existing_entry and isinstance(
+                        existing_entry.get("bill_ids"), list
+                    ) else (
+                        list(existing_entry.get("bill_ids", {}).keys())
+                        if existing_entry and isinstance(
+                            existing_entry.get("bill_ids"), dict
+                        ) else []
+                    )
                 ),
                 "document_purpose": document_purpose
             }
-            if bill_id and bill_id not in cache_entry["bill_ids"]:
-                cache_entry["bill_ids"].append(bill_id)
+            # Ensure bill_ids is a list (handle old dict format)
+            bill_ids = cache_entry.get("bill_ids", [])
+            if isinstance(bill_ids, dict):
+                cache_entry["bill_ids"] = list(bill_ids.keys())
+            elif not isinstance(bill_ids, list):
+                cache_entry["bill_ids"] = []
+            # At this point, bill_ids is guaranteed to be a list
+            if bill_id and bill_id not in cache_entry["bill_ids"]:  # type: ignore  # noqa: E501
+                cache_entry["bill_ids"].append(bill_id)  # type: ignore
             self.data["document_cache"]["by_url"][url] = cache_entry
             if content_hash not in self.data[
                 "document_cache"
@@ -1505,8 +1532,28 @@ def load_previous_committee_json(
     try:
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-            return data["bills"], previous_date
-    except (json.JSONDecodeError, IOError):
+            # Handle both old format (list) and new format
+            # (dict with "bills" key)
+            if isinstance(data, list):
+                # Old format: data is directly a list of bills
+                return data, previous_date
+            elif isinstance(data, dict) and "bills" in data:
+                # New format: data is a dict with "bills" key
+                return data["bills"], previous_date
+            else:
+                # Invalid format
+                logger.warning(
+                    "Invalid JSON format in %s: expected list or "
+                    "dict with 'bills' key",
+                    json_path
+                )
+                return None, previous_date
+    except (json.JSONDecodeError, IOError, KeyError) as e:
+        logger.warning(
+            "Error loading previous JSON from %s: %s",
+            json_path,
+            e
+        )
         return None, previous_date
 
 
