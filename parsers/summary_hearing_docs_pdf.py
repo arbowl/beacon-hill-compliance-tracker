@@ -1,15 +1,13 @@
 """A parser for when the summary is on the hearing's Documents tab."""
 
-import io
 import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin, urlparse, parse_qs, unquote
 
-import PyPDF2  # type: ignore
-
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+from components.extraction import DocumentExtractionService
 
 logger = logging.getLogger(__name__)
 
@@ -65,33 +63,18 @@ class SummaryHearingDocsPdfParser(ParserInterface):
         return has_summary and has_bill
 
     @staticmethod
-    def _extract_pdf_text(pdf_url: str) -> Optional[str]:
-        """Extract text content from a PDF URL."""
-        try:
-            content = ParserInterface._fetch_binary(pdf_url, timeout=30)
-
-            # Read PDF from memory
-            pdf_file = io.BytesIO(content)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-
-            # Extract text from all pages
-            text_content = []
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text_content.append(page_text)
-
-            if text_content:
-                full_text = "\n".join(text_content)
-                return full_text
-
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "Could not extract text from PDF %s: %s", pdf_url, e
-            )
-            return None
-
-        return None
+    def _extract_pdf_text(
+        pdf_url: str,
+        cache=None,
+        config=None
+    ) -> Optional[str]:
+        """Extract text content from a PDF URL using extraction service."""
+        return DocumentExtractionService.extract_text(
+            url=pdf_url,
+            cache=cache,
+            config=config,
+            timeout=30
+        )
 
     @classmethod
     def _find_bill_summary_in_pdf_text(
@@ -188,7 +171,7 @@ class SummaryHearingDocsPdfParser(ParserInterface):
                         bill.bill_id, text, title_param
                     )
                 pdf_url = urljoin(base_url, href)
-                pdf_text = cls._extract_pdf_text(pdf_url)
+                pdf_text = cls._extract_pdf_text(pdf_url, cache, config)
                 if pdf_text:
                     bill_summary_line = cls._find_bill_summary_in_pdf_text(
                         pdf_text, bill.bill_id)

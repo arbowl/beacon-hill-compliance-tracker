@@ -1,16 +1,15 @@
 """A parser for vote documents in committee Documents tabs."""
 
-import io
 import logging
 import re
 from typing import Optional, List, Dict, Any
 from urllib.parse import urljoin
 
-import PyPDF2
 from bs4 import BeautifulSoup  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+from components.extraction import DocumentExtractionService
 
 logger = logging.getLogger(__name__)
 
@@ -24,26 +23,18 @@ class VotesCommitteeDocumentsParser(ParserInterface):
     _bill_vote_data: dict = {}
 
     @staticmethod
-    def _extract_pdf_text(pdf_url: str) -> Optional[str]:
-        """Extract text content from a PDF URL."""
-        try:
-            content = ParserInterface._fetch_binary(pdf_url, timeout=30)
-            pdf_file = io.BytesIO(content)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-            text_content = []
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text_content.append(page_text)
-            if text_content:
-                full_text = "\n".join(text_content)
-                return full_text
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "Could not extract text from PDF %s: %s", pdf_url, e
-            )
-            return None
-        return None
+    def _extract_pdf_text(
+        pdf_url: str,
+        cache=None,
+        config=None
+    ) -> Optional[str]:
+        """Extract text content from a PDF URL using extraction service."""
+        return DocumentExtractionService.extract_text(
+            url=pdf_url,
+            cache=cache,
+            config=config,
+            timeout=30
+        )
 
     @staticmethod
     def _normalize_bill_id(bill_text: str) -> Optional[str]:
@@ -180,7 +171,7 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         pdf_url = cls._find_committee_documents_pdf(soup, base_url)
         if not pdf_url:
             return None
-        pdf_text = cls._extract_pdf_text(pdf_url)
+        pdf_text = cls._extract_pdf_text(pdf_url, cache, config)
         if not pdf_text:
             return None
         vote_records = cls._parse_vote_table(pdf_text)

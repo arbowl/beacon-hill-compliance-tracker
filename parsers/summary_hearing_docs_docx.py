@@ -1,15 +1,13 @@
 """A parser for DOCX summaries on the hearing's Documents tab."""
 
-import io
 import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin, urlparse, parse_qs, unquote
 
-from docx import Document
-
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+from components.extraction import DocumentExtractionService
 
 logger = logging.getLogger(__name__)
 
@@ -59,40 +57,18 @@ class SummaryHearingDocsDocxParser(ParserInterface):
         return has_summary and has_bill
 
     @staticmethod
-    def _extract_docx_text(docx_url: str) -> Optional[str]:
-        """Extract text content from a DOCX URL."""
-        try:
-            content = ParserInterface._fetch_binary(docx_url, timeout=30)
-            docx_file = io.BytesIO(content)
-            doc = Document(docx_file)
-            parts = []
-            for p in doc.paragraphs:
-                if p.text and p.text.strip():
-                    parts.append(p.text.strip())
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        if cell.text and cell.text.strip():
-                            parts.append(cell.text.strip())
-            for section in doc.sections:
-                if section.header:
-                    for p in section.header.paragraphs:
-                        if p.text and p.text.strip():
-                            parts.append(p.text.strip())
-                if section.footer:
-                    for p in section.footer.paragraphs:
-                        if p.text and p.text.strip():
-                            parts.append(p.text.strip())
-            if parts:
-                full_text = " ".join(parts)
-                full_text = re.sub(r'\s+', ' ', full_text).strip()
-                return full_text
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "Could not extract text from DOCX %s: %s", docx_url, e
-            )
-            return None
-        return None
+    def _extract_docx_text(
+        docx_url: str,
+        cache=None,
+        config=None
+    ) -> Optional[str]:
+        """Extract text content from a DOCX URL using extraction service."""
+        return DocumentExtractionService.extract_text(
+            url=docx_url,
+            cache=cache,
+            config=config,
+            timeout=30
+        )
 
     @classmethod
     def _find_bill_summary_in_docx_text(
@@ -137,7 +113,7 @@ class SummaryHearingDocsDocxParser(ParserInterface):
             if not DOCX_RX.search(href):
                 continue
             docx_url = urljoin(base_url, href)
-            text = cls._extract_docx_text(docx_url)
+            text = cls._extract_docx_text(docx_url, cache, config)
             text = text if text else ""
             title_param = cls._title_from_href(href)
             bill_id = cls._norm_bill_id(bill.bill_id)
@@ -171,7 +147,7 @@ class SummaryHearingDocsDocxParser(ParserInterface):
                     re.search(r"\breport\b", text, re.I) or
                     re.search(r"\breport\b", title_param, re.I)):
                 docx_url = urljoin(base_url, href)
-                docx_text = cls._extract_docx_text(docx_url)
+                docx_text = cls._extract_docx_text(docx_url, cache, config)
                 if docx_text:
                     bill_summary_line = (
                         cls._find_bill_summary_in_docx_text(

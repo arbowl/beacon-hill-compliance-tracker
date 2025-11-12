@@ -1,15 +1,13 @@
 """A parser for committee member vote documents on hearing pages."""
 
-import io
 import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin
 
-import PyPDF2
-
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+from components.extraction import DocumentExtractionService
 
 logger = logging.getLogger(__name__)
 
@@ -31,27 +29,18 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
     cost = 2
 
     @staticmethod
-    def _extract_pdf_text(pdf_url: str) -> Optional[str]:
-        """Extract text content from a PDF URL."""
-        try:
-            content = ParserInterface._fetch_binary(pdf_url, timeout=30)
-            pdf_file = io.BytesIO(content)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-            text_content = []
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text_content.append(page_text)
-            if text_content:
-                full_text = "\n".join(text_content)
-                full_text = re.sub(r'\s+', ' ', full_text).strip()
-                return full_text
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "Could not extract text from PDF %s: %s", pdf_url, e
-            )
-            return None
-        return None
+    def _extract_pdf_text(
+        pdf_url: str,
+        cache=None,
+        config=None
+    ) -> Optional[str]:
+        """Extract text content from a PDF URL using extraction service."""
+        return DocumentExtractionService.extract_text(
+            url=pdf_url,
+            cache=cache,
+            config=config,
+            timeout=30
+        )
 
     @staticmethod
     def _looks_like_vote_document(link_text: str, title_param: str) -> bool:
@@ -95,7 +84,7 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
                 bill_pattern = re.escape(bill.bill_id.lower())
                 if re.search(bill_pattern, full_text):
                     pdf_url = urljoin(base_url, href)
-                    pdf_text = cls._extract_pdf_text(pdf_url)
+                    pdf_text = cls._extract_pdf_text(pdf_url, cache, config)
                     if pdf_text:
                         preview = (
                             f"Committee vote document found for "

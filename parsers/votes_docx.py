@@ -1,16 +1,15 @@
 """A parser for DOCX files containing vote records."""
 
-import io
 import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup  # type: ignore
-from docx import Document
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+from components.extraction import DocumentExtractionService
 
 logger = logging.getLogger(__name__)
 
@@ -23,26 +22,18 @@ class VotesDocxParser(ParserInterface):
     cost = 4
 
     @staticmethod
-    def _extract_docx_text(docx_url: str) -> Optional[str]:
-        """Extract text content from a DOCX URL."""
-        try:
-            content = ParserInterface._fetch_binary(docx_url, timeout=30)
-            docx_file = io.BytesIO(content)
-            doc = Document(docx_file)
-            text_content = []
-            for paragraph in doc.paragraphs:
-                if paragraph.text.strip():
-                    text_content.append(paragraph.text.strip())
-            if text_content:
-                full_text = "\n".join(text_content)
-                full_text = re.sub(r'\s+', ' ', full_text).strip()
-                return full_text
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "Could not extract text from DOCX %s: %s", docx_url, e
-            )
-            return None
-        return None
+    def _extract_docx_text(
+        docx_url: str,
+        cache=None,
+        config=None
+    ) -> Optional[str]:
+        """Extract text content from a DOCX URL using extraction service."""
+        return DocumentExtractionService.extract_text(
+            url=docx_url,
+            cache=cache,
+            config=config,
+            timeout=30
+        )
 
     @staticmethod
     def _find_docx_files(soup: BeautifulSoup, base_url: str) -> list[str]:
@@ -101,7 +92,7 @@ class VotesDocxParser(ParserInterface):
                 soup = cls.soup(location)
                 docx_urls = cls._find_docx_files(soup, base_url)
                 for docx_url in docx_urls:
-                    docx_text = cls._extract_docx_text(docx_url)
+                    docx_text = cls._extract_docx_text(docx_url, cache, config)
                     if docx_text and cls._looks_like_vote_docx(
                         docx_text, bill.bill_id
                     ):

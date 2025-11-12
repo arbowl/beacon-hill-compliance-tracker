@@ -24,6 +24,7 @@ from components.utils import (
     get_date_output_dir,
     load_previous_committee_json,
     generate_diff_report,
+    TimeInterval,
 )
 from components.templates import (
     generate_deterministic_analysis,
@@ -406,31 +407,63 @@ def run_basic_compliance(
         json_path = outdir / f"basic_{committee.id}.json"
         html_path = outdir / f"basic_{committee.id}.html"
 
-        # Generate diff report by comparing with previous scan
+        # Generate diff reports by comparing with previous scans
         boston_tz = ZoneInfo("US/Eastern")
         current_date = datetime.now(boston_tz).date()
-        previous_bills, previous_date = load_previous_committee_json(
-            committee.id
+        
+        # Daily diff report
+        previous_bills_daily, previous_date_daily = load_previous_committee_json(
+            committee.id, days_ago=TimeInterval.DAILY
         )
-
-        diff_report = None
-        if previous_bills is not None and previous_date is not None:
-            diff_report = generate_diff_report(
-                results, previous_bills, current_date, previous_date
+        diff_report_daily = None
+        if previous_bills_daily is not None and previous_date_daily is not None:
+            diff_report_daily = generate_diff_report(
+                results, previous_bills_daily, current_date, previous_date_daily
             )
-
-        # Generate analysis using deterministic templates
-        analysis = None
-        if diff_report is not None:
-            analysis = generate_deterministic_analysis(
-                diff_report, results, previous_bills, committee.name
+            if diff_report_daily is not None:
+                analysis_daily = generate_deterministic_analysis(
+                    diff_report_daily, results, previous_bills_daily, committee.name
+                )
+                diff_report_daily["analysis"] = analysis_daily
+        
+        # Weekly diff report
+        previous_bills_weekly, previous_date_weekly = load_previous_committee_json(
+            committee.id, days_ago=TimeInterval.WEEKLY
+        )
+        diff_report_weekly = None
+        if previous_bills_weekly is not None and previous_date_weekly is not None:
+            diff_report_weekly = generate_diff_report(
+                results, previous_bills_weekly, current_date, previous_date_weekly
             )
+            if diff_report_weekly is not None:
+                analysis_weekly = generate_deterministic_analysis(
+                    diff_report_weekly, results, previous_bills_weekly, committee.name
+                )
+                diff_report_weekly["analysis"] = analysis_weekly
+        
+        # Monthly diff report
+        previous_bills_monthly, previous_date_monthly = load_previous_committee_json(
+            committee.id, days_ago=TimeInterval.MONTHLY
+        )
+        diff_report_monthly = None
+        if previous_bills_monthly is not None and previous_date_monthly is not None:
+            diff_report_monthly = generate_diff_report(
+                results, previous_bills_monthly, current_date, previous_date_monthly
+            )
+            if diff_report_monthly is not None:
+                analysis_monthly = generate_deterministic_analysis(
+                    diff_report_monthly, results, previous_bills_monthly, committee.name
+                )
+                diff_report_monthly["analysis"] = analysis_monthly
 
-        # Create output structure with bills, diff_report, and analysis
+        # Create output structure with bills and diff_reports
         output_data = {
             "bills": results,
-            "diff_report": diff_report,
-            "analysis": analysis,
+            "diff_reports": {
+                "daily": diff_report_daily,
+                "weekly": diff_report_weekly,
+                "monthly": diff_report_monthly,
+            },
         }
 
         json_path.write_text(

@@ -1,15 +1,13 @@
 """Parser that downloads PDFs from hearing Documents tab and checks content."""
 
-import io
 import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin, urlparse, parse_qs, unquote
 
-import PyPDF2  # type: ignore
-
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface, DecayingUrlCache
+from components.extraction import DocumentExtractionService
 
 logger = logging.getLogger(__name__)
 
@@ -47,28 +45,18 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
             return ""
 
     @staticmethod
-    def _extract_pdf_text(pdf_url: str) -> Optional[str]:
-        """Extract text content from a PDF URL."""
-        try:
-            content = ParserInterface._fetch_binary(pdf_url, timeout=30)
-            # Read PDF from memory
-            pdf_file = io.BytesIO(content)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-            # Extract text from all pages
-            text_content = []
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text_content.append(page_text)
-            if text_content:
-                full_text = "\n".join(text_content)
-                return full_text
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "Could not extract text from PDF %s: %s", pdf_url, e
-            )
-            return None
-        return None
+    def _extract_pdf_text(
+        pdf_url: str,
+        cache=None,
+        config=None
+    ) -> Optional[str]:
+        """Extract text content from a PDF URL using extraction service."""
+        return DocumentExtractionService.extract_text(
+            url=pdf_url,
+            cache=cache,
+            config=config,
+            timeout=30
+        )
 
     @classmethod
     def _pdf_contains_summary_for_bill(
@@ -132,7 +120,11 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
 
     @classmethod
     def _download_hearing_pdfs(
-        cls, hearing_docs_url: str, base_url: str
+        cls,
+        hearing_docs_url: str,
+        base_url: str,
+        cache=None,
+        config=None
     ) -> list[dict]:
         """Download all PDFs from a hearing and return their content."""
         soup = cls.soup(hearing_docs_url)
@@ -165,7 +157,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
             text = pdf_info["text"]
             logger.debug("Downloading PDF: %s", title_param or text)
             # Download and parse the PDF content
-            pdf_text = cls._extract_pdf_text(pdf_url)
+            pdf_text = cls._extract_pdf_text(pdf_url, cache, config)
             if not pdf_text:
                 continue
             cached_pdfs.append({
@@ -251,7 +243,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
                 hearing_docs_url
             )
             _HEARING_PDF_CACHE[hearing_docs_url] = cls._download_hearing_pdfs(
-                hearing_docs_url, base_url  # type: ignore
+                hearing_docs_url, base_url, cache, config  # type: ignore
             )
         else:
             logger.debug("Using cached PDFs for hearing %s", hearing_docs_url)

@@ -1,16 +1,15 @@
 """A parser for DOCX files in the Committee Summary tab."""
 
-import io
 import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup  # type: ignore
-from docx import Document
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+from components.extraction import DocumentExtractionService
 
 logger = logging.getLogger(__name__)
 
@@ -28,47 +27,13 @@ class SummaryCommitteeDocxParser(ParserInterface):
         cache=None,
         config=None
     ) -> Optional[str]:
-        """Extract text content from a DOCX URL (paragraphs, tables, headers,
-        footers).
-        """
-        try:
-            content = ParserInterface._fetch_binary(
-                docx_url, timeout=30, cache=cache, config=config
-            )
-            docx_file = io.BytesIO(content)
-            doc = Document(docx_file)
-            parts = []
-            # Paragraphs
-            for p in doc.paragraphs:
-                if p.text and p.text.strip():
-                    parts.append(p.text.strip())
-            # Tables
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        if cell.text and cell.text.strip():
-                            parts.append(cell.text.strip())
-            # Headers/Footers
-            for section in doc.sections:
-                if section.header:
-                    for p in section.header.paragraphs:
-                        if p.text and p.text.strip():
-                            parts.append(p.text.strip())
-                if section.footer:
-                    for p in section.footer.paragraphs:
-                        if p.text and p.text.strip():
-                            parts.append(p.text.strip())
-            docx_file.close()
-            if parts:
-                full_text = " ".join(parts)
-                full_text = re.sub(r'\s+', ' ', full_text).strip()
-                return full_text
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "Could not extract text from DOCX %s: %s", docx_url, e
-            )
-            return None
-        return None
+        """Extract text content from a DOCX URL using extraction service."""
+        return DocumentExtractionService.extract_text(
+            url=docx_url,
+            cache=cache,
+            config=config,
+            timeout=30
+        )
 
     @staticmethod
     def _find_committee_summary_docx(
@@ -126,30 +91,8 @@ class SummaryCommitteeDocxParser(ParserInterface):
         docx_url = cls._find_committee_summary_docx(soup, base_url)
         if not docx_url:
             return None
-        docx_text = None
-        if cache and config:
-            cached_doc = cache.get_cached_document(docx_url, config)
-            if cached_doc:
-                content_hash = cached_doc.get("content_hash")
-                if content_hash:
-                    docx_text = cache.get_cached_extracted_text(
-                        content_hash, config
-                    )
-                    if docx_text:
-                        logger.debug(
-                            "Using cached extracted text for %s", docx_url
-                        )
-        if not docx_text:
-            docx_text = cls._extract_docx_text(docx_url, cache, config)
-            if docx_text and cache and config:
-                cached_doc = cache.get_cached_document(docx_url, config)
-                if cached_doc:
-                    content_hash = cached_doc.get("content_hash")
-                    if content_hash:
-                        cache.cache_extracted_text(
-                            content_hash, docx_text, config
-                        )
-                        logger.debug("Cached extracted text for %s", docx_url)
+        # Extraction service handles caching automatically
+        docx_text = cls._extract_docx_text(docx_url, cache, config)
         if docx_text:
             # Use the extracted text as preview, truncated if too long
             preview = f"Found Committee Summary DOCX for {bill.bill_id}"

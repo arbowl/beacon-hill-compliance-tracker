@@ -139,6 +139,7 @@ def write_basic_html(
             "</tr>"
         )
     ]
+    r: dict[str, str]
     for r in rows:
         sum_link = (
             f"<a href='{r['summary_url']}' target='_blank'>Yes</a>"
@@ -173,7 +174,7 @@ def write_basic_html(
             elif notice_status == 'out_of_range':
                 notice_gap = f"{gap_days} days"
                 notice_class = "bad"
-        elif r.get('notice_status') == 'missing':
+        elif r.get('notice_status', '').lower() == 'missing':
             notice_gap = "Missing"
             notice_class = "warn"
         lines.append(

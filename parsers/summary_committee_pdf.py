@@ -1,16 +1,15 @@
 """A parser for PDF files in the Committee Summary tab."""
 
-import io
 import logging
 import re
 from typing import Optional
 from urllib.parse import urljoin
 
-import PyPDF2
 from bs4 import BeautifulSoup  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+from components.extraction import DocumentExtractionService
 
 logger = logging.getLogger(__name__)
 
@@ -62,28 +61,13 @@ class SummaryCommitteePdfParser(ParserInterface):
         cache=None,
         config=None
     ) -> Optional[str]:
-        """Extract text content from a PDF URL."""
-        try:
-            content = ParserInterface._fetch_binary(
-                pdf_url, timeout=30, cache=cache, config=config
-            )
-            pdf_file = io.BytesIO(content)
-            pdf_reader = PyPDF2.PdfReader(pdf_file)
-            text_content = []
-            for page in pdf_reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text_content.append(page_text)
-            if text_content:
-                full_text = "\n".join(text_content)
-                full_text = re.sub(r'\s+', ' ', full_text).strip()
-                return full_text
-        except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "Could not extract text from PDF %s: %s", pdf_url, e
-            )
-            return None
-        return None
+        """Extract text content from a PDF URL using extraction service."""
+        return DocumentExtractionService.extract_text(
+            url=pdf_url,
+            cache=cache,
+            config=config,
+            timeout=30
+        )
 
     @classmethod
     def discover(
@@ -100,30 +84,8 @@ class SummaryCommitteePdfParser(ParserInterface):
         pdf_url = cls._find_committee_summary_pdf(soup, base_url)
         if not pdf_url:
             return None
-        pdf_text = None
-        if cache and config:
-            cached_doc = cache.get_cached_document(pdf_url, config)
-            if cached_doc:
-                content_hash = cached_doc.get("content_hash")
-                if content_hash:
-                    pdf_text = cache.get_cached_extracted_text(
-                        content_hash, config
-                    )
-                    if pdf_text:
-                        logger.debug(
-                            "Using cached extracted text for %s", pdf_url
-                        )
-        if not pdf_text:
-            pdf_text = cls._extract_pdf_text(pdf_url, cache, config)
-            if pdf_text and cache and config:
-                cached_doc = cache.get_cached_document(pdf_url, config)
-                if cached_doc:
-                    content_hash = cached_doc.get("content_hash")
-                    if content_hash:
-                        cache.cache_extracted_text(
-                            content_hash, pdf_text, config
-                        )
-                        logger.debug("Cached extracted text for %s", pdf_url)
+        # Extraction service handles caching automatically
+        pdf_text = cls._extract_pdf_text(pdf_url, cache, config)
         if pdf_text:
             preview = pdf_text[:500] + ("..." if len(pdf_text) > 500 else "")
             return ParserInterface.DiscoveryResult(
