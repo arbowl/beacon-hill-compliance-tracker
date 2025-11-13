@@ -355,6 +355,120 @@ def _fetch_binary(
     return content
 
 
+def _fetch_html(
+    url: str,
+    timeout: int = 20,
+    cache: Optional[Cache] = None,
+    config: Optional[Config] = None,
+    params: Optional[dict] = None,
+    headers: Optional[dict] = None
+) -> str:
+    """Fetch HTML content with persistent caching and deduplication.
+    
+    Similar to _fetch_binary but returns text instead of bytes.
+    Uses the document cache infrastructure for persistent storage.
+    
+    Args:
+        url: URL to fetch
+        timeout: Request timeout in seconds
+        cache: Optional cache instance for persistent storage
+        config: Optional configuration (required if cache is provided)
+        params: Optional query parameters
+        headers: Optional request headers
+        
+    Returns:
+        HTML content as string
+    """
+    # Build full URL with params for cache key
+    if params:
+        from urllib.parse import urlencode
+        full_url = f"{url}?{urlencode(params)}"
+    else:
+        full_url = url
+    
+    # Check cache first
+    if cache and config:
+        cached_content = cache.get_cached_document_content(full_url, config)
+        if cached_content:
+            logger.debug("Using cached HTML: %s", full_url)
+            try:
+                return cached_content.decode('utf-8')
+            except UnicodeDecodeError:
+                logger.warning(
+                    "Failed to decode cached HTML for %s, fetching fresh",
+                    full_url
+                )
+    
+    # Check for in-progress request (deduplication)
+    pending_request = None
+    should_fetch = False
+    with _PENDING_LOCK:
+        if full_url in _PENDING_REQUESTS:
+            pending_request = _PENDING_REQUESTS[full_url]
+            with _METRICS_LOCK:
+                _METRICS["dedup_waits"] += 1
+            logger.debug("Dedup wait: %s (another thread fetching)", full_url)
+        else:
+            pending_request = _PendingRequest(event=threading.Event())
+            _PENDING_REQUESTS[full_url] = pending_request
+            should_fetch = True
+    
+    if not should_fetch:
+        pending_request.event.wait(timeout=timeout + 5)
+        if pending_request.error:
+            raise pending_request.error
+        if pending_request.result is not None:
+            return pending_request.result
+        # If we get here, request timed out or failed
+        raise requests.RequestException(
+            f"Request for {full_url} timed out or failed"
+        )
+    
+    # Perform the fetch
+    try:
+        session = _SESSION_MANAGER.get_session()
+        logger.debug("Fetching HTML: %s", full_url)
+        response = session.get(
+            url, params=params, headers=headers, timeout=timeout
+        )
+        response.raise_for_status()
+        html_text = response.text
+        
+        # Cache the HTML content (store as bytes)
+        if cache and config and config.document_cache.enabled:
+            try:
+                cache.cache_document(
+                    url=full_url,
+                    content=html_text.encode('utf-8'),
+                    config=config,
+                    content_type=response.headers.get(
+                        "Content-Type", "text/html"
+                    ),
+                    etag=response.headers.get("ETag"),
+                    last_modified=response.headers.get("Last-Modified")
+                )
+                logger.debug("Cached HTML: %s", full_url)
+            except Exception as e:  # pylint: disable=broad-exception-caught
+                logger.warning("Failed to cache HTML %s: %s", full_url, e)
+        
+        # Store result and notify waiting threads
+        with _PENDING_LOCK:
+            if full_url in _PENDING_REQUESTS:
+                pending_request = _PENDING_REQUESTS.pop(full_url)
+                pending_request.result = html_text
+                pending_request.event.set()
+        
+        return html_text
+    except Exception as e:
+        # Store error and notify waiting threads
+        with _PENDING_LOCK:
+            if full_url in _PENDING_REQUESTS:
+                pending_request = _PENDING_REQUESTS.pop(full_url)
+                pending_request.error = e
+                pending_request.event.set()
+        raise
+
+
 def get_metrics() -> dict[str, int]:
     """Get connection pool metrics."""
     with _METRICS_LOCK:
