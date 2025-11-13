@@ -7,14 +7,14 @@ from datetime import datetime, date
 from typing import Optional, TYPE_CHECKING
 from urllib.parse import urljoin
 
-import requests  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
 from components.committees import get_committees
-from components.interfaces import ParserInterface
+from components.interfaces import ParserInterface, _fetch_html
 from components.models import ExtensionOrder, Committee
 if TYPE_CHECKING:
     from components.utils import Cache
+    from components.interfaces import Config
 
 
 def _extract_extension_date(text: str) -> Optional[date]:
@@ -210,136 +210,151 @@ def _parse_extension_order_page(
 
 
 def collect_all_extension_orders(
-    base_url: str, cache: Optional[Cache] = None
+    base_url: str,
+    cache: Optional["Cache"] = None,
+    config: Optional["Config"] = None
 ) -> list[ExtensionOrder]:
     """Collect all extension orders from the Massachusetts Legislature website.
+
+    Uses cached HTML fetching for improved performance and reduced server load.
     """
     extension_orders = []
-    with requests.Session() as s:
-        # Process only Bills search pages
-        search_types = ["Bills"]
-        for search_type in search_types:
-            print(f"Scraping {search_type} extension orders...")
-            page = 1
-            max_pages = 10  # Reduced safety limit
-            previous_first_10_links = None
-            duplicate_page_count = 0
-            while page <= max_pages:
-                # Construct URL with page parameter
-                url = f"{base_url}/Bills/Search"
-                params = {"searchTerms": "extension order", "page": page}
-                print(f"Scraping {search_type} page {page}...")
-                try:
-                    r = s.get(url, params=params, timeout=20, headers={
-                        "User-Agent": "legis-scraper/0.1"
-                    })
-                    r.raise_for_status()
-                    soup = BeautifulSoup(r.text, "html.parser")
-                    # Find all bill links on this page that might have
-                    # extension orders
-                    # We'll check each bill for extension orders
-                    bill_links = soup.find_all(
-                        "a", href=re.compile(r"/Bills/\d+/(H|S)\d+")
+    # Process only Bills search pages
+    search_types = ["Bills"]
+    for search_type in search_types:
+        print(f"Scraping {search_type} extension orders...")
+        page = 1
+        max_pages = 10  # Reduced safety limit
+        previous_first_10_links = None
+        duplicate_page_count = 0
+        while page <= max_pages:
+            # Construct URL with page parameter
+            url = f"{base_url}/Bills/Search"
+            params = {"searchTerms": "extension order", "page": page}
+            print(f"Scraping {search_type} page {page}...")
+            try:
+                # Use cached HTML fetching
+                html_text = _fetch_html(
+                    url,
+                    timeout=20,
+                    cache=cache,
+                    config=config,
+                    params=params,
+                    headers={"User-Agent": "legis-scraper/0.1"}
+                )
+                soup = BeautifulSoup(html_text, "html.parser")
+                # Find all bill links on this page that might have
+                # extension orders
+                # We'll check each bill for extension orders
+                bill_links = soup.find_all(
+                    "a", href=re.compile(r"/Bills/\d+/(H|S)\d+")
+                )
+                if not bill_links:
+                    print(
+                        f"No more bill links found on {search_type} page "
+                        f"{page}"
                     )
-                    if not bill_links:
+                    break
+                print(
+                    f"Found {len(bill_links)} total bill links on "
+                    f"{search_type} page {page}"
+                )
+                # Get the first 10 bill links for duplicate detection
+                current_first_10_links = [
+                    link.get("href", "") for link in bill_links[:10]
+                ]
+                # Check if we're getting duplicate content (first 10 links
+                # are the same)
+                if (
+                    current_first_10_links == previous_first_10_links
+                    and page > 1
+                ):
+                    duplicate_page_count += 1
+                    if duplicate_page_count >= 1:
                         print(
-                            f"No more bill links found on {search_type} page "
-                            f"{page}"
+                            f"Detected duplicate content on {search_type} "
+                            f"page {page} (first 10 entries match), "
+                            f"stopping pagination"
                         )
                         break
-                    print(
-                        f"Found {len(bill_links)} total bill links on "
-                        f"{search_type} page {page}"
-                    )
-                    # Get the first 10 bill links for duplicate detection
-                    current_first_10_links = [
-                        link.get("href", "") for link in bill_links[:10]
-                    ]
-                    # Check if we're getting duplicate content (first 10 links
-                    # are the same)
-                    if (
-                        current_first_10_links == previous_first_10_links
-                        and page > 1
-                    ):
-                        duplicate_page_count += 1
-                        if duplicate_page_count >= 1:
-                            print(
-                                f"Detected duplicate content on {search_type} "
-                                f"page {page} (first 10 entries match), "
-                                f"stopping pagination"
-                            )
-                            break
+                else:
+                    duplicate_page_count = 0
+                previous_first_10_links = current_first_10_links
+                for link in bill_links:
+                    if hasattr(link, 'get'):
+                        href = link.get("href", "")
                     else:
-                        duplicate_page_count = 0
-                    previous_first_10_links = current_first_10_links
-                    for link in bill_links:
-                        if hasattr(link, 'get'):
-                            href = link.get("href", "")
+                        href = ""
+                    if not href:
+                        continue
+                    bill_url = urljoin(base_url, href)
+                    # Extract bill ID from URL to determine chamber
+                    bill_match = re.search(r"/Bills/\d+/([HS]\d+)", href)
+                    if not bill_match:
+                        continue
+                    bill_id = bill_match.group(1)
+                    chamber = (
+                        "House" if bill_id.startswith("H") else "Senate"
+                    )
+                    # Construct the Order/Text URL
+                    order_url = f"{bill_url}/{chamber}/Order/Text"
+                    # Check if this extension order exists by trying to
+                    # fetch it (use cached fetching)
+                    try:
+                        # Try to fetch a small portion to check existence
+                        # We'll use _fetch_html which will cache the result
+                        # but we only need to check if it exists
+                        _fetch_html(
+                            order_url,
+                            timeout=10,
+                            cache=cache,
+                            config=config
+                        )
+                    # pylint: disable=broad-exception-caught
+                    except Exception:
+                        # If fetch fails, the extension order doesn't exist
+                        continue
+                    # Parse the extension order page
+                    order_results = _parse_extension_order_page(
+                        base_url, order_url
+                    )
+                    for extension_order in order_results:
+                        extension_orders.append(extension_order)
+                        if extension_order.is_fallback:
+                            print(
+                                f"Found fallback extension order: "
+                                f"{extension_order.bill_id} -> "
+                                f"{extension_order.extension_date}"
+                            )
                         else:
-                            href = ""
-                        if not href:
-                            continue
-                        bill_url = urljoin(base_url, href)
-                        # Extract bill ID from URL to determine chamber
-                        bill_match = re.search(r"/Bills/\d+/([HS]\d+)", href)
-                        if not bill_match:
-                            continue
-                        bill_id = bill_match.group(1)
-                        chamber = (
-                            "House" if bill_id.startswith("H") else "Senate"
-                        )
-                        # Construct the Order/Text URL
-                        order_url = f"{bill_url}/{chamber}/Order/Text"
-                        # Check if this extension order exists by trying to
-                        # fetch it
-                        try:
-                            test_response = s.head(order_url, timeout=10)
-                            if test_response.status_code != 200:
-                                continue
-                        # pylint: disable=broad-exception-caught
-                        except Exception:
-                            continue
-                        # Parse the extension order page
-                        order_results = _parse_extension_order_page(
-                            base_url, order_url
-                        )
-                        for extension_order in order_results:
-                            extension_orders.append(extension_order)
+                            print(
+                                f"Found extension order: "
+                                f"{extension_order.bill_id} -> "
+                                f"{extension_order.extension_date}"
+                            )
+                        # Cache the extension immediately if cache is
+                        # provided for non-fallback cases
+                        if cache:
+                            cache.set_extension(
+                                extension_order.bill_id,
+                                extension_order.extension_date.isoformat(),
+                                extension_order.extension_order_url
+                            )
+                            print(
+                                f"  Cached extension for "
+                                f"{extension_order.bill_id}"
+                            )
+                            # For fallback cases, also add the bill to
+                            # cache with extensions field
                             if extension_order.is_fallback:
-                                print(
-                                    f"Found fallback extension order: "
-                                    f"{extension_order.bill_id} -> "
-                                    f"{extension_order.extension_date}"
+                                cache.add_bill_with_extensions(
+                                    extension_order.bill_id
                                 )
-                            else:
-                                print(
-                                    f"Found extension order: "
-                                    f"{extension_order.bill_id} -> "
-                                    f"{extension_order.extension_date}"
-                                )
-                            # Cache the extension immediately if cache is
-                            # provided for non-fallback cases
-                            if cache:
-                                cache.set_extension(
-                                    extension_order.bill_id,
-                                    extension_order.extension_date.isoformat(),
-                                    extension_order.extension_order_url
-                                )
-                                print(
-                                    f"  Cached extension for "
-                                    f"{extension_order.bill_id}"
-                                )
-                                # For fallback cases, also add the bill to
-                                # cache with extensions field
-                                if extension_order.is_fallback:
-                                    cache.add_bill_with_extensions(
-                                        extension_order.bill_id
-                                    )
-                    page += 1
-                # pylint: disable=broad-exception-caught
-                except Exception as e:
-                    print(f"Error processing {search_type} page {page}: {e}")
-                    break
+                page += 1
+            # pylint: disable=broad-exception-caught
+            except Exception as e:
+                print(f"Error processing {search_type} page {page}: {e}")
+                break
     print(f"Collected {len(extension_orders)} extension orders total")
     return extension_orders
 
