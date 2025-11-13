@@ -10,9 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Caching for documentation to preserve historical Legislature records
 - Legislative session tracking; will automatically reset for the 195th session and archive the 194th session data.
+- Now tracking Senate with included Senate rules.
 
 ### Changed
 - Tightened summary detection rules out of an abundance of caution (no change in compliance recorded)
+
+### Fixed
+- All bills in Joint Committees, regardless of chamber of origin, are evaluated solely under Joint Rule 10 (first Wednesday of December in the second year of the session). Previously, some bills were being flagged by origin, rather than committee.
 
 
 ## [1.1.5] - 2025-11-12

@@ -1,5 +1,6 @@
 """Utility functions for the Massachusetts Legislature website."""
 
+from collections import defaultdict
 from datetime import date, timedelta, datetime, timezone
 from enum import IntEnum
 import hashlib
@@ -24,6 +25,10 @@ logger = logging.getLogger(__name__)
 
 
 _DEFAULT_PATH = Path("cache/cache.json")
+SESSION_WEDNESDAY_DEADLINES: defaultdict[Optional[str], date] = defaultdict(
+    lambda: date(2026, 12, 2)
+)
+SESSION_WEDNESDAY_DEADLINES["194"] = date(2026, 12, 2)
 
 
 def extract_session_from_bill_url(bill_url: str) -> Optional[str]:
@@ -811,67 +816,42 @@ class Cache:
             return stats
 
 
-def get_next_first_wednesday_december(from_date: date) -> date:
-    """Get the next first Wednesday in December from a given date.
-
-    For Senate bills: Joint Rule 10 requires reports by the first
-    Wednesday in December of the first annual session.
-
-    Args:
-        from_date: Reference date (typically the hearing date)
-
-    Returns:
-        The next first Wednesday in December (may be in current or next year)
-    """
-    # Start with December 1st of the current year
-    year = from_date.year
-    dec_first = date(year, 12, 1)
-
-    # Find the first Wednesday (weekday 2 is Wednesday, 0=Monday)
-    days_until_wednesday = (2 - dec_first.weekday()) % 7
-    first_wednesday = dec_first + timedelta(days=days_until_wednesday)
-
-    # If that date has already passed, go to next year's December
-    if first_wednesday < from_date:
-        dec_first_next = date(year + 1, 12, 1)
-        days_until_wednesday = (2 - dec_first_next.weekday()) % 7
-        first_wednesday = dec_first_next + timedelta(days=days_until_wednesday)
-
-    return first_wednesday
-
-
 def compute_deadlines(
     hearing_date: Optional[date],
     extension_until: Optional[date] = None,
-    bill_id: Optional[str] = None
+    committee_id: Optional[str] = None,
+    session: Optional[str] = None
 ) -> tuple[Optional[date], Optional[date], Optional[date]]:
     """Return (deadline_60, deadline_90, effective_deadline).
 
     Args:
         hearing_date: Date of the hearing (None if no hearing scheduled)
         extension_until: Optional extension date
-        bill_id: Bill identifier (e.g., "H73", "S197") - used to determine
-                 if Senate bill rules apply
+        committee_id: Committee identifier (e.g., "H10", "J10", "S10") - used
+                      to determine which deadline rules apply
+        session: Optional session number (e.g., "194") - used to look up
+                 session-specific Wednesday deadlines
 
     Returns:
         Tuple of (deadline_60, deadline_90, effective_deadline)
         Returns (None, None, None) if no hearing_date provided
 
     Rules:
-        - House bills: 60 days from hearing + optional 30-day extension
-          (90 max)
-        - Senate bills: First Wednesday in December + optional 30-day
-          extension
+        - House committees (start with "H"): 60 days from hearing + optional
+          30-day extension (90 max)
+        - Joint and Senate committees (start with "J" or "S"): First Wednesday
+          in December + optional 30-day extension
     """
     if hearing_date is None:
         return None, None, None
-    is_senate_bill = bill_id and bill_id.upper().startswith('S')
-    if is_senate_bill:
-        d60 = get_next_first_wednesday_december(hearing_date)
-        d90 = d60 + timedelta(days=30)
-    else:
+    is_house_committee = committee_id and committee_id.upper().startswith('H')
+    if is_house_committee:
         d60 = hearing_date + timedelta(days=60)
         d90 = hearing_date + timedelta(days=90)
+    else:
+        # Joint and Senate committees use session-specific Wednesday deadline
+        d60 = SESSION_WEDNESDAY_DEADLINES[session]
+        d90 = d60 + timedelta(days=30)
     if not extension_until:
         return d60, d90, d60
     effective = min(extension_until, d90)

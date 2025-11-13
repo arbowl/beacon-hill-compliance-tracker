@@ -1,6 +1,6 @@
 base_url: "https://malegislature.gov"
 collect_input: true  # Whether to let the user select committees
-include_chambers: ["House", "Joint"]
+include_chambers: ["House", "Joint", "Senate"]
 runner:
   committee_ids: ["J10"]  # list of committee IDs, or ["all"] for all committees
   limit_hearings: 999       # keep small for fast tests; increase later

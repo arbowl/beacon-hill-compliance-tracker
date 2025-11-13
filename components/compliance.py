@@ -62,10 +62,7 @@ def classify(
     - Notice missing + no other evidence → UNKNOWN
     - Notice missing + any other evidence → NON-COMPLIANT
     - Notice ≥ 10 days → proceed with normal compliance logic
-
-    Normal compliance logic:
-    - Senate bills: only check summaries and votes (no deadline enforcement)
-    - House bills: check reported-out, summaries, votes within deadlines
+    - Check votes, summaries, and reported-out within deadlines
     """
     if status.hearing_date is None:
         return BillCompliance(
