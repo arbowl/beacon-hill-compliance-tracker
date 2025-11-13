@@ -25,6 +25,7 @@ from components.utils import (
     load_previous_committee_json,
     generate_diff_report,
     TimeInterval,
+    extract_session_from_bill_url,
 )
 from components.templates import (
     generate_deterministic_analysis,
@@ -300,6 +301,19 @@ def run_basic_compliance(
     if not rows:
         logger.warning("No bills found")
         return
+    # Extract session from first bill URL and ensure cache is set correctly
+    session = None
+    for row in rows:
+        if row.bill_url:
+            session = extract_session_from_bill_url(row.bill_url)
+            if session:
+                cache.ensure_session(session)
+                logger.info("Detected session: %s", session)
+                break
+    if not session:
+        logger.warning("Could not extract session from bill URLs")
+        # Try to get session from cache if available
+        session = cache.get_session()
     logger.info("Processing %d total bills...", len(rows))
     logger.info("  - %d with hearings", len(hearing_bills))
     logger.info("  - %d without hearings", len(non_hearing_bills))
@@ -406,58 +420,81 @@ def run_basic_compliance(
         outdir = get_date_output_dir()
         json_path = outdir / f"basic_{committee.id}.json"
         html_path = outdir / f"basic_{committee.id}.html"
-
         # Generate diff reports by comparing with previous scans
         boston_tz = ZoneInfo("US/Eastern")
         current_date = datetime.now(boston_tz).date()
-        
         # Daily diff report
         previous_bills_daily, previous_date_daily = load_previous_committee_json(
             committee.id, days_ago=TimeInterval.DAILY
         )
         diff_report_daily = None
-        if previous_bills_daily is not None and previous_date_daily is not None:
+        if (
+            previous_bills_daily is not None and
+            previous_date_daily is not None
+        ):
             diff_report_daily = generate_diff_report(
-                results, previous_bills_daily, current_date, previous_date_daily
+                results,
+                previous_bills_daily,
+                current_date,
+                previous_date_daily
             )
             if diff_report_daily is not None:
                 analysis_daily = generate_deterministic_analysis(
-                    diff_report_daily, results, previous_bills_daily, committee.name
+                    diff_report_daily,
+                    results,
+                    previous_bills_daily,
+                    committee.name
                 )
                 diff_report_daily["analysis"] = analysis_daily
-        
         # Weekly diff report
         previous_bills_weekly, previous_date_weekly = load_previous_committee_json(
             committee.id, days_ago=TimeInterval.WEEKLY
         )
         diff_report_weekly = None
-        if previous_bills_weekly is not None and previous_date_weekly is not None:
+        if (
+            previous_bills_weekly is not None and
+            previous_date_weekly is not None
+        ):
             diff_report_weekly = generate_diff_report(
-                results, previous_bills_weekly, current_date, previous_date_weekly
+                results,
+                previous_bills_weekly,
+                current_date,
+                previous_date_weekly
             )
             if diff_report_weekly is not None:
                 analysis_weekly = generate_deterministic_analysis(
-                    diff_report_weekly, results, previous_bills_weekly, committee.name
+                    diff_report_weekly,
+                    results,
+                    previous_bills_weekly,
+                    committee.name
                 )
                 diff_report_weekly["analysis"] = analysis_weekly
-        
         # Monthly diff report
         previous_bills_monthly, previous_date_monthly = load_previous_committee_json(
             committee.id, days_ago=TimeInterval.MONTHLY
         )
         diff_report_monthly = None
-        if previous_bills_monthly is not None and previous_date_monthly is not None:
+        if (
+            previous_bills_monthly is not None and
+            previous_date_monthly is not None
+        ):
             diff_report_monthly = generate_diff_report(
-                results, previous_bills_monthly, current_date, previous_date_monthly
+                results,
+                previous_bills_monthly,
+                current_date,
+                previous_date_monthly
             )
             if diff_report_monthly is not None:
                 analysis_monthly = generate_deterministic_analysis(
-                    diff_report_monthly, results, previous_bills_monthly, committee.name
+                    diff_report_monthly,
+                    results,
+                    previous_bills_monthly,
+                    committee.name
                 )
                 diff_report_monthly["analysis"] = analysis_monthly
-
         # Create output structure with bills and diff_reports
         output_data = {
+            "session": session if session else None,
             "bills": results,
             "diff_reports": {
                 "daily": diff_report_daily,
@@ -465,7 +502,6 @@ def run_basic_compliance(
                 "monthly": diff_report_monthly,
             },
         }
-
         json_path.write_text(
             json.dumps(output_data, indent=2), encoding="utf-8"
         )

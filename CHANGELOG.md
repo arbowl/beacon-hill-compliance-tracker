@@ -5,6 +5,16 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.6] - 2025-11-13
+
+### Added
+- Caching for documentation to preserve historical Legislature records
+- Legislative session tracking; will automatically reset for the 195th session and archive the 194th session data.
+
+### Changed
+- Tightened summary detection rules out of an abundance of caution (no change in compliance recorded)
+
+
 ## [1.1.5] - 2025-11-12
 
 ### Fixed
@@ -85,5 +95,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Implemented document content hashing for cache validation
 - Added secure configuration management via YAML
+
 
 

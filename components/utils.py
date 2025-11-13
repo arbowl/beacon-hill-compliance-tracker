@@ -26,6 +26,21 @@ logger = logging.getLogger(__name__)
 _DEFAULT_PATH = Path("cache/cache.json")
 
 
+def extract_session_from_bill_url(bill_url: str) -> Optional[str]:
+    """Extract session number from a bill URL.
+
+    Args:
+        bill_url: URL like "https://malegislature.gov/Bills/194/H73"
+
+    Returns:
+        Session number as string (e.g., "194") or None if not found
+    """
+    match = re.search(r"/Bills/(\d+)/(?:H|S)\d+", bill_url, re.I)
+    if match:
+        return match.group(1)
+    return None
+
+
 class TimeInterval(IntEnum):
     """Time intervals for compliance delta calculations."""
     DAILY = 1
@@ -83,6 +98,68 @@ class Cache:
         self.path.write_text(
             json.dumps(self.data, separators=(',', ':')), encoding="utf-8"
         )
+
+    def get_session(self) -> Optional[str]:
+        """Get the current session from cache.
+
+        Returns:
+            Session number as string (e.g., "194") or None if not set
+        """
+        return self.data.get("session")
+
+    def _archive_cache(self, session: str) -> None:
+        """Archive the current cache to cache/archive/<session>/cache.json.
+
+        Args:
+            session: The session ID to archive
+        """
+        archive_dir = self.path.parent / "archive" / session
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        archive_path = archive_dir / "cache.json"
+
+        # Write current cache data to archive
+        archive_path.write_text(
+            json.dumps(self.data, separators=(',', ':')), encoding="utf-8"
+        )
+        logger.info(
+            "Archived cache from session %s to %s", session, archive_path
+        )
+
+    def ensure_session(self, current_session: str) -> None:
+        """Ensure cache is set to the current session, archiving if needed.
+
+        If the cache has a different session, it will be archived and a fresh
+        cache will be started. If no session is set, it will be set to the
+        current session.
+
+        Args:
+            current_session: The current session number (e.g., "194")
+        """
+        with self._lock:
+            stored_session = self.data.get("session")
+
+            if stored_session is None:
+                # No session set yet - set it to current session
+                self.data["session"] = current_session
+                self.save()
+                logger.info("Set cache session to %s", current_session)
+            elif stored_session != current_session:
+                # Session mismatch - archive old cache and start fresh
+                logger.info(
+                    "Session mismatch detected: cache has %s, current is %s. "
+                    "Archiving old cache.",
+                    stored_session, current_session
+                )
+                self._archive_cache(stored_session)
+
+                # Start fresh cache with new session
+                self.data = {"session": current_session}
+                self._committee_bills_cache = {}
+                self.save()
+                logger.info(
+                    "Started fresh cache for session %s", current_session
+                )
+            # If sessions match, do nothing
 
     def get_parser(self, bill_id: str, kind: str) -> Optional[str]:
         """Return cached module name (or None). Handles old string entries
