@@ -80,10 +80,13 @@ def classify(
         )
     today = date.today()
 
-    # First, check notice compliance (applies to all bills)
+    # First, check notice compliance (applies to all except Senate committees)
     notice_status, gap_days = compute_notice_status(status, min_notice_days)
     effective_reported_out = status.reported_out or votes.present
 
+    # Senate committees have no hearing notice requirement
+    is_senate_committee = committee_id and committee_id.upper().startswith('S')
+    is_house_committee = committee_id and committee_id.upper().startswith('H')
     # Generate appropriate notice description for reason strings
     if notice_status == NoticeStatus.IN_RANGE and gap_days is not None:
         # Check if this is due to exemption or actual compliance
@@ -98,8 +101,12 @@ def classify(
             notice_desc = f"adequate notice ({gap_days} days)"
     else:
         notice_desc = ""  # Not used for missing/out of range cases
-    # Deal-breaker: insufficient notice
-    if notice_status == NoticeStatus.OUT_OF_RANGE:
+    # Deal-breaker: insufficient notice (does not apply to Senate committees)
+    if notice_status == (
+        NoticeStatus.OUT_OF_RANGE
+        and not is_senate_committee
+        and not is_house_committee
+    ):
         return BillCompliance(
             bill_id=bill_id,
             committee_id=committee_id,
@@ -137,8 +144,8 @@ def classify(
             reason=reason,
         )
 
-    # Handle missing notice cases
-    if notice_status == NoticeStatus.MISSING:
+    # Handle missing notice cases (does not apply to Senate committees)
+    if notice_status == NoticeStatus.MISSING and not is_senate_committee:
         # If there's no evidence at all, this is unknown; otherwise
         # non-compliant
         if present_count == 0:
