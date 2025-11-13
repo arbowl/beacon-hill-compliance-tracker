@@ -290,7 +290,7 @@ def runner_loop(config: Config, cache: Cache) -> None:
         if check_extensions:
             print("Collecting all extension orders...")
             all_extension_orders = collect_all_extension_orders(
-                config.base_url, cache
+                config.base_url, cache, config
             )
             print(f"Found {len(all_extension_orders)} total extension orders")
             for eo in all_extension_orders:
