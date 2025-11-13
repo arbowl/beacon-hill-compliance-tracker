@@ -14,7 +14,7 @@ from components.models import Committee
 LISTING_PATHS: dict[str, str] = {
     "Joint": "/Committees/Joint",
     "House": "/Committees/House",
-    # "Senate": "/Committees/Senate",  # intentionally unused
+    "Senate": "/Committees/Senate",
 }
 
 # Matches both styles we see on the site:
@@ -43,8 +43,6 @@ def _extract_from_listing(
         if not m:
             continue
         cid: str = m.group(1).upper()
-        if cid[0] == "S":
-            continue
         if cid in seen:
             continue
         seen.add(cid)
