@@ -10,7 +10,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup  # type: ignore
 
 from components.committees import get_committees
-from components.interfaces import ParserInterface, _fetch_html
+from components.interfaces import _fetch_html
 from components.models import ExtensionOrder, Committee
 if TYPE_CHECKING:
     from components.utils import Cache
@@ -143,13 +143,33 @@ def _extract_bill_numbers_from_text(text: str) -> list[str]:
 
 
 def _parse_extension_order_page(
-    _base_url: str, order_url: str
+    _base_url: str, order_url: str, html_text: Optional[str] = None,
+    cache: Optional["Cache"] = None, config: Optional["Config"] = None
 ) -> list[ExtensionOrder]:
     """Parse a single extension order page to extract details for all bills
     mentioned.
+
+    Args:
+        _base_url: Base URL for the legislature website
+        order_url: URL of the extension order page
+        html_text: Optional pre-fetched HTML text (avoids re-fetching)
+        cache: Optional cache instance for persistent storage
+        config: Optional configuration (required if cache is provided)
     """
     try:
-        soup = ParserInterface.soup(order_url)
+        # Use provided HTML text if available, otherwise fetch with cache
+        if html_text is None:
+            if cache and config:
+                html_text = _fetch_html(
+                    order_url,
+                    timeout=10,
+                    cache=cache,
+                    config=config
+                )
+            else:
+                # Fallback to non-cached fetch if no cache provided
+                html_text = _fetch_html(order_url, timeout=10)
+        soup = BeautifulSoup(html_text, "html.parser")
         text = soup.get_text(" ", strip=True)
         # Extract extension date
         extension_date = _extract_extension_date(text)
@@ -301,10 +321,8 @@ def collect_all_extension_orders(
                     # Check if this extension order exists by trying to
                     # fetch it (use cached fetching)
                     try:
-                        # Try to fetch a small portion to check existence
-                        # We'll use _fetch_html which will cache the result
-                        # but we only need to check if it exists
-                        _fetch_html(
+                        # Fetch the HTML once - it will be cached and reused
+                        html_text = _fetch_html(
                             order_url,
                             timeout=10,
                             cache=cache,
@@ -314,9 +332,12 @@ def collect_all_extension_orders(
                     except Exception:
                         # If fetch fails, the extension order doesn't exist
                         continue
-                    # Parse the extension order page
+                    # Parse the extension order page using the fetched HTML
+                    # This avoids double-fetching and ensures persistent
+                    # caching
                     order_results = _parse_extension_order_page(
-                        base_url, order_url
+                        base_url, order_url, html_text=html_text,
+                        cache=cache, config=config
                     )
                     for extension_order in order_results:
                         extension_orders.append(extension_order)
