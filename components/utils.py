@@ -819,7 +819,7 @@ class Cache:
 def compute_deadlines(
     hearing_date: Optional[date],
     extension_until: Optional[date] = None,
-    committee_id: Optional[str] = None,
+    bill_id: Optional[str] = None,
     session: Optional[str] = None
 ) -> tuple[Optional[date], Optional[date], Optional[date]]:
     """Return (deadline_60, deadline_90, effective_deadline).
@@ -827,8 +827,8 @@ def compute_deadlines(
     Args:
         hearing_date: Date of the hearing (None if no hearing scheduled)
         extension_until: Optional extension date
-        committee_id: Committee identifier (e.g., "H10", "J10", "S10") - used
-                      to determine which deadline rules apply
+        bill_id: Bill identifier (e.g., "H73", "S197") - used to determine
+                 if Senate bill rules apply
         session: Optional session number (e.g., "194") - used to look up
                  session-specific Wednesday deadlines
 
@@ -837,19 +837,19 @@ def compute_deadlines(
         Returns (None, None, None) if no hearing_date provided
 
     Rules:
-        - House committees (start with "H"): 60 days from hearing + optional
-          30-day extension (90 max)
-        - Joint and Senate committees (start with "J" or "S"): First Wednesday
-          in December + optional 30-day extension
+        - House bills: 60 days from hearing + optional 30-day extension
+          (90 max)
+        - Senate bills: First Wednesday in December + optional 30-day
+          extension
     """
     if hearing_date is None:
         return None, None, None
-    is_house_committee = committee_id and committee_id.upper().startswith('H')
-    if is_house_committee:
+    is_house_bill = bill_id and bill_id.upper().startswith('H')
+    if is_house_bill:
         d60 = hearing_date + timedelta(days=60)
         d90 = hearing_date + timedelta(days=90)
     else:
-        # Joint and Senate committees use session-specific Wednesday deadline
+        # Senate bills use session-specific Wednesday deadline
         d60 = SESSION_WEDNESDAY_DEADLINES[session]
         d90 = d60 + timedelta(days=30)
     if not extension_until:

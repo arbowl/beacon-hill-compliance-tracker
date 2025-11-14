@@ -7,7 +7,9 @@ from datetime import datetime, date
 from typing import Optional
 
 from components.models import BillAtHearing, BillStatus
-from components.utils import Cache, compute_deadlines
+from components.utils import (
+    Cache, compute_deadlines, extract_session_from_bill_url
+)
 from components.interfaces import ParserInterface
 
 # Common phrases on bill history when a committee moves a bill
@@ -190,8 +192,13 @@ def build_status_row(
     _base_url: str, row: BillAtHearing, cache: Cache, extension_until=None
 ) -> BillStatus:
     """Build the status row."""
+    # Extract session from bill_url if available
+    session = (
+        extract_session_from_bill_url(row.bill_url)
+        if row.bill_url else None
+    )
     d60, d90, effective = compute_deadlines(
-        row.hearing_date, extension_until, row.bill_id
+        row.hearing_date, extension_until, row.bill_id, session
     )
     # Try to get hearing announcement from cache first
     cached_announcement = cache.get_hearing_announcement(row.bill_id)

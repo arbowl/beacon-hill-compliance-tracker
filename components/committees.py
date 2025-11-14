@@ -22,7 +22,7 @@ LISTING_PATHS: dict[str, str] = {
 # (Some internal links may also look like /Committees/Joint/J14; the
 # detail pages resolve to /Committees/Detail/J14. We normalize to Detail/)
 DETAIL_HREF_RE: re.Pattern = re.compile(
-    r"/Committees/(?:Detail|Joint|House|Senate)/([JHS]\d+)", re.I
+    r"/Committees/(?:Detail|Joint|House)/([JH]\d+)", re.I
 )
 
 
@@ -57,7 +57,7 @@ def get_committees(
     include_chambers: tuple[str, ...]
 ) -> list[Committee]:
     """
-    Return all committees for the specified chambers (Joint/House only).
+    Return all committees for the specified chambers (Joint/House/Senate).
     Cached to avoid redundant network calls (use tuple for hashability).
     """
     committees: list[Committee] = []
@@ -73,5 +73,3 @@ def get_committees(
     # Stable sort: Joint then House, by name, then id.
     committees.sort(key=lambda c: (c.chamber, c.name, c.id))
     return committees
-
-

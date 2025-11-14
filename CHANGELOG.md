@@ -15,9 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Tightened summary detection rules out of an abundance of caution (no change in compliance recorded)
 
-### Fixed
-- All bills in Joint Committees, regardless of chamber of origin, are evaluated solely under Joint Rule 10 (first Wednesday of December in the second year of the session). Previously, some bills were being flagged by origin, rather than committee.
-
 
 ## [1.1.5] - 2025-11-12
 

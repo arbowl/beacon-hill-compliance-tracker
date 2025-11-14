@@ -31,9 +31,9 @@ class ComplianceState:
 class Committee:
     """A committee in the Massachusetts Legislature."""
 
-    id: str        # e.g., "J33", "H33"
+    id: str        # e.g., "J33", "H33", "S33"
     name: str      # visible title on the site
-    chamber: str   # "Joint" or "House"
+    chamber: str   # "Joint", "House", or "Senate"
     url: str       # absolute detail URL
 
 

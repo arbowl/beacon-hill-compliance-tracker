@@ -11,6 +11,11 @@ from components.models import SummaryInfo, VoteInfo, BillStatus
 # before this date. Any hearing announced PRIOR to this date is
 # automatically compliant with notice requirements.
 NOTICE_REQUIREMENT_START_DATE: date = date(2025, 6, 26)
+ADVANCE_NOTICE_REQ: dict[str, int] = {
+    "H": 0,
+    "J": 10,
+    "S": 5,
+}
 
 
 class ComplianceState(str, Enum):
@@ -54,7 +59,6 @@ def classify(
     status: BillStatus,
     summary: SummaryInfo,
     votes: VoteInfo,
-    min_notice_days: int = 10,
 ) -> BillCompliance:
     """
     Business rules with hearing notice requirements:
@@ -81,11 +85,8 @@ def classify(
     today = date.today()
 
     # First, check notice compliance (applies to all except Senate committees)
-    notice_status, gap_days = compute_notice_status(status, min_notice_days)
+    notice_status, gap_days = compute_notice_status(status)
     effective_reported_out = status.reported_out or votes.present
-
-    # Senate committees have no hearing notice requirement
-    is_senate_committee = committee_id and committee_id.upper().startswith('S')
     is_house_committee = committee_id and committee_id.upper().startswith('H')
     # Generate appropriate notice description for reason strings
     if notice_status == NoticeStatus.IN_RANGE and gap_days is not None:
@@ -101,12 +102,10 @@ def classify(
             notice_desc = f"adequate notice ({gap_days} days)"
     else:
         notice_desc = ""  # Not used for missing/out of range cases
-    # Deal-breaker: insufficient notice (does not apply to Senate committees)
-    if notice_status == (
-        NoticeStatus.OUT_OF_RANGE
-        and not is_senate_committee
-        and not is_house_committee
-    ):
+    # Deal-breaker: insufficient notice (does not apply to House committees)
+    if notice_status == NoticeStatus.OUT_OF_RANGE and not is_house_committee:
+        committee_prefix = committee_id[0].upper() if committee_id else "J"
+        min_notice_days = ADVANCE_NOTICE_REQ.get(committee_prefix, 10)
         return BillCompliance(
             bill_id=bill_id,
             committee_id=committee_id,
@@ -145,7 +144,7 @@ def classify(
         )
 
     # Handle missing notice cases (does not apply to Senate committees)
-    if notice_status == NoticeStatus.MISSING and not is_senate_committee:
+    if notice_status == NoticeStatus.MISSING:
         # If there's no evidence at all, this is unknown; otherwise
         # non-compliant
         if present_count == 0:
@@ -211,13 +210,12 @@ def classify(
 
 
 def compute_notice_status(
-    status: BillStatus, min_notice_days: int = 10
+    status: BillStatus
 ) -> tuple[NoticeStatus, Optional[int]]:
     """Compute notice status and gap days for a bill.
 
     Args:
         status: BillStatus containing announcement and hearing dates
-        min_notice_days: Minimum required notice days (default 10)
 
     Returns:
         Tuple of (NoticeStatus, gap_days) where gap_days is None if missing
@@ -233,6 +231,10 @@ def compute_notice_status(
     ).days
     if status.announcement_date < NOTICE_REQUIREMENT_START_DATE:
         return NoticeStatus.IN_RANGE, gap_days
+    committee_prefix = (
+        status.committee_id[0].upper() if status.committee_id else "J"
+    )
+    min_notice_days = ADVANCE_NOTICE_REQ.get(committee_prefix, 10)
     if gap_days >= min_notice_days:
         return NoticeStatus.IN_RANGE, gap_days
     return NoticeStatus.OUT_OF_RANGE, gap_days
