@@ -61,7 +61,7 @@ def _extract_committee_from_text(
     ]
     committees: list[Committee] = get_committees(
         base_url,
-        ["House", "Joint"]
+        ("House", "Joint", "Senate")
     )
     committee_mapping = {
         committee.name: committee.id for committee in committees
