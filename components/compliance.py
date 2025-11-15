@@ -184,18 +184,94 @@ def classify(
             reason=(f"Before deadline, {notice_desc}"),
         )
 
-    if present_count == 2:
+    # After deadline: check if reported out by the deadline
+    reported_on_time = False
+    reported_late = False
+    if status.effective_deadline:
+        if status.reported_date:
+            if status.reported_date <= status.effective_deadline:
+                reported_on_time = True
+            else:
+                reported_late = True
+
+    # Adjust reported_out flag based on deadline compliance
+    # For deadline compliance, we need to verify timeliness:
+    # - If reported on time (reported_date <= deadline), it counts
+    # - If reported late (reported_date > deadline), it doesn't count
+    # - If no reported_date, we can't verify timeliness, so it doesn't count
+    #   for deadline purposes (even if reported_out flag is True)
+    if reported_on_time:
+        effective_reported_out_for_count = True
+    elif reported_late:
+        effective_reported_out_for_count = False
+    else:
+        # No reported_date - can't verify timeliness, so don't count for deadline
+        effective_reported_out_for_count = False
+
+    # Recalculate present_count with deadline-aware reported_out
+    present_count_with_deadline = sum([
+        effective_reported_out_for_count,
+        votes_present,
+        summary_present
+    ])
+
+    if present_count_with_deadline == 3:
+        reason = (
+            "All requirements met: "
+            "reported out, votes posted, summaries posted"
+        )
+        if reported_on_time:
+            reason += f" (reported on {status.reported_date}, within deadline {status.effective_deadline})"
+        if notice_desc:
+            reason = f"{reason}, {notice_desc}"
+        return BillCompliance(
+            bill_id=bill_id,
+            committee_id=committee_id,
+            hearing_date=status.hearing_date,
+            summary=summary,
+            votes=votes,
+            status=status,
+            state=ComplianceState.COMPLIANT,
+            reason=reason,
+        )
+
+    if present_count_with_deadline == 2:
         missing = _get_missing_requirements(
-            reported_out, votes_present, summary_present
+            effective_reported_out_for_count, votes_present, summary_present
         )
         state = ComplianceState.INCOMPLETE
         reason = f"One requirement missing: {missing}, {notice_desc}"
+        if reported_late:
+            reason = (
+                f"Reported out late ({status.reported_date} after deadline "
+                f"{status.effective_deadline}), {missing}, {notice_desc}"
+            )
+        elif status.effective_deadline and reported_out and not status.reported_date:
+            reason = (
+                f"Reported out but date unknown (cannot verify deadline "
+                f"compliance), {missing}, {notice_desc}"
+            )
     else:
         missing = _get_missing_requirements(
-            reported_out, votes_present, summary_present
+            effective_reported_out_for_count, votes_present, summary_present
         )
         state = ComplianceState.NON_COMPLIANT
         reason = f"Factors: {missing}, {notice_desc}"
+        if reported_late:
+            reason = (
+                f"Reported out late ({status.reported_date} after deadline "
+                f"{status.effective_deadline}), {missing}, {notice_desc}"
+            )
+        elif status.effective_deadline and reported_out and not status.reported_date:
+            reason = (
+                f"Reported out but date unknown (cannot verify deadline "
+                f"compliance), {missing}, {notice_desc}"
+            )
+        elif status.effective_deadline and not reported_out:
+            reason = (
+                f"Deadline passed ({status.effective_deadline}) without "
+                f"reporting out, {missing}, {notice_desc}"
+            )
 
     return BillCompliance(
         bill_id=bill_id,
