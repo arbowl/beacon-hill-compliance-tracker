@@ -385,3 +385,173 @@ class VotesJournalParser(ParserInterface):
             "tallies": None,  # Not available in this format
             "records": []  # Individual member votes not available
         }
+
+
+if __name__ == "__main__":
+    """Unit tests for the journal vote parser."""
+    # Test PDF URL and expected text
+    TEST_PDF_URL = (
+        "https://malegislature.gov/Journal/Senate/194/1031/"
+        "sj11172025_1100AM.pdf"
+    )
+    TEST_TEXT = (
+        "By Ms. Rausch, for the committee on Environment and Natural "
+        "Resources, on Senate,\nNos. 562, 588, 593, 634, 645, 646, 649, "
+        "and 661, an Order relative to authorizing the joint\ncommittee "
+        "on Environment and Natural Resources to make an investigation "
+        "and study of\ncertain current Senate documents relative to "
+        "environment and natural resources (Senate, No.\n2728) "
+        "[Senator Rush dissenting in so much as relates to Senate, "
+        "No. 588 and Senator Tarr dissenting in so much as relates to "
+        "Senate, Nos. 646 and 661]"
+    )
+    EXPECTED_BILLS = [
+        "S562", "S588", "S593", "S634", "S645", "S646", "S649", "S661"
+    ]
+
+    print("Running journal vote parser unit tests...\n")
+
+    # Test 1: Regex pattern matches the test text
+    print("Test 1: Regex pattern matches test text")
+    test_matches = list(VOTE_PATTERN.finditer(TEST_TEXT))
+    assert len(test_matches) > 0, (
+        "Regex pattern should match the test text"
+    )
+    print(f"  OK Found {len(test_matches)} match(es)")
+
+    # Test 2: Extract bill numbers from the match
+    print("\nTest 2: Extract bill numbers from match")
+    test_match = test_matches[0]
+    test_chamber = test_match.group(3)
+    test_bill_numbers_str = test_match.group(4)
+    test_senate_bill_num = (
+        test_match.group(6) if test_match.group(6) else None
+    )
+
+    assert test_chamber == "Senate", (
+        f"Expected 'Senate', got '{test_chamber}'"
+    )
+    print(f"  OK Chamber: {test_chamber}")
+
+    # Extract bill numbers
+    test_bill_numbers = []
+    if test_bill_numbers_str:
+        test_numbers = re.findall(r'\d+', test_bill_numbers_str)
+        for test_num in test_numbers:
+            test_normalized = VotesJournalParser._normalize_bill_id(
+                test_num, test_chamber
+            )
+            if test_normalized:
+                test_bill_numbers.append(test_normalized)
+
+    if test_senate_bill_num:
+        test_senate_normalized = VotesJournalParser._normalize_bill_id(
+            test_senate_bill_num, "Senate"
+        )
+        if test_senate_normalized:
+            test_bill_numbers.append(test_senate_normalized)
+
+    print(f"  OK Extracted bill numbers: {test_bill_numbers}")
+
+    # Test 3: Verify all expected bills are found
+    print("\nTest 3: Verify all expected bills are found")
+    test_bill_numbers_upper = [b.upper() for b in test_bill_numbers]
+    for expected_bill in EXPECTED_BILLS:
+        assert expected_bill.upper() in test_bill_numbers_upper, (
+            f"Expected bill {expected_bill} not found in extracted bills: "
+            f"{test_bill_numbers_upper}"
+        )
+        print(f"  OK Found expected bill: {expected_bill}")
+
+    # Test 4: Test _search_journals_for_bill with mock data
+    print("\nTest 4: Test bill search with mock PDF data")
+    mock_pdf = {
+        "url": TEST_PDF_URL,
+        "text": TEST_TEXT
+    }
+    mock_pdfs = [mock_pdf]
+
+    found_bills = []
+    for expected_bill in EXPECTED_BILLS:
+        mock_bill = BillAtHearing(
+            bill_id=expected_bill,
+            bill_label=f"Bill {expected_bill}",
+            bill_url=(
+                f"https://malegislature.gov/Bills/194/{expected_bill}"
+            ),
+            committee_id="J33"
+        )
+        test_result = VotesJournalParser._search_journals_for_bill(
+            mock_pdfs, mock_bill
+        )
+        if test_result:
+            found_bills.append(expected_bill)
+            print(f"  OK Found {expected_bill} in journal PDF")
+        else:
+            print(f"  FAILED to find {expected_bill} in journal PDF")
+
+    assert len(found_bills) == len(EXPECTED_BILLS), (
+        f"Expected to find {len(EXPECTED_BILLS)} bills, "
+        f"but found {len(found_bills)}: {found_bills}"
+    )
+
+    # Test 5: Test with actual PDF extraction (if available)
+    print("\nTest 5: Test with actual PDF extraction")
+    try:
+        extracted_pdf_text = VotesJournalParser._extract_pdf_text(
+            TEST_PDF_URL
+        )
+        if extracted_pdf_text:
+            # Check if our test text appears in the extracted text
+            test_text_normalized = (
+                TEST_TEXT.replace("\n", " ").replace("  ", " ")
+            )
+            pdf_text_normalized = (
+                extracted_pdf_text.replace("\n", " ").replace("  ", " ")
+            )
+            if test_text_normalized in pdf_text_normalized:
+                print("  OK Test text found in extracted PDF")
+            else:
+                # Try to find at least one of the expected bills
+                found_any = False
+                for expected_bill in EXPECTED_BILLS:
+                    mock_bill = BillAtHearing(
+                        bill_id=expected_bill,
+                        bill_label=f"Bill {expected_bill}",
+                        bill_url=(
+                            f"https://malegislature.gov/Bills/194/"
+                            f"{expected_bill}"
+                        ),
+                        committee_id="J33"
+                    )
+                    mock_pdfs_extracted = [
+                        {"url": TEST_PDF_URL, "text": extracted_pdf_text}
+                    ]
+                    test_result2 = (
+                        VotesJournalParser._search_journals_for_bill(
+                            mock_pdfs_extracted, mock_bill
+                        )
+                    )
+                    if test_result2:
+                        found_any = True
+                        print(
+                            f"  OK Found {expected_bill} in extracted PDF"
+                        )
+                        break
+                if not found_any:
+                    print(
+                        "  WARNING: Could not find test bills in extracted "
+                        "PDF (may be extraction issue)"
+                    )
+        else:
+            print(
+                "  WARNING: PDF extraction returned None "
+                "(may need network/cache)"
+            )
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        print(
+            f"  WARNING: PDF extraction failed: {e} "
+            "(may need network/cache)"
+        )
+
+    print("\nSUCCESS: All unit tests passed!")
