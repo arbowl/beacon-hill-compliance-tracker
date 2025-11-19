@@ -19,9 +19,9 @@ logger = logging.getLogger(__name__)
 # [Committee] ... (Senate, No. [number]) [optional]"
 VOTE_PATTERN = re.compile(
     r"By\s+(Ms\.|Mr\.)\s+[A-Z][a-z]+, for the committee on\s+([A-Za-z& ]+),"
-    r"\s*on\s+(Senate|House),\s*Nos?\.\s*([0-9, ]+),"
-    r"\s*an Order relative to authorizing the joint committee "
-    r"on\s+([A-Za-z& ]+)"
+    r"\s*on\s+(Senate|House),\s*Nos?\.\s*([0-9, and ]+),"
+    r"\s*an Order relative to authorizing the joint\s+committee\s+on\s+"
+    r"([A-Za-z& ]+)"
     r".*?\(Senate, No\.\s*([0-9]+)\)(?:\s*\[([^\]]+)\])?",
     re.DOTALL | re.MULTILINE | re.IGNORECASE
 )
