@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_PATH = Path("cache/cache.json")
 SESSION_WEDNESDAY_DEADLINES: defaultdict[Optional[str], date] = defaultdict(
-    lambda: date(2026, 12, 2)
+    lambda: date(2025, 12, 3)
 )
-SESSION_WEDNESDAY_DEADLINES["194"] = date(2026, 12, 2)
+SESSION_WEDNESDAY_DEADLINES["194"] = date(2025, 12, 3)
 
 
 def extract_session_from_bill_url(bill_url: str) -> Optional[str]:
