@@ -609,6 +609,19 @@ def aggregate_to_compliance(
         BillCompliance with final state and reason
     """
     if status.hearing_date is None:
+        status = BillStatus(
+            bill_id=status.bill_id,
+            committee_id=status.committee_id,
+            hearing_date=status.hearing_date,
+            deadline_60=status.deadline_60,
+            deadline_90=status.deadline_90,
+            reported_out=False,
+            reported_date=None,
+            extension_until=status.extension_until,
+            effective_deadline=status.effective_deadline,
+            announcement_date=status.announcement_date,
+            scheduled_hearing_date=status.scheduled_hearing_date,
+        )
         return BillCompliance(
             bill_id=context.bill_id,
             committee_id=context.committee_id,
