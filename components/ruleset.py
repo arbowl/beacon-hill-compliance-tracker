@@ -319,14 +319,6 @@ class ReportedOutRequirementRule(ComplianceRule):
             effective_deadline = min(status.extension_until, deadline_90)
             effective_deadline = max(effective_deadline, deadline_60)
         today = date.today()
-        if today <= effective_deadline:
-            return RuleResult(
-                passed=Status.UNKNOWN,
-                reason=f"Before deadline ({effective_deadline})",
-                is_before_deadline=True,
-                is_core_requirement=True,
-            )
-        effective_reported_out = votes.present and not status.reported_date
         if status.reported_date and status.reported_date <= effective_deadline:
             return RuleResult(
                 passed=Status.COMPLIANT,
@@ -336,14 +328,7 @@ class ReportedOutRequirementRule(ComplianceRule):
                 ),
                 is_core_requirement=True,
             )
-        if status.reported_date and status.reported_date > effective_deadline:
-            return RuleResult(
-                passed=Status.NON_COMPLIANT,
-                reason=f"Action on {status.reported_date} after deadline {effective_deadline}",
-                is_core_requirement=True,
-                missing_description="reported out late"
-            )
-        if effective_reported_out:
+        if votes.present and not status.reported_date:
             return RuleResult(
                 passed=Status.COMPLIANT,
                 reason=(
@@ -351,6 +336,20 @@ class ReportedOutRequirementRule(ComplianceRule):
                     "missing reported-out date"
                 ),
                 is_core_requirement=True,
+            )
+        if today <= effective_deadline:
+            return RuleResult(
+                passed=Status.UNKNOWN,
+                reason=f"Before deadline ({effective_deadline})",
+                is_before_deadline=True,
+                is_core_requirement=True,
+            )
+        if status.reported_date and status.reported_date > effective_deadline:
+            return RuleResult(
+                passed=Status.NON_COMPLIANT,
+                reason=f"Action on {status.reported_date} after deadline {effective_deadline}",
+                is_core_requirement=True,
+                missing_description="reported out late"
             )
         missing_description = "not reported out"
         if today > effective_deadline:
