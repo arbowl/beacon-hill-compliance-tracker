@@ -307,12 +307,6 @@ class ReportedOutRequirementRule(ComplianceRule):
                 reason="No hearing scheduled - cannot evaluate deadline",
                 is_core_requirement=True,
             )
-        if votes.present:
-            return RuleResult(
-                passed=Status.COMPLIANT,
-                reason="Votes present - evidence of action within deadline",
-                is_core_requirement=True,
-            )
         if context.bill_type == BillType.HOUSE:
             deadline_60 = status.hearing_date + timedelta(days=60)
             deadline_90 = status.hearing_date + timedelta(days=90)
@@ -332,7 +326,7 @@ class ReportedOutRequirementRule(ComplianceRule):
                 is_before_deadline=True,
                 is_core_requirement=True,
             )
-        effective_reported_out = status.reported_out or votes.present
+        effective_reported_out = not status.reported_out and votes.present
         if status.reported_date and status.reported_date <= effective_deadline:
             return RuleResult(
                 passed=Status.COMPLIANT,
