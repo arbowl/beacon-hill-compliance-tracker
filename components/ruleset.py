@@ -326,7 +326,7 @@ class ReportedOutRequirementRule(ComplianceRule):
                 is_before_deadline=True,
                 is_core_requirement=True,
             )
-        effective_reported_out = not status.reported_out and votes.present
+        effective_reported_out = votes.present and not status.reported_date
         if status.reported_date and status.reported_date <= effective_deadline:
             return RuleResult(
                 passed=Status.COMPLIANT,
@@ -335,6 +335,13 @@ class ReportedOutRequirementRule(ComplianceRule):
                     f"(within deadline {effective_deadline})"
                 ),
                 is_core_requirement=True,
+            )
+        if status.reported_date and status.reported_date > effective_deadline:
+            return RuleResult(
+                passed=Status.NON_COMPLIANT,
+                reason=f"Action on {status.reported_date} after deadline {effective_deadline}",
+                is_core_requirement=True,
+                missing_description="reported out late"
             )
         if effective_reported_out:
             return RuleResult(
