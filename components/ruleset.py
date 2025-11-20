@@ -339,9 +339,15 @@ class ReportedOutRequirementRule(ComplianceRule):
         if effective_reported_out:
             return RuleResult(
                 passed=Status.COMPLIANT,
-                reason="Evidence of action after deadline",
+                reason=(
+                    "Action confirmed by vote record despite "
+                    "missing reported-out date"
+                ),
                 is_core_requirement=True,
             )
+        missing_description = "not reported out"
+        if today > effective_deadline:
+            missing_description += f" by deadline {effective_deadline}"
         return RuleResult(
             passed=Status.NON_COMPLIANT,
             reason=(
@@ -349,7 +355,7 @@ class ReportedOutRequirementRule(ComplianceRule):
                 f"with no evidence of action"
             ),
             is_core_requirement=True,
-            missing_description="not reported out",
+            missing_description=missing_description,
         )
 
     def requires_special_handling(self, result: RuleResult) -> bool:
@@ -855,8 +861,8 @@ if __name__ == "__main__":
     summary = make_summary(present=True)
     votes = make_votes(present=True)
     result = classify("H73", "J33", status, summary, votes)
-    #assert result.state == ComplianceState.NON_COMPLIANT, f"Expected NON_COMPLIANT, got {result.state}"
-    #assert "No hearing announcement found" in result.reason
+    assert result.state == ComplianceState.NON_COMPLIANT, f"Expected NON_COMPLIANT, got {result.state}"
+    assert "No hearing announcement found" in result.reason
     print("  ✓ PASSED")
 
     # Test 7: Insufficient notice (deal-breaker, NON_COMPLIANT)
@@ -909,7 +915,7 @@ if __name__ == "__main__":
     votes = make_votes(present=True)
     result = classify("S197", "J33", status, summary, votes)
     # Should work with Senate bill
-    assert result.state in [ComplianceState.COMPLIANT, ComplianceState.NON_COMPLIANT]
+    assert result.state == ComplianceState.UNKNOWN, result.state
     print("  ✓ PASSED")
 
     # Test 11: Adequate notice (10 days for Joint)
