@@ -1,3 +1,3 @@
 """Version information for Beacon Hill Compliance Tracker."""
 
-__version__ = "1.1.8"
+__version__ = "1.1.9"
