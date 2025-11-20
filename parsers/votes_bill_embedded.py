@@ -63,7 +63,7 @@ class VotesBillEmbeddedParser(ParserInterface):
                     f"Embedded committee vote panel detected on"
                     f"bill page for {bill.bill_id}\n\n{preview}",
                     "",
-                    bill.bill_url,
+                    f"{bill.bill_url}/CommitteeVote",
                     0.95,
                 )
 
@@ -79,7 +79,7 @@ class VotesBillEmbeddedParser(ParserInterface):
                     f"Embedded committee vote summary detected on "
                     f"bill page for {bill.bill_id}\n\n{preview}",
                     "",
-                    bill.bill_url,
+                    f"{bill.bill_url}/CommitteeVote",
                     0.95,
                 )
 
@@ -106,3 +106,4 @@ class VotesBillEmbeddedParser(ParserInterface):
         """Parse the votes."""
         # For compliance we only need presence + URL right now.
         return {"location": cls.location, "source_url": candidate.source_url}
+
