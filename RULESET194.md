@@ -30,16 +30,16 @@ Whether the hearing was announced far enough in advance.
 
 **Outcomes:**
 
-* **Insufficient notice → Automatic Non-Compliance**
+* **Insufficient notice -> Automatic Non-Compliance**
   Notice failures are *deal-breakers*. No other rules are considered.
 
-* **Missing announcement or hearing date → Special Handling**
+* **Missing announcement or hearing date -> Special Handling**
   The system checks for other evidence:
 
   * If *nothing else* shows the bill moved, the result is **Unknown**
   * If other evidence exists, the bill becomes **Non-Compliant** (missing notice)
 
-* **Sufficient notice or exemption → Contributes descriptive text to the final reason**
+* **Sufficient notice or exemption -> Contributes descriptive text to the final reason**
   (e.g., “adequate notice (7 days)”)
 
 ---
@@ -80,8 +80,8 @@ This is one of the three **core requirements**.
 
 A bill must have a summary posted.
 
-* If present → the requirement is satisfied.
-* If missing → contributes “no summaries posted” to the final reason.
+* If present -> the requirement is satisfied.
+* If missing -> contributes “no summaries posted” to the final reason.
 
 This is a **core requirement**.
 
@@ -91,8 +91,8 @@ This is a **core requirement**.
 
 Committee votes must be posted.
 
-* If present → the requirement is satisfied.
-* If missing → contributes “no votes posted” to the final reason.
+* If present -> the requirement is satisfied.
+* If missing -> contributes “no votes posted” to the final reason.
 
 This is a **core requirement**.
 
@@ -105,18 +105,18 @@ After all rules run (except when a notice failure short-circuits):
 ### **A. If there is no hearing date**
 
 The system cannot evaluate deadlines:
-→ **UNKNOWN** with reason:
+-> **UNKNOWN** with reason:
 “No hearing scheduled – cannot evaluate deadline compliance”
 
 ### **B. If a deal-breaker occurred**
 
 * Currently only notice failures qualify
-  → **NON-COMPLIANT**, using the notice rule’s reason
+  -> **NON-COMPLIANT**, using the notice rule’s reason
 
 ### **C. If still before the deadline**
 
 * Determined by the Deadline rule
-  → **UNKNOWN**, with reason built from
+  -> **UNKNOWN**, with reason built from
 
   * “Before deadline”
   * * any notice description
@@ -129,11 +129,11 @@ Core requirements are:
 2. Votes posted
 3. Summaries posted
 
-* **If all three are satisfied → COMPLIANT**
+* **If all three are satisfied -> COMPLIANT**
   Reason:
   “All requirements met: reported out, votes posted, summaries posted”
 
-* **If one or more are missing → NON-COMPLIANT**
+* **If one or more are missing -> NON-COMPLIANT**
   Reason begins with:
   “Factors: …” listing the missing items, e.g.:
 
@@ -150,10 +150,10 @@ Core requirements are:
 ### **Missing Notice vs. Insufficient Notice**
 
 * **Insufficient notice** (not enough days):
-  → Immediate **NON-COMPLIANT** (deal breaker)
+  -> Immediate **NON-COMPLIANT** (deal breaker)
 
 * **Missing notice data** (no announcement or hearing date):
-  → Special handling, may be **UNKNOWN** or **NON-COMPLIANT** depending on other evidence
+  -> Special handling, may be **UNKNOWN** or **NON-COMPLIANT** depending on other evidence
 
 ### **Votes can substitute for missing “reported out”**
 
