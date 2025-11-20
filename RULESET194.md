@@ -61,13 +61,13 @@ This rule determines whether the committee acted on the bill by its deadline.
 
 ### **Key behaviors**
 
-* If *today is still before the deadline*, the result is **Unknown** and the system returns **UNKNOWN** overall, with a reason like:
-  “Before deadline, adequate notice (7 days)”
-
 * If the bill was **formally reported out on time**, the requirement is satisfied.
 
 * If the bill is **not marked as reported out**, but **votes are posted**, the system assumes action occurred and marks this requirement as satisfied.
   This covers cases where committees fail to enter a reported-out event but votes confirm that action happened.
+
+* If evidence is missing but *today is still before the deadline*, the result is **Unknown** and the system returns **UNKNOWN** overall, with a reason like:
+  “Before deadline, adequate notice (7 days)”
 
 * If the deadline has passed and there is **no reported-out date and no votes**, the requirement fails and contributes:
   **“not reported out by deadline YYYY-MM-DD”**
