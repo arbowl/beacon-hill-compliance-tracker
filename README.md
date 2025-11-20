@@ -142,7 +142,7 @@ The `components/` folder contains the unique actions in the processing pipeline.
 ### Data Flow
 
 1. **Parse extension orders** (Optional, computationally expensive)
-2. **Collect committee info** (House/Joint only, ignoring Senate)
+2. **Collect committee info** (House/Joint/Senate)
 2. **Get hearings and bills** for the target committee
 3. **Compute deadlines** and check "reported out" status
 4. **Discover summaries** using cost-ordered parsers

@@ -22,7 +22,7 @@ LISTING_PATHS: dict[str, str] = {
 # (Some internal links may also look like /Committees/Joint/J14; the
 # detail pages resolve to /Committees/Detail/J14. We normalize to Detail/)
 DETAIL_HREF_RE: re.Pattern = re.compile(
-    r"/Committees/(?:Detail|Joint|House)/([JH]\d+)", re.I
+    r"/Committees/(?:Detail|Joint|House|Senate)/([JHS]\d+)", re.I
 )
 
 

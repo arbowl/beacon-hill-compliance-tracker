@@ -16,7 +16,8 @@ from components.pipeline import (
     resolve_votes_for_bill,
 )
 from components.committees import get_committees
-from components.compliance import classify, compute_notice_status
+from components.compliance import compute_notice_status
+from components.ruleset import classify
 from components.interfaces import Config
 from components.report import write_basic_html
 from components.utils import (

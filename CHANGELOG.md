@@ -5,10 +5,25 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.8] - 2025-11-19
+
+## Added
+- Votes can now be parsed from House and Senate Journal PDFs and attributed to the proper bills (may raise compliance in some cases).
+- Self-tests rolled in for several document parsers to ensure functionality across updates.
+- Created an internal "ruleset engine" module to improve algorithmic transparency, improve alignment with the Legislature ruleset, and track rules changes session-to-session.
+
+## Changed
+- "Hearing rescheduled" will now count as a hearing date even if "hearing scheduled" is not present (may boost compliance if a bill was previously marked as missing a hearing date, or it may drop compliance if all other requirements were met but the hearing is revealed to be non-compliant--see "Fixes").
+
+## Fixed
+- Bills which posted all requirements but never announced a hearing will be considered non-compliant with the notice gap requirement (may drop compliance for some committees).
+
+
 ## [1.1.7] - 2025-11-14
 
 ### Fixed
 - Reported-out deadline tracking is now more aggressive, catching more instances of non-compliance. This may cause some committees to drop in compliance.
+
 
 ## [1.1.6] - 2025-11-13
 

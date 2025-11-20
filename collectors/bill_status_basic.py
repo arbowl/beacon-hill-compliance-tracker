@@ -103,7 +103,7 @@ def _hearing_announcement_from_bill_page(
         action_cell = cells[2].get_text(strip=True) if len(cells) > 2 else ""
         # Look for "Hearing scheduled for" pattern
         hearing_match = re.search(
-            r"(?i)hearing scheduled for (\d{1,2}/\d{1,2}/\d{4})",
+            r"(?i)hearing (scheduled|rescheduled) (for|to) (\d{1,2}/\d{1,2}/\d{4})",
             action_cell,
             re.I
         )
@@ -123,7 +123,7 @@ def _hearing_announcement_from_bill_page(
             # Parse scheduled hearing date
             try:
                 hearing_date = datetime.strptime(
-                    hearing_match.group(1), "%m/%d/%Y"
+                    hearing_match.group(3), "%m/%d/%Y"
                 ).date()
             except Exception:  # pylint: disable=broad-exception-caught
                 continue

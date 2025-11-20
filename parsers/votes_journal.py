@@ -29,7 +29,7 @@ VOTE_PATTERN = re.compile(
 PDF_RX = re.compile(r"\.pdf($|\?)", re.I)
 
 
-class VotesJournalParser(ParserInterface):
+class VotesJournalPdfParser(ParserInterface):
     """Parser for votes found in House and Senate Journal PDFs."""
 
     parser_type = ParserInterface.ParserType.VOTES
@@ -388,7 +388,6 @@ class VotesJournalParser(ParserInterface):
 
 
 if __name__ == "__main__":
-    """Unit tests for the journal vote parser."""
     # Test PDF URL and expected text
     TEST_PDF_URL = (
         "https://malegislature.gov/Journal/Senate/194/1031/"
@@ -438,14 +437,14 @@ if __name__ == "__main__":
     if test_bill_numbers_str:
         test_numbers = re.findall(r'\d+', test_bill_numbers_str)
         for test_num in test_numbers:
-            test_normalized = VotesJournalParser._normalize_bill_id(
+            test_normalized = VotesJournalPdfParser._normalize_bill_id(
                 test_num, test_chamber
             )
             if test_normalized:
                 test_bill_numbers.append(test_normalized)
 
     if test_senate_bill_num:
-        test_senate_normalized = VotesJournalParser._normalize_bill_id(
+        test_senate_normalized = VotesJournalPdfParser._normalize_bill_id(
             test_senate_bill_num, "Senate"
         )
         if test_senate_normalized:
@@ -481,7 +480,7 @@ if __name__ == "__main__":
             ),
             committee_id="J33"
         )
-        test_result = VotesJournalParser._search_journals_for_bill(
+        test_result = VotesJournalPdfParser._search_journals_for_bill(
             mock_pdfs, mock_bill
         )
         if test_result:
@@ -498,7 +497,7 @@ if __name__ == "__main__":
     # Test 5: Test with actual PDF extraction (if available)
     print("\nTest 5: Test with actual PDF extraction")
     try:
-        extracted_pdf_text = VotesJournalParser._extract_pdf_text(
+        extracted_pdf_text = VotesJournalPdfParser._extract_pdf_text(
             TEST_PDF_URL
         )
         if extracted_pdf_text:
@@ -528,7 +527,7 @@ if __name__ == "__main__":
                         {"url": TEST_PDF_URL, "text": extracted_pdf_text}
                     ]
                     test_result2 = (
-                        VotesJournalParser._search_journals_for_bill(
+                        VotesJournalPdfParser._search_journals_for_bill(
                             mock_pdfs_extracted, mock_bill
                         )
                     )
