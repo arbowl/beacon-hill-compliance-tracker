@@ -134,6 +134,7 @@ The `components/` folder contains the unique actions in the processing pipeline.
 - **`pipeline.py`**: Orchestrates discovery of summaries and votes using cost-ordered parsers. We rate each method based on how "expensive" it is so we can attempt the least "costly" methods first on unknown data sources, then cache the method which worked.
 - **`report.py`**: Handles saving completed datasets to disk in various formats (human-readable, machine-readable, etc.)
 - **`review.py`**: Batch review manager for handling low-confidence captures at the end of a run.
+- **`ruleset.py`**: The ruleset engine; this compartmentalizes the various interconnected rules to determine a final compliance rating with reasoning.
 - **`runner.py`**: Performs a full scan of a single committee start to finish.
 - **`sender.py`**: Sends collected info to the dashboard's API.
 - **`templates.py`**: Converts changes in compliance over time into plain English text blurbs.
@@ -603,5 +604,6 @@ deferred_review:
 5. Submit a pull request
 
 The codebase is designed to be easily understood and extended by students, hobbyists, and grassroots organizations tracking legislative compliance.
+
 
 
