@@ -5,6 +5,12 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.10] - 2025-11-21
+
+### Fixed
+- Improved reported-out parsing in cases where bills were reported out of many committees and heard multiple times (addressess some edge cases, but negligible overall impact on compliance percentage).
+
+
 ## [1.1.9] - 2025-11-20
 
 ### Added

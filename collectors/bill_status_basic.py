@@ -14,14 +14,14 @@ from components.interfaces import ParserInterface
 
 # Common phrases on bill history when a committee moves a bill
 _REPORTED_PATTERNS = [
-    r"\breported favorably\b",
-    r"\breported adversely\b",
-    r"\breported, rules suspended\b",
-    r"\breported from the committee\b",
-    r"\breported, referred to\b",
-    r"\bstudy\b",
-    r"\baccompan\b",
-    r"\bdischarge\b",
+    re.compile(r"\breported favorably\b"),
+    re.compile(r"\breported adversely\b"),
+    re.compile(r"\breported, rules suspended\b"),
+    re.compile(r"\breported from the committee\b"),
+    re.compile(r"\breported, referred to\b"),
+    re.compile(r"\bstudy\b"),
+    re.compile(r"\baccompan\b"),
+    re.compile(r"\bdischarge\b"),
 ]
 
 # Dates often appear like "8/11/2025" or "June 4, 2025" in history notes
@@ -35,7 +35,7 @@ def _reported_out_from_bill_page(
     bill_url: str,
     committee_id: str,
     hearing_date: Optional[date] = None,
-) -> Tuple[bool, Optional[date]]:
+) -> tuple[bool, Optional[date]]:
     """
     Heuristic: scan the bill history table for 'reported' actions and capture
     the most credible report-out date for THIS committee.
@@ -45,36 +45,26 @@ def _reported_out_from_bill_page(
         report-out on/after hearing_date (if provided), never in the future.
     """
     soup = ParserInterface.soup(bill_url)
-
-    # Derive expected branch from committee prefix: J/H/S → Joint/House/Senate
     prefix = (committee_id or "J")[0].upper()
-    expected_branch = {"J": "Joint", "H": "House", "S": "Senate"}.get(prefix, "Joint")
-
-    # Allow rows labeled "Joint" to count even when we expect House/Senate.
+    expected_branch = {
+        "J": "Joint", "H": "House", "S": "Senate"
+    }.get(prefix, "Joint")
     acceptable_branches = {expected_branch}
     if expected_branch != "Joint":
         acceptable_branches.add("Joint")
-
     today = date.today()
     reported = False
     matched_date: Optional[date] = None
-
-    # Bill history rows: first cell = date, second = branch, third = action
     for row in soup.find_all("tr"):  # type: ignore
         cells = row.find_all(["td", "th"])  # type: ignore
         if len(cells) < 3:
             continue
-
         branch_text = cells[1].get_text(" ", strip=True)
         if branch_text not in acceptable_branches:
             continue
-
         action_text = cells[2].get_text(" ", strip=True)
-
-        # Match any “reported …” style action, then parse the date in col 0.
         if any(p.search(action_text) for p in _REPORTED_PATTERNS):
             date_text = cells[0].get_text(" ", strip=True)
-
             parsed_row_date: Optional[date] = None
             for rx, fmt in _DATE_PATTERNS:
                 m = rx.search(date_text)
@@ -82,32 +72,19 @@ def _reported_out_from_bill_page(
                     continue
                 try:
                     parsed_row_date = datetime.strptime(m.group(1), fmt).date()
-                except Exception:
+                except Exception:  # pylint: disable=broad-exception-caught
                     parsed_row_date = None
                 if parsed_row_date:
-                    break  # stop after first date format that works
-
+                    break
             if not parsed_row_date:
                 continue
-
-            # Ignore dates before the hearing if one is known (pre-committee actions).
             if hearing_date and parsed_row_date < hearing_date:
                 continue
-
-            # Ignore obvious future dates.
             if parsed_row_date > today:
                 continue
-
-            # Keep the *latest* valid report-out date for this committee.
             if matched_date is None or parsed_row_date > matched_date:
                 matched_date = parsed_row_date
                 reported = True
-
-            # We already matched a report action for this row; no need to test
-            # additional report regexes on the same row.
-            # (If the table can list multiple actions per row, keep looping rows.)
-            # break  # ← do NOT break rows; only break regex loop above.
-
     if not reported:
         return False, None
     return True, matched_date
