@@ -32,47 +32,84 @@ _DATE_PATTERNS = [
 
 
 def _reported_out_from_bill_page(
-    bill_url: str
-) -> tuple[bool, Optional[date]]:
-    """Heuristic: scan the bill page text/history for 'reported' phrases and
-    grab a nearby date. Good enough for a baseline.
+    bill_url: str,
+    committee_id: str,
+    hearing_date: Optional[date] = None,
+) -> Tuple[bool, Optional[date]]:
+    """
+    Heuristic: scan the bill history table for 'reported' actions and capture
+    the most credible report-out date for THIS committee.
+
+    Returns:
+        (reported_out, reported_date)  — reported_date is the *latest* valid
+        report-out on/after hearing_date (if provided), never in the future.
     """
     soup = ParserInterface.soup(bill_url)
-    # Look through table rows and only inspect the Action column (typically
-    # the 3rd <td>). This avoids accidental matches elsewhere on the page
-    # (e.g., presenter text or other descriptive paragraphs).
-    rows = soup.find_all('tr')  # type: ignore
+
+    # Derive expected branch from committee prefix: J/H/S → Joint/House/Senate
+    prefix = (committee_id or "J")[0].upper()
+    expected_branch = {"J": "Joint", "H": "House", "S": "Senate"}.get(prefix, "Joint")
+
+    # Allow rows labeled "Joint" to count even when we expect House/Senate.
+    acceptable_branches = {expected_branch}
+    if expected_branch != "Joint":
+        acceptable_branches.add("Joint")
+
+    today = date.today()
     reported = False
     matched_date: Optional[date] = None
 
-    for row in rows:
-        cells = row.find_all(['td', 'th'])  # type: ignore
+    # Bill history rows: first cell = date, second = branch, third = action
+    for row in soup.find_all("tr"):  # type: ignore
+        cells = row.find_all(["td", "th"])  # type: ignore
         if len(cells) < 3:
             continue
 
-        action_text = cells[2].get_text(" ", strip=True)
-        if any(
-            re.search(pat, action_text, re.I) for pat in _REPORTED_PATTERNS
-        ):
-            reported = True
+        branch_text = cells[1].get_text(" ", strip=True)
+        if branch_text not in acceptable_branches:
+            continue
 
-            # Try to parse a date from the first cell of the same row; prefer
-            # the newest date if multiple matches are found.
-            date_cell = cells[0].get_text(" ", strip=True)
+        action_text = cells[2].get_text(" ", strip=True)
+
+        # Match any “reported …” style action, then parse the date in col 0.
+        if any(p.search(action_text) for p in _REPORTED_PATTERNS):
+            date_text = cells[0].get_text(" ", strip=True)
+
+            parsed_row_date: Optional[date] = None
             for rx, fmt in _DATE_PATTERNS:
-                m = rx.search(date_cell)
-                if m:
-                    try:
-                        parsed = datetime.strptime(m.group(1), fmt).date()
-                    except Exception:  # pylint: disable=broad-exception-caught
-                        continue
-                    if matched_date is None or parsed > matched_date:
-                        matched_date = parsed
-                    break
+                m = rx.search(date_text)
+                if not m:
+                    continue
+                try:
+                    parsed_row_date = datetime.strptime(m.group(1), fmt).date()
+                except Exception:
+                    parsed_row_date = None
+                if parsed_row_date:
+                    break  # stop after first date format that works
+
+            if not parsed_row_date:
+                continue
+
+            # Ignore dates before the hearing if one is known (pre-committee actions).
+            if hearing_date and parsed_row_date < hearing_date:
+                continue
+
+            # Ignore obvious future dates.
+            if parsed_row_date > today:
+                continue
+
+            # Keep the *latest* valid report-out date for this committee.
+            if matched_date is None or parsed_row_date > matched_date:
+                matched_date = parsed_row_date
+                reported = True
+
+            # We already matched a report action for this row; no need to test
+            # additional report regexes on the same row.
+            # (If the table can list multiple actions per row, keep looping rows.)
+            # break  # ← do NOT break rows; only break regex loop above.
 
     if not reported:
         return False, None
-
     return True, matched_date
 
 
@@ -254,7 +291,9 @@ def build_status_row(
         cache.set_hearing_announcement(
             row.bill_id, announce_date_str, sched_hearing_str, row.bill_url
         )
-    reported, rdate = _reported_out_from_bill_page(row.bill_url)
+    reported, rdate = _reported_out_from_bill_page(
+        row.bill_url, row.committee_id, row.hearing_date
+    )
     return BillStatus(
         bill_id=row.bill_id,
         committee_id=row.committee_id,
