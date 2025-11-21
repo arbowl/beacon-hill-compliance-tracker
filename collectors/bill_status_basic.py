@@ -169,11 +169,7 @@ def _hearing_announcement_from_bill_page(
         if best_hearing is None or hearing_date > best_hearing:
             best_hearing = hearing_date
             best_announcement = announcement_date
-        elif hearing_date == (
-            best_hearing
-            and best_announcement
-            and announcement_date > best_announcement
-        ):
+        elif hearing_date == best_hearing and best_announcement and announcement_date > best_announcement:
             best_announcement = announcement_date
     return best_announcement, best_hearing
 
@@ -274,7 +270,7 @@ def build_status_row(
         if should_refetch:
             announce_date, sched_hearing = (
                 _hearing_announcement_from_bill_page(
-                    row.bill_url, row.hearing_date
+                    row.bill_url, row.committee_id, row.hearing_date
                 )
             )
             announce_date_str = str(announce_date) if announce_date else None
@@ -285,7 +281,7 @@ def build_status_row(
     else:
         announce_date, sched_hearing = (
             _hearing_announcement_from_bill_page(
-                row.bill_url, row.hearing_date
+                row.bill_url, row.committee_id, row.hearing_date
             )
         )
         announce_date_str = str(announce_date) if announce_date else None
