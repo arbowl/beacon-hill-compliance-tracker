@@ -112,68 +112,105 @@ def _reported_out_from_bill_page(
         return False, None
     return True, matched_date
 
+_HEARING_PATTERNS = [
+    re.compile(r"hearing\s+(scheduled|rescheduled)\s+(for|to)\s+(\d{1,2}/\d{1,2}/\d{4})", re.I),
+    re.compile(r"public\s+hearing\s+(scheduled|rescheduled)\s+(for|to)\s+(\d{1,2}/\d{1,2}/\d{4})", re.I),
+]
+
+_BRANCH_BY_PREFIX = {"J": "Joint", "H": "House", "S": "Senate"}
+
 
 def _hearing_announcement_from_bill_page(
     bill_url: str,
-    target_hearing_date: Optional[date] = None
+    committee_id: Optional[str] = None,
+    target_hearing_date: Optional[date] = None,
+    window_days: int = 5,
 ) -> tuple[Optional[date], Optional[date]]:
-    """Extract 'Hearing scheduled for ...' announcement.
+    """
+    Return (announcement_date, hearing_date) for the *latest valid* hearing
+    announcement attributable to the expected branch/committee.
 
-    Args:
-        bill_url: URL of the bill page
-        target_hearing_date: If provided, find announcement for this date.
-                           If None, find the earliest hearing announcement.
-
-    Returns (announcement_date, scheduled_hearing_date) or (None, None).
+    Filters:
+      - Only rows whose Branch column matches expected branch (from committee_id)
+      - announcement_date < hearing_date <= today
+      - If target_hearing_date is given, require hearing_date within +/- window_days
+      - Picks the *latest* valid hearing announcement (handles reschedules)
     """
     soup = ParserInterface.soup(bill_url)
-    # Look for table rows in the bill history
-    rows = soup.find_all('tr')  # type: ignore
-    earliest_announcement: Optional[date] = None
-    earliest_hearing: Optional[date] = None
-    for row in rows:
-        cells = row.find_all(['td', 'th'])  # type: ignore
+
+    expected_branch = None
+    if committee_id:
+        expected_branch = _BRANCH_BY_PREFIX.get(committee_id[0].upper(), None)
+
+    today = date.today()
+    best_announcement: Optional[date] = None
+    best_hearing: Optional[date] = None
+
+    for row in soup.find_all("tr"):  # type: ignore
+        cells = row.find_all(["td", "th"])  # type: ignore
         if len(cells) < 3:
             continue
-        # First cell typically contains the announcement date
-        date_cell = cells[0].get_text(strip=True)
-        action_cell = cells[2].get_text(strip=True) if len(cells) > 2 else ""
-        # Look for "Hearing scheduled for" pattern
-        hearing_match = re.search(
-            r"(?i)hearing (scheduled|rescheduled) (for|to) (\d{1,2}/\d{1,2}/\d{4})",
-            action_cell,
-            re.I
-        )
-        if hearing_match:
-            # Parse announcement date
-            announcement_date = None
-            for rx, fmt in _DATE_PATTERNS:
-                match = rx.search(date_cell)
-                if match:
-                    try:
-                        announcement_date = datetime.strptime(
-                            match.group(1), fmt
-                        ).date()
-                        break
-                    except Exception:  # pylint: disable=broad-exception-caught
-                        continue
-            # Parse scheduled hearing date
-            try:
-                hearing_date = datetime.strptime(
-                    hearing_match.group(3), "%m/%d/%Y"
-                ).date()
-            except Exception:  # pylint: disable=broad-exception-caught
+
+        # Bill history columns are typically: [Date, Branch, Action]
+        branch_cell = cells[1].get_text(" ", strip=True) if len(cells) > 1 else ""
+        if expected_branch and branch_cell and branch_cell != expected_branch:
+            # Skip entries from the wrong branch (e.g., House vs Joint)
+            continue
+
+        action_text = cells[2].get_text(" ", strip=True)
+        m = None
+        for rx in _HEARING_PATTERNS:
+            m = rx.search(action_text)
+            if m:
+                break
+        if not m:
+            continue
+
+        # Parse the announcement date from the first cell
+        announcement_date = None
+        date_cell = cells[0].get_text(" ", strip=True)
+        for rx, fmt in _DATE_PATTERNS:
+            dm = rx.search(date_cell)
+            if dm:
+                try:
+                    announcement_date = datetime.strptime(dm.group(1), fmt).date()
+                    break
+                except Exception:
+                    pass
+
+        # Parse the scheduled hearing date embedded in the action text
+        try:
+            hearing_date = datetime.strptime(m.group(3), "%m/%d/%Y").date()
+        except Exception:
+            continue
+
+        # Basic temporal sanity checks
+        if announcement_date is None:
+            # If we can't prove an announce date, skip; transparency is about the posting date.
+            continue
+        if announcement_date >= hearing_date:
+            # Announcements must precede the hearing
+            continue
+        if hearing_date > today:
+            # Don’t count future hearings toward current compliance
+            continue
+
+        # If caller provided an authoritative hearing date, constrain to a small window
+        if target_hearing_date:
+            low = target_hearing_date - timedelta(days=window_days)
+            high = target_hearing_date + timedelta(days=window_days)
+            if not (low <= hearing_date <= high):
                 continue
-            # If target date specified, look for exact match
-            if target_hearing_date and hearing_date == target_hearing_date:
-                return announcement_date, hearing_date
-            # Otherwise, keep the earliest hearing (past or future)
-            if (announcement_date and hearing_date and
-                    (earliest_hearing is None or
-                     hearing_date < earliest_hearing)):
-                earliest_announcement = announcement_date
-                earliest_hearing = hearing_date
-    return earliest_announcement, earliest_hearing
+
+        # Keep the *latest* valid announcement (handles reschedules)
+        if best_hearing is None or hearing_date > best_hearing:
+            best_hearing = hearing_date
+            best_announcement = announcement_date
+        elif hearing_date == best_hearing and best_announcement and announcement_date > best_announcement:
+            # Same hearing date; prefer later (more authoritative) announcement if it appears
+            best_announcement = announcement_date
+
+    return best_announcement, best_hearing
 
 # =============================================================================
 # Public helper: fetch bill title
@@ -307,3 +344,4 @@ def build_status_row(
         announcement_date=announce_date,
         scheduled_hearing_date=sched_hearing,
     )
+
