@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.1.10] - 2025-11-21
 
+### Changed
+- Hearing notice compliance calculations will only revolve around announcements, rather than using known hearing dates as a fallback, to better align with the principle of citizens' being properly alerted of hearings.
+
 ### Fixed
 - Improved reported-out parsing in cases where bills were reported out of many committees and heard multiple times (addressess some edge cases, but negligible overall impact on compliance percentage).
+- Improved hearing notice assignments when bills have had multiple hearings and hearing reschedules.
 
 
 ## [1.1.9] - 2025-11-20
