@@ -41,7 +41,7 @@ def main(cfg: Config, yaml: Cache, mode: Mode) -> None:
                 )
             scheduled_mode(cfg, yaml, at_time, check_ext)
         case _:
-            raise ValueError("Invalid run mode")
+            runner_loop(cfg, yaml)
 
 
 if __name__ == "__main__":
@@ -50,7 +50,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(
         description="Massachusetts Legislature compliance scraper"
     )
-    mode_group = parser.add_mutually_exclusive_group(required=True)
+    mode_group = parser.add_mutually_exclusive_group(required=False)
     mode_group.add_argument(
         "-m", "--manual", action="store_true", help=Mode.manual.__doc__
     )

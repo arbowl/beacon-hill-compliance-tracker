@@ -194,14 +194,14 @@ class NoticeRequirementRule(ComplianceRule):
                 reason="Announcement date missing",
                 is_missing_notice=True,
             )
-        if status.hearing_date is None:
+        if status.scheduled_hearing_date is None:
             return RuleResult(
                 passed=Status.UNKNOWN,
                 reason="Hearing date missing",
                 is_missing_notice=True,
             )
         days_notice: int = (
-            status.hearing_date - status.announcement_date
+            status.scheduled_hearing_date - status.announcement_date
         ).days
         notice_requirement: int = CommitteeType.get_notice_requirement(
             context.committee_type

@@ -30,10 +30,17 @@ _DATE_PATTERNS = [
     (re.compile(r"\b([A-Za-z]+ \d{1,2}, \d{4})\b"), "%B %d, %Y"),
 ]
 _HEARING_PATTERNS = [
+    # Most common
     re.compile(
         r"hearing\s+(scheduled|rescheduled)\s+(for|to)\s+(\d{1,2}/\d{1,2}/\d{4})",
         re.I
     ),
+    # Useful if there's filler text or committee names interspersed
+    re.compile(
+        r"hearing\s+(scheduled|rescheduled)\b.*?\b(for|to)\s+(\d{1,2}/\d{1,2}/\d{4})",
+        re.I
+    ),
+    # Uncommon variant
     re.compile(
         r"public\s+hearing\s+(scheduled|rescheduled)\s+(for|to)\s+(\d{1,2}/\d{1,2}/\d{4})",
         re.I
@@ -106,7 +113,7 @@ def _hearing_announcement_from_bill_page(
     bill_url: str,
     committee_id: Optional[str] = None,
     target_hearing_date: Optional[date] = None,
-    window_days: int = 5,
+    window_days: int = 10,
 ) -> tuple[Optional[date], Optional[date]]:
     """
     Return (announcement_date, hearing_date) for the *latest valid* hearing
