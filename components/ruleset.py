@@ -24,6 +24,14 @@ SESSION_WEDNESDAY_DEADLINES: defaultdict[Optional[str], date] = defaultdict(
 SESSION_WEDNESDAY_DEADLINES["194"] = date(2025, 12, 3)
 
 
+def get_senate_deadline() -> date:
+    """Computing the Senate deadline based on the date."""
+    today = date.today()
+    if today < SESSION_WEDNESDAY_DEADLINES["194"]:
+        return SESSION_WEDNESDAY_DEADLINES["194"]
+    return date(2026, 12, 31)
+
+
 class BillType(str, Enum):
     """Type of bill (House or Senate)."""
     HOUSE = "House"
@@ -311,7 +319,7 @@ class ReportedOutRequirementRule(ComplianceRule):
             deadline_60 = status.hearing_date + timedelta(days=60)
             deadline_90 = status.hearing_date + timedelta(days=90)
         else:
-            deadline_60 = SESSION_WEDNESDAY_DEADLINES[context.session]
+            deadline_60 = get_senate_deadline()
             deadline_90 = deadline_60 + timedelta(days=30)
         if not status.extension_until:
             effective_deadline = deadline_60
