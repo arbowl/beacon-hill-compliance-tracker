@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from typing import Optional
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 
 from components.interfaces import Config
 from components.options import runner_loop, one_run_mode, scheduled_mode
@@ -43,6 +43,10 @@ def main(cfg: Config, yaml: Cache, mode: Mode) -> None:
 
 if __name__ == "__main__":
     load_dotenv()
+    for key in (keys := dotenv_values().keys()):
+        print(f'Loaded "{key}"!')
+    if not keys:
+        print("Warning: No keys loaded, uploads will fail.")
     config = Config("config.yaml")
     cache = Cache(auto_save=False)
     parser = ArgumentParser(
