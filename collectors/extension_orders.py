@@ -231,8 +231,8 @@ def _parse_extension_order_page(
 
 def collect_all_extension_orders(
     base_url: str,
-    cache: Optional["Cache"] = None,
-    config: Optional["Config"] = None
+    cache: Optional[Cache] = None,
+    config: Optional[Config] = None
 ) -> list[ExtensionOrder]:
     """Collect all extension orders from the Massachusetts Legislature website.
 
