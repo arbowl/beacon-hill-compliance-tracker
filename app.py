@@ -35,6 +35,8 @@ def main(cfg: Config, yaml: Cache, mode: Mode) -> None:
             runner_loop(cfg, yaml)
         case Mode(one_run=True, check_extensions=check_ext):
             one_run_mode(cfg, yaml, check_ext)
+        case Mode(scheduled=None):
+            runner_loop(cfg, yaml)
         case Mode(scheduled=at_time, check_extensions=check_ext):
             scheduled_mode(cfg, yaml, at_time, check_ext)
         case _:

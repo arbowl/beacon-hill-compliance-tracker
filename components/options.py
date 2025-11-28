@@ -4,7 +4,11 @@ This file is ugly and needs guard clauses to clean the if-statements
 up, but for now it's good enough.
 """
 
+import time
+from datetime import datetime
 from os import getenv
+
+import schedule
 
 from collectors.extension_orders import collect_all_extension_orders
 from components.committees import get_committees
@@ -411,10 +415,6 @@ def scheduled_mode(
         at_time: Time string in HH:MM format (e.g., "02:00", "14:30")
         check_extensions: Whether to check for bill extensions
     """
-    import schedule
-    import time
-    from datetime import datetime
-
     # Parse and normalize time string
     time_str = at_time.strip()
     # Handle both "2:00" and "02:00" formats
@@ -423,7 +423,6 @@ def scheduled_mode(
             f"Invalid time format: '{at_time}'. Expected HH:MM format "
             "(e.g., '02:00' or '14:30')"
         )
-
     # Validate time format by trying to parse it
     try:
         # Try parsing to validate format

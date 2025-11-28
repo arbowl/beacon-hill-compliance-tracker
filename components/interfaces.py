@@ -18,10 +18,12 @@ from datetime import datetime
 from bs4 import BeautifulSoup  # type: ignore
 import requests  # type: ignore
 from requests.adapters import HTTPAdapter  # type: ignore
+from urllib.parse import urlencode
 from urllib3.util.retry import Retry
 from yaml import safe_load  # type: ignore
 
 from components.models import BillAtHearing
+from version import __version__
 if TYPE_CHECKING:
     from components.utils import Cache
 
@@ -157,14 +159,14 @@ class _SessionManager:
                     )
                     adapter = HTTPAdapter(
                         pool_connections=10,
-                        pool_maxsize=20,
+                        pool_maxsize=24,
                         max_retries=retry_strategy,
                         pool_block=False
                     )
                     session.mount("http://", adapter)
                     session.mount("https://", adapter)
                     session.headers.update({
-                        "User-Agent": "legis-scraper/0.1"
+                        "User-Agent": get_user_agent()
                     })
                     self._session = session
                     logger.debug("Created global HTTP session")
@@ -381,11 +383,9 @@ def _fetch_html(
     """
     # Build full URL with params for cache key
     if params:
-        from urllib.parse import urlencode
         full_url = f"{url}?{urlencode(params)}"
     else:
         full_url = url
-    
     # Check cache first
     if cache and config:
         cached_content = cache.get_cached_document_content(full_url, config)
@@ -398,7 +398,6 @@ def _fetch_html(
                     "Failed to decode cached HTML for %s, fetching fresh",
                     full_url
                 )
-    
     # Check for in-progress request (deduplication)
     pending_request = None
     should_fetch = False
@@ -412,7 +411,6 @@ def _fetch_html(
             pending_request = _PendingRequest(event=threading.Event())
             _PENDING_REQUESTS[full_url] = pending_request
             should_fetch = True
-    
     if not should_fetch:
         pending_request.event.wait(timeout=timeout + 5)
         if pending_request.error:
@@ -423,7 +421,6 @@ def _fetch_html(
         raise requests.RequestException(
             f"Request for {full_url} timed out or failed"
         )
-    
     # Perform the fetch
     try:
         session = _SESSION_MANAGER.get_session()
@@ -433,7 +430,6 @@ def _fetch_html(
         )
         response.raise_for_status()
         html_text = response.text
-        
         # Cache the HTML content (store as bytes)
         if cache and config and config.document_cache.enabled:
             try:
@@ -450,14 +446,12 @@ def _fetch_html(
                 logger.debug("Cached HTML: %s", full_url)
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.warning("Failed to cache HTML %s: %s", full_url, e)
-        
         # Store result and notify waiting threads
         with _PENDING_LOCK:
             if full_url in _PENDING_REQUESTS:
                 pending_request = _PENDING_REQUESTS.pop(full_url)
                 pending_request.result = html_text
                 pending_request.event.set()
-        
         return html_text
     except Exception as e:
         # Store error and notify waiting threads
@@ -467,6 +461,17 @@ def _fetch_html(
                 pending_request.error = e
                 pending_request.event.set()
         raise
+
+
+def get_user_agent() -> str:
+    """
+    Get the user-agent string for HTTP requests.
+
+    Returns:
+        User-agent string in format: "BeaconHillTracker/VERSION (EMAIL)"
+    """
+    email = "info@beaconhilltracker.org"
+    return f"BeaconHillTracker/{__version__} ({email})"
 
 
 def get_metrics() -> dict[str, int]:
@@ -836,4 +841,3 @@ bill_id: {bill_id}
     def document_cache(self) -> Config.DocumentCache:
         """Document cache configuration."""
         return Config.DocumentCache(self.config)  # type: ignore
-

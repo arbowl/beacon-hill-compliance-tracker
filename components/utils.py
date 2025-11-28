@@ -1284,20 +1284,6 @@ def get_extension_order_url(
     return latest_url
 
 
-# Version and Changelog Functions
-
-
-def get_user_agent() -> str:
-    """
-    Get the user-agent string for HTTP requests.
-
-    Returns:
-        User-agent string in format: "BeaconHillTracker/VERSION (EMAIL)"
-    """
-    email = "info@beaconhilltracker.org"
-    return f"BeaconHillTracker/{__version__} ({email})"
-
-
 def parse_changelog(changelog_path: str = "CHANGELOG.md") -> dict[str, Any]:
     """
     Parse the CHANGELOG.md file and return structured data.

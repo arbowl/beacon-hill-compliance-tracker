@@ -46,7 +46,8 @@ import requests  # type: ignore
 from requests.adapters import HTTPAdapter  # type: ignore
 from urllib3.util import Retry
 
-from components.utils import parse_changelog, get_user_agent
+from components.interfaces import get_user_agent
+from components.utils import parse_changelog
 from version import __version__
 
 

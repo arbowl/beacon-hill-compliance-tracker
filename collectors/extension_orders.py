@@ -12,9 +12,9 @@ from bs4 import BeautifulSoup  # type: ignore
 from components.committees import get_committees
 from components.interfaces import _fetch_html
 from components.models import ExtensionOrder, Committee
+from components.interfaces import Config, get_user_agent
 if TYPE_CHECKING:
     from components.utils import Cache
-    from components.interfaces import Config
 
 
 def _extract_extension_date(text: str) -> Optional[date]:
@@ -260,7 +260,7 @@ def collect_all_extension_orders(
                     cache=cache,
                     config=config,
                     params=params,
-                    headers={"User-Agent": "legis-scraper/0.1"}
+                    headers={"User-Agent": get_user_agent()}
                 )
                 soup = BeautifulSoup(html_text, "html.parser")
                 # Find all bill links on this page that might have

@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["--scheduled", "--at", "00:01"]
+            "args": ["-s", "00:01"]
         }
     ]
 }

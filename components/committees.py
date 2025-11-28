@@ -10,6 +10,7 @@ import requests  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
 from components.models import Committee
+from components.interfaces import get_user_agent
 
 LISTING_PATHS: dict[str, str] = {
     "Joint": "/Committees/Joint",
@@ -28,7 +29,7 @@ DETAIL_HREF_RE: re.Pattern = re.compile(
 
 def _fetch(session: requests.Session, url: str) -> BeautifulSoup:
     resp: requests.Response = session.get(
-        url, timeout=20, headers={"User-Agent": "legis-scraper/0.1"}
+        url, timeout=20, headers={"User-Agent": get_user_agent()}
     )
     resp.raise_for_status()
     return BeautifulSoup(resp.text, "html.parser")
