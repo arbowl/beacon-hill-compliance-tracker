@@ -10,8 +10,25 @@ from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 
+from components.committees import get_committees
+from components.models import Committee
+
 
 Json = list[dict[str, Optional[str | bool | dict[str, str | bool]]]]
+COMMITTEE_ID_RE = re.compile(r"_(J|H|S)\d+\.json$", re.IGNORECASE)
+
+
+def extract_committee_id(path: Path) -> str | None:
+    """Return committee ID like 'J11' from filename 'basic_J11.json'."""
+    m = COMMITTEE_ID_RE.search(path.name)
+    if m:
+        # Normalize capitalization (J11, H33, S48)
+        return m.group(0).split("_")[1].replace(".json", "").upper()
+    return None
+
+
+def build_committee_lookup(committees: list[Committee]) -> dict[str, Committee]:
+    return {c.id.upper(): c for c in committees}
 
 
 def find_latest_folder(path: Path) -> Path:
@@ -45,34 +62,35 @@ def find_latest_folder(path: Path) -> Path:
     return latest_day
 
 
-def load_json_files(folder: Path) -> Json:
-    """Return a list of parsed JSON data objects from all .json files in a folder."""
+def load_json_files(folder: Path) -> list[tuple[str, dict]]:
+    """Return list of (committee_id, data_object)."""
     json_files = list(folder.glob("*.json"))
-    data_objects = []
+    results = []
     for jf in json_files:
+        cid = extract_committee_id(jf)
+        if not cid:
+            print(f"[!] Could not extract committee ID from {jf.name}")
+            continue
         try:
             with open(jf, "r", encoding="utf-8") as f:
-                data_objects.append(json.load(f))
+                results.append((cid, json.load(f)))
         except Exception as e:
             print(f"[!] Could not read {jf}: {e}")
-    return data_objects
+    return results
 
 
-def extract_non_compliant_bills(data_objects: Json) -> Json:
-    """
-    Return a deduped list of bills where
-    votes_present=false AND state=Non-Compliant.
-    Deduping is done by bill_id.
-    """
+def extract_non_compliant_bills(loaded: list[tuple[str, dict]]) -> Json:
     dedup = {}
-
-    for obj in data_objects:
+    for committee_id, obj in loaded:
         bills = obj.get("bills", [])
         for bill in bills:
             if bill.get("votes_present") is False and bill.get("state") == "Non-Compliant":
                 bill_id = bill.get("bill_id")
-                if bill_id not in dedup:
-                    dedup[bill_id] = bill
+                if bill_id in dedup:
+                    continue
+                new_bill = bill.copy()
+                new_bill["committee_id"] = committee_id  # attach
+                dedup[bill_id] = new_bill
     return list(dedup.values())
 
 
@@ -115,6 +133,9 @@ def categorize_bills(bills: Json) -> dict:
         }
     """
     categories = {
+        'Agriculture': [
+            'agriculture', 'farm', 'farmer', 'fish', 'fishing', 'seafood', 'pesticide', 'food', 'crop'
+        ],
         'Privacy/Tech': [
             'privacy','data','cyber','technology','internet','digital','ai','artificial'
         ],
@@ -139,6 +160,9 @@ def categorize_bills(bills: Json) -> dict:
         'Criminal Justice': [
             'crime','criminal','police','justice','safety','court','correction'
         ],
+        'Public Safety': [
+            'fire', 'ems', 'emergency', 'disaster', 'preparedness', 'responder', 'safety'
+        ],
         'Tax/Finance': [
             'tax','revenue','finance','budget','appropriat'
         ],
@@ -148,6 +172,9 @@ def categorize_bills(bills: Json) -> dict:
         'Labor/Workforce': [
             'labor','employment','worker','wage','union'
         ],
+        'Utilities/Telecommunication': [
+            'utility', 'utilities', 'electric', 'gas', 'broadband', 'grid', 'telecom', 'rate', 'storm'
+        ]
     }
 
     def classify(title: str) -> str:
@@ -351,6 +378,29 @@ def cluster_bill_topics(
     }
 
 
+def print_missing_votes_by_committee(bills: Json) -> None:
+    """Print sorted counts of missing-vote bills grouped by committee name."""
+    committees = get_committees()
+    lookup = build_committee_lookup(committees)
+    # Count by committee_id
+    counts = Counter()
+    for b in bills:
+        cid = b.get("committee_id")
+        if cid:
+            counts[cid] += 1
+    # Convert to list of (name, count)
+    results = []
+    for cid, count in counts.items():
+        committee = lookup.get(cid)
+        name = committee.name if committee else f"Unknown ({cid})"
+        results.append((name, count))
+    # Sort from highest → lowest
+    results.sort(key=lambda x: x[1], reverse=True)
+    print("[>] Missing votes by committee:")
+    for name, count in results:
+        print(f"    {name}: {count}")
+
+
 if __name__ == "__main__":
     base_path = Path(__file__).resolve().parent.parent / "out"
     print(f"[?] Searching under: {base_path}")
@@ -388,3 +438,4 @@ if __name__ == "__main__":
         print(f"\nCluster {cid}: {label}")
         print("Keywords:", topics["clusters"][cid]["keywords"][:10])
         print(f"Bills: {len(topics['clusters'][cid]['bills'])}")
+    print_missing_votes_by_committee(bills)
