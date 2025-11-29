@@ -380,7 +380,10 @@ def cluster_bill_topics(
 
 def print_missing_votes_by_committee(bills: Json) -> None:
     """Print sorted counts of missing-vote bills grouped by committee name."""
-    committees = get_committees()
+    committees = get_committees(
+        "https://malegislature.gov",
+        ("Joint", "House", "Senate")
+    )
     lookup = build_committee_lookup(committees)
     # Count by committee_id
     counts = Counter()
