@@ -211,3 +211,4 @@ __marimo__/
 out/
 cache/
 cache.json
+*.csv
