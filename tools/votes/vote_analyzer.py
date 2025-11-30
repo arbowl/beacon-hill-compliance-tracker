@@ -9,6 +9,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
+from sklearn.manifold import SpectralEmbedding
+import matplotlib.pyplot as plt
+import numpy as np
 
 from components.committees import get_committees
 from components.models import Committee
@@ -84,7 +87,7 @@ def extract_non_compliant_bills(loaded: list[tuple[str, dict]]) -> Json:
     for committee_id, obj in loaded:
         bills = obj.get("bills", [])
         for bill in bills:
-            if bill.get("votes_present") is False and bill.get("state") == "Non-Compliant":
+            if bill.get("votes_present") is False and bill.get("state") == "Non-Compliant" and "Insufficient" not in bill.get("reason"):
                 bill_id = bill.get("bill_id")
                 if bill_id in dedup:
                     continue
@@ -279,22 +282,15 @@ def cluster_bill_topics(
     """Perform ML-based topic clustering on bill titles.
     If sentence-transformers is installed, uses embeddings.
     Otherwise falls back to TF-IDF vectors.
-    
-    Returns:
-        {
-            "clusters": {
-                cluster_id: {
-                    "keywords": [...],
-                    "bills": [bill_objects],
-                },
-            },
-            "labels": {cluster_id: "human label"},
-            "model_used": "embeddings" or "tfidf",
-        }
+
+    Added:
+        - "vectors": original embedding/TFIDF vectors    (NEW)
+        - "projection_2d": SpectralEmbedding 2D coords   (NEW)
     """
     titles = [b.get("bill_title", "") or "" for b in bills]
+
     boilerplate_phrases = [
-        r"\ban act(?:\s+relative\s+to|\s+establishing|"\
+        r"\ban act(?:\s+relative\s+to|\s+establishing|"
         r"\s+providing\s+for|\s+creating|\s+to)?\b",
         r"\brelative to\b",
         r"\bconcerning\b",
@@ -314,8 +310,13 @@ def cluster_bill_topics(
         return t
 
     clean_titles = [clean_text(t) for t in titles]
+
     vectors = None
     model_used = None
+
+    # -----------------------------------------------------
+    # Embeddings
+    # -----------------------------------------------------
     if use_embeddings:
         try:
             model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -323,8 +324,11 @@ def cluster_bill_topics(
             model_used = "embeddings"
         except Exception:
             use_embeddings = False
+
+    # -----------------------------------------------------
+    # TF-IDF fallback
+    # -----------------------------------------------------
     if not use_embeddings:
-        # Fallback: TF-IDF vectors
         vec = TfidfVectorizer(
             stop_words="english",
             max_features=3000,
@@ -332,15 +336,22 @@ def cluster_bill_topics(
         )
         vectors = vec.fit_transform(clean_titles)
         model_used = "tfidf"
+
+    # -----------------------------------------------------
+    # KMeans clustering
+    # -----------------------------------------------------
     km = KMeans(
         n_clusters=n_clusters,
         random_state=42,
         n_init=10
     )
     labels = km.fit_predict(vectors)
+
+    # -----------------------------------------------------
+    # Keyword extraction
+    # -----------------------------------------------------
     cluster_keywords = defaultdict(list)
     if model_used == "tfidf":
-        # Extract keywords from center → nearest TF-IDF features
         feature_names = vec.get_feature_names_out()
         centers = km.cluster_centers_
         for i in range(n_clusters):
@@ -348,12 +359,9 @@ def cluster_bill_topics(
             top_idx = center.argsort()[::-1][:10]
             cluster_keywords[i] = [feature_names[j] for j in top_idx]
     else:
-        # Embeddings can't extract feature weights → fallback:
-        # Use TF-IDF keywords as labeling vocabulary
         label_vec = TfidfVectorizer(stop_words="english", max_features=2000)
         label_matrix = label_vec.fit_transform(clean_titles)
         feature_names = label_vec.get_feature_names_out()
-        # For each cluster, aggregate TF-IDF weights
         for cid in range(n_clusters):
             idxs = [i for i,l in enumerate(labels) if l == cid]
             if not idxs:
@@ -362,19 +370,43 @@ def cluster_bill_topics(
             sub = label_matrix[idxs].sum(axis=0).A1
             top_idx = sub.argsort()[::-1][:10]
             cluster_keywords[cid] = [feature_names[j] for j in top_idx]
+
+    # -----------------------------------------------------
+    # Build clusters dict
+    # -----------------------------------------------------
     clusters = defaultdict(lambda: {"keywords": [], "bills": []})
     for cid in range(n_clusters):
         clusters[cid]["keywords"] = cluster_keywords[cid]
+
     for idx, cid in enumerate(labels):
         clusters[cid]["bills"].append(bills[idx])
+
     human_labels = {
         cid: ", ".join(cluster_keywords[cid][:3]) if cluster_keywords[cid] else "Misc"
         for cid in range(n_clusters)
     }
+
+    # -----------------------------------------------------
+    # NEW: 2D projection (SpectralEmbedding → UMAP-like)
+    # -----------------------------------------------------
+    try:
+        if model_used == "embeddings":
+            matrix = np.array(vectors)
+        else:
+            matrix = vectors.toarray()
+
+        reducer = SpectralEmbedding(n_components=2, random_state=42)
+        projection_2d = reducer.fit_transform(matrix)
+    except Exception:
+        projection_2d = None   # safe fallback
+
     return {
         "clusters": clusters,
         "labels": human_labels,
         "model_used": model_used,
+        "vectors": vectors,              # NEW
+        "projection_2d": projection_2d,  # NEW
+        "cluster_ids": labels.tolist(),  # optional helper
     }
 
 
@@ -382,7 +414,7 @@ def print_missing_votes_by_committee(bills: Json) -> None:
     """Print sorted counts of missing-vote bills grouped by committee name."""
     committees = get_committees(
         "https://malegislature.gov",
-        include_chambers=("Joint", "House", "Senate")
+        ("Joint", "House", "Senate")
     )
     lookup = build_committee_lookup(committees)
     # Count by committee_id
@@ -404,8 +436,117 @@ def print_missing_votes_by_committee(bills: Json) -> None:
         print(f"    {name}: {count}")
 
 
+def export_clusters_to_html(topics: dict, outfile: str = "cluster_cards.html") -> None:
+    """
+    Generate an HTML card grid to display cluster info for missing-vote bills.
+    Creates a print-friendly PDF-ready layout.
+    """
+
+    clusters = topics["clusters"]
+    labels = topics["labels"]
+
+    # ---------- CSS + HTML HEADER ----------
+    html = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Missing Votes – Topic Clusters</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f8f9fa;
+        margin: 0;
+        padding: 40px;
+        color: #333;
+    }
+    h1 {
+        text-align: center;
+        margin-bottom: 30px;
+        font-size: 32px;
+    }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+    }
+    .card {
+        background: white;
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: 0px 3px 8px rgba(0,0,0,0.15);
+        border: 1px solid #e6e6e6;
+        page-break-inside: avoid;
+    }
+    .cluster-title {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 6px;
+        color: #2a4b8d;
+    }
+    .bill-count {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 10px;
+    }
+    .keywords {
+        list-style: none;
+        margin: 0;
+        padding-left: 0;
+        font-size: 14px;
+    }
+    .keywords li::before {
+        content: "• ";
+        color: #2a4b8d;
+    }
+    @media print {
+        body { background: white; padding: 20px; }
+        .card { break-inside: avoid; }
+    }
+</style>
+</head>
+
+<body>
+<h1>Missing Votes — Topic Clusters Overview</h1>
+<div class="grid">
+"""
+
+    # ---------- ADD CARDS ----------
+    for cid, cluster in clusters.items():
+        label = labels.get(cid, f"Group {cid + 1}")
+        keywords = cluster["keywords"][:10]
+        bills_count = len(cluster["bills"])
+
+        html += f"""
+    <div class="card">
+        <div class="cluster-title">Group {cid + 1} — {label}</div>
+        <div class="bill-count">Bills affected: {bills_count}</div>
+        <ul class="keywords">
+"""
+        for kw in keywords:
+            html += f"            <li>{kw}</li>\n"
+
+        html += """        </ul>
+    </div>
+"""
+
+    # ---------- FOOTER ----------
+    html += """
+</div>
+</body>
+</html>
+"""
+
+    # ---------- WRITE FILE ----------
+    with open(outfile, "w", encoding="utf-8") as f:
+        f.write(html)
+
+    print(f"[>] HTML cluster card file created: {outfile}")
+
+
+
 if __name__ == "__main__":
-    base_path = Path(__file__).resolve().parent.parent / "out"
+    base_path = Path(__file__).resolve().parent.parent.parent / "out"
     print(f"[?] Searching under: {base_path}")
     try:
         latest_folder = find_latest_folder(base_path)
@@ -442,3 +583,4 @@ if __name__ == "__main__":
         print("Keywords:", topics["clusters"][cid]["keywords"][:10])
         print(f"Bills: {len(topics['clusters'][cid]['bills'])}")
     print_missing_votes_by_committee(bills)
+    export_clusters_to_html(topics)

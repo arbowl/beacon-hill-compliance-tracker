@@ -5,15 +5,15 @@ import colorsys
 # --- Data -------------------------------------------------------
 
 committee_missing_votes = {
-    Joint Committee on the Judiciary: 233
-    Joint Committee on Revenue: 210
-    Joint Committee on Municipalities and Regional Government: 164
-    Joint Committee on Public Health: 153
-    Joint Committee on Education: 139
-    Joint Committee on Environment and Natural Resources: 131
-    Joint Committee on Public Service: 124
-    Joint Committee on Telecommunications, Utilities and Energy: 101
-    Joint Committee on Financial Services: 95
+    "Joint Committee on the Judiciary": 233,
+    "Joint Committee on Revenue": 210,
+    "Joint Committee on Municipalities and Regional Government": 164,
+    "Joint Committee on Public Health": 153,
+    "Joint Committee on Education": 139,
+    "Joint Committee on Environment and Natural Resources": 131,
+    "Joint Committee on Public Service": 124,
+    "Joint Committee on Telecommunications, Utilities and Energy": 101,
+    "Joint Committee on Financial Services": 95,
 }
 
 # Sort descending
