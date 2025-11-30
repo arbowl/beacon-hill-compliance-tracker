@@ -212,3 +212,6 @@ out/
 cache/
 cache.json
 *.csv
+*.png
+*.html
+*.pdf
