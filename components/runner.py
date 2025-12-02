@@ -220,7 +220,7 @@ def _process_single_bill(
             "effective_deadline": str(status.effective_deadline),
             "extension_order_url": extension_order_url,
             "extension_date": str(extension_date) if extension_date else None,
-            "reported_out": status.reported_out,
+            "reported_out": str(status.reported_date) if status.reported_date else None,
             "summary_present": summary.present,
             "summary_url": summary.source_url,
             "votes_present": votes.present,
