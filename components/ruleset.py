@@ -17,19 +17,20 @@ from typing import Optional
 from components.models import BillStatus, SummaryInfo, VoteInfo
 from components.compliance import BillCompliance, ComplianceState
 
-NOTICE_REQUIREMENT_START_DATE: date = date(2025, 6, 26)
-SESSION_WEDNESDAY_DEADLINES: defaultdict[Optional[str], date] = defaultdict(
-    lambda: date(2025, 12, 3)
-)
-SESSION_WEDNESDAY_DEADLINES["194"] = date(2025, 12, 3)
 
+@dataclass(frozen=True)
+class Constants194:
+    """Constants for the 194th Session of the Massachusetts Legislature."""
 
-def get_senate_deadline() -> date:
-    """Computing the Senate deadline based on the date."""
-    today = date.today()
-    if today < SESSION_WEDNESDAY_DEADLINES["194"]:
-        return SESSION_WEDNESDAY_DEADLINES["194"]
-    return date(2026, 12, 31)
+    notice_requirement_start_date: date = date(2025, 6, 26)
+    senate_october_deadline: date = date(2025, 10, 1)
+    first_wednesday_december: date = date(2025, 12, 3)
+    third_wednesday_december: date = date(2025, 12, 17)
+    third_wednesday_march: date = date(2026, 3, 18)
+    hcf_december_deadline: date = date(2025, 12, 24)
+    last_wednesday_january: date = date(2026, 1, 28)
+    end_of_session: date = date(2026, 12, 31)
+
 
 
 class BillType(str, Enum):
@@ -202,19 +203,19 @@ class NoticeRequirementRule(ComplianceRule):
                 reason="Announcement date missing",
                 is_missing_notice=True,
             )
-        if status.scheduled_hearing_date is None:
+        if status.hearing_date is None:
             return RuleResult(
                 passed=Status.UNKNOWN,
                 reason="Hearing date missing",
                 is_missing_notice=True,
             )
         days_notice: int = (
-            status.scheduled_hearing_date - status.announcement_date
+            status.hearing_date - status.announcement_date
         ).days
         notice_requirement: int = CommitteeType.get_notice_requirement(
             context.committee_type
         )
-        if status.announcement_date < NOTICE_REQUIREMENT_START_DATE:
+        if status.announcement_date < Constants194.notice_requirement_start_date:
             notice_requirement = 0
             # Exempt from notice requirement
             notice_desc = (
@@ -309,6 +310,8 @@ class ReportedOutRequirementRule(ComplianceRule):
         summary: SummaryInfo,
         votes: VoteInfo,
     ) -> RuleResult:
+        c = Constants194()
+        today = date.today()
         if status.hearing_date is None:
             return RuleResult(
                 passed=Status.UNKNOWN,
@@ -316,17 +319,34 @@ class ReportedOutRequirementRule(ComplianceRule):
                 is_core_requirement=True,
             )
         if context.bill_type == BillType.HOUSE:
-            deadline_60 = status.hearing_date + timedelta(days=60)
-            deadline_90 = status.hearing_date + timedelta(days=90)
-        else:
-            deadline_60 = get_senate_deadline()
-            deadline_90 = deadline_60 + timedelta(days=30)
+            if status.hearing_date < c.third_wednesday_december:
+                deadline_60 = status.hearing_date + timedelta(days=60)
+                deadline_90 = status.hearing_date + timedelta(days=90)
+            elif status.hearing_date < c.third_wednesday_march - timedelta(days=60):
+                deadline_60 = status.hearing_date + timedelta(days=60)
+                deadline_90 = c.third_wednesday_march
+            else:  # After Jan 18, 2026
+                deadline_60 = status.hearing_date + timedelta(days=60)
+                deadline_90 = deadline_60
+        else:  # Senate bill
+            if today < c.first_wednesday_december:
+                deadline_60 = c.first_wednesday_december
+                deadline_90 = deadline_60 + timedelta(days=30)
+            else:
+                deadline_60 = c.end_of_session
+                deadline_90 = deadline_60
+        if context.committee_id == "J24":  # Health Care Financing Exception
+            if status.hearing_date < c.hcf_december_deadline:
+                deadline_60 = c.last_wednesday_january
+                deadline_90 = deadline_60
+            else:  # After Dec 24, 2025
+                deadline_60 = status.hearing_date + timedelta(days=60)
+                deadline_90 = deadline_60
         if not status.extension_until:
             effective_deadline = deadline_60
         else:
             effective_deadline = min(status.extension_until, deadline_90)
             effective_deadline = max(effective_deadline, deadline_60)
-        today = date.today()
         if status.reported_date and status.reported_date <= effective_deadline:
             return RuleResult(
                 passed=Status.COMPLIANT,
