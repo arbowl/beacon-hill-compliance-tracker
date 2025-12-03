@@ -5,6 +5,16 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-12-02
+
+### Added
+- Report-out compliance logic now bundles the reported-out date alongside the binary presence check, which will enrich datasets, unlock additional insights, and allow for future UI elements.
+- Expanding report-out logic to be conscious of rules-based deadlines beyond basic 60/90 day compliance by incorporating October, December, January, and March deadlines as prescribed in Joint Rules
+
+### Fixed
+- Added report-out exception for the Joint Committee on Health Care Financing based on JR19
+
+
 ## [1.1.10] - 2025-11-21
 
 ### Changed
