@@ -269,7 +269,7 @@ class BillActionTimeline:
         """
         extensions = [
             a for a in self.actions
-            if a.action_type == ActionType.REPORTING_EXTENDED:
+            if a.action_type == ActionType.REPORTING_EXTENDED
         ]
         if not extensions:
             return None
