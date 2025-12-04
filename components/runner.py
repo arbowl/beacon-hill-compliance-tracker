@@ -155,7 +155,7 @@ def _process_single_bill(
                 except (ValueError, KeyError):
                     extension_until = None
         status: BillStatus = build_status_row(
-            base_url, row, cache, extension_until
+            base_url, row, extension_until
         )
         summary = resolve_summary_for_bill(
             base_url, cfg, cache, row, deferred_session
