@@ -329,6 +329,63 @@ class BillActionTimeline:
         """
         return self.get_actions_by_type(ActionType.UNKNOWN)
 
+    def infer_missing_committee_ids(self) -> None:
+        """Infer committee IDs for hearings that don't explicitly mention them.
+        
+        When a hearing action doesn't include the committee name, it's typically
+        for the most recently referred committee that hasn't been discharged or
+        reported out yet.
+        
+        This method modifies actions in-place by adding inferred committee_ids
+        to the extracted_data. It uses a two-pass approach to handle same-date
+        actions correctly.
+        """
+        # Don't process if already processed
+        if hasattr(self, '_committee_ids_inferred'):
+            return
+        self._committee_ids_inferred = True
+        
+        # Track active committees as we process actions chronologically
+        # We track committee lifecycle separately from hearing inference
+        # to handle same-date actions correctly
+        active_committees_at_time: dict[str, date] = {}  # committee_id -> referral_date
+        
+        for action in self.actions:
+            action_type = action.action_type
+            committee_id = action.extracted_data.get("committee_id")
+            
+            # Update active committees up to this date
+            if action_type == ActionType.REFERRED:
+                if committee_id:
+                    active_committees_at_time[committee_id] = action.date
+                    
+            elif action_type in {ActionType.DISCHARGED, ActionType.REPORTED}:
+                # Committee is no longer active after discharge/report
+                if committee_id and committee_id in active_committees_at_time:
+                    del active_committees_at_time[committee_id]
+            
+            # Infer committee for hearings without explicit committee
+            elif action_type in {
+                ActionType.HEARING_SCHEDULED,
+                ActionType.HEARING_RESCHEDULED,
+                ActionType.HEARING_LOCATION_CHANGED,
+                ActionType.HEARING_TIME_CHANGED,
+            }:
+                if not committee_id and active_committees_at_time:
+                    # Use the most recently referred active committee
+                    most_recent = max(
+                        active_committees_at_time.items(),
+                        key=lambda item: item[1]
+                    )
+                    inferred_committee_id = most_recent[0]
+                    
+                    # Mark if multiple active committees (ambiguous case)
+                    if len(active_committees_at_time) > 1:
+                        action.extracted_data["committee_id_ambiguous"] = True
+                    
+                    action.extracted_data["committee_id"] = inferred_committee_id
+                    action.extracted_data["committee_id_inferred"] = True
+
     def __len__(self) -> int:
         """Number of actions in timeline."""
         return len(self.actions)

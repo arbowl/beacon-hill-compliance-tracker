@@ -39,21 +39,28 @@ def create_action_nodes() -> List[ActionNode]:
         action_type=ActionType.REFERRED,
         category="referral-committee",
         patterns=[
+            # Compound action: extract LAST referral (most recent committee)
+            re.compile(
+                r"referred\s+to\s+the\s+committee\s+on\s+[^,]+(?:,\s+[^,]+)*,?\s+"
+                r"(?:reported|discharged)[^,]*,?\s+(?:rules\s+suspended\s+and\s+)?"
+                r"referred\s+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*(?:the\s+)?(?:Internet|Cybersecurity|and)[^,]*)*)",
+                re.I
+            ),
             re.compile(
                 r"Read[;,]?\s+and\s+referred[,\s]+as\s+relates\s+to\s+sections?\s+"
-                r"(?P<sections>.+?)[,\s]+to\s+the\s+committee\s+on\s+(?P<committee>.+)",
+                r"(?P<sections>.+?)[,\s]+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*(?:the\s+)?(?:Internet|Cybersecurity|and)[^,]*)*)",
                 re.I
             ),
             re.compile(
-                r"referred\s+to\s+the\s+committee\s+on\s+(?P<committee>.+)",
+                r"referred\s+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*(?:the\s+)?(?:Internet|Cybersecurity|and)[^,]*)*)",
                 re.I
             ),
             re.compile(
-                r"Read[;,]?\s+and\s+referred\s+to\s+the\s+committee\s+on\s+(?P<committee>.+)",
+                r"Read[;,]?\s+and\s+referred\s+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*(?:the\s+)?(?:Internet|Cybersecurity|and)[^,]*)*)",
                 re.I
             ),
             re.compile(
-                r"referred.*?to\s+the\s+committee\s+on\s+(?P<committee>.+)",
+                r"referred.*?to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*(?:the\s+)?(?:Internet|Cybersecurity|and)[^,]*)*)",
                 re.I
             ),
         ],

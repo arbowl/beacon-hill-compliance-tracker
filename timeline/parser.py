@@ -150,4 +150,9 @@ def extract_timeline(
     """
     extractor = ActionExtractor()
     actions = extractor.extract_actions(bill_url, bill_id)
-    return BillActionTimeline(actions, bill_id)
+    timeline = BillActionTimeline(actions, bill_id)
+    
+    # Infer committee IDs for hearings that don't explicitly mention them
+    timeline.infer_missing_committee_ids()
+    
+    return timeline

@@ -190,9 +190,21 @@ def normalize_committee_name(raw_name: str) -> Optional[str]:
     """
     if not raw_name:
         return None
+    
+    cleaned = raw_name.strip().lower()
+    
+    # First pass: Try exact matches across all committees
     for committee in _COMMITTEES:
-        if committee.matches(raw_name):
-            return committee.id
+        for variant in committee.short_names:
+            if variant.lower() == cleaned:
+                return committee.id
+    
+    # Second pass: Try substring matches
+    for committee in _COMMITTEES:
+        for variant in committee.short_names:
+            if variant.lower() in cleaned or cleaned in variant.lower():
+                return committee.id
+    
     return None
 
 
