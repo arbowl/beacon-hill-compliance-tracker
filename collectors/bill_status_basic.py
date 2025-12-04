@@ -252,7 +252,7 @@ def get_committee_tenure(bill_url: str, committee_id: str) -> Optional[dict]:
     tenure_start = tenure_start_action.date
     reported_actions = timeline.get_actions_by_type("REPORTED")
     reported_date = None
-    for action in reported_actions:
+    for action in sorted(reported_actions, key=lambda a: a.date):
         action_committee = action.extracted_data.get("committee_id")
         if not action_committee:
             prior_refs = [r for r in (referrals + discharges) if r.date < action.date]
@@ -265,17 +265,15 @@ def get_committee_tenure(bill_url: str, committee_id: str) -> Optional[dict]:
     discharged_date = None
     for action in sorted(referrals + discharges, key=lambda a: a.date):
         if action.date > tenure_start:
-            next_committee = action.extracted_data
+            next_committee = action.extracted_data.get("committee_id")
             if next_committee and next_committee != committee_id:
                 discharged_date = action.date
                 break
     tenure_end = None
     is_active = True
-    if reported_date:
-        tenure_end = reported_date
-        is_active = False
-    elif discharged_date:
-        tenure_end = discharged_date
+    candidates = [d for d in [reported_date, discharged_date] if d]
+    if candidates:
+        tenure_end = min(candidates)  # earliest final action wins
         is_active = False
     else:
         tenure_end = date.today()
@@ -432,8 +430,6 @@ def build_status_row(
             "hearing_announcement_date": None,
             "hearing_date": None,
         }
-    if "4693" in row.bill_id:
-        breakpoint()
     return BillStatus(
         bill_id=row.bill_id,
         committee_id=row.committee_id,
