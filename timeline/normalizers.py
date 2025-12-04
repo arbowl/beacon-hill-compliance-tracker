@@ -131,6 +131,8 @@ _COMMITTEES: list[CommitteeAlias] = [
               ["Racial Equity, Civil Rights, and Inclusion", "Joint Committee on Racial Equity, Civil Rights, and Inclusion"]),
     CommitteeAlias("J37", "Joint Committee on Telecommunications, Utilities and Energy", CommitteeChamber.JOINT,
               ["Telecommunications, Utilities and Energy", "Joint Committee on Telecommunications, Utilities and Energy"]),
+    CommitteeAlias("J38", "Joint Committee on Agriculture", CommitteeChamber.JOINT,
+              ["Agriculture", "Joint Committee on Agriculture"]),
     CommitteeAlias("J39", "Joint Committee on Ways and Means", CommitteeChamber.JOINT,
               ["Ways and Means", "Joint Committee on Ways and Means", "Joint Ways and Means"]),
     CommitteeAlias("J40", "Joint Committee on Rules", CommitteeChamber.JOINT,

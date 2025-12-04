@@ -12,6 +12,8 @@ from components.utils import (
 )
 from components.interfaces import ParserInterface
 
+from timeline.parser import extract_timeline
+
 # Common phrases on bill history when a committee moves a bill
 _REPORTED_PATTERNS = [
     re.compile(r"\breported favorably\b"),
@@ -230,6 +232,104 @@ def get_bill_title(bill_url: str) -> str | None:
     return None
 
 
+def get_committee_tenure(bill_url: str, committee_id: str) -> Optional[dict]:
+    """Get committee tenure information for a bill and committee."""
+    # Report-out
+    try:
+        timeline = extract_timeline(bill_url)
+    except Exception:  # pylint: disable=broad-exception-caught
+        return None
+    referrals = timeline.get_actions_by_type("REFERRED")
+    discharges = timeline.get_actions_by_type("DISCHARGED")
+    tenure_start_action = None
+    for action in sorted(referrals + discharges, key=lambda a: a.date):
+        action_committee = action.extracted_data.get("committee_id")
+        if action_committee == committee_id:
+            tenure_start_action = action
+            break
+    if not tenure_start_action:
+        return None
+    tenure_start = tenure_start_action.date
+    reported_actions = timeline.get_actions_by_type("REPORTED")
+    reported_date = None
+    for action in reported_actions:
+        action_committee = action.extracted_data.get("committee_id")
+        if not action_committee:
+            prior_refs = [r for r in (referrals + discharges) if r.date < action.date]
+            if prior_refs:
+                latest_ref = max(prior_refs, key=lambda r: r.date)
+                action_committee = latest_ref.extracted_data.get("committee_id")
+        if action_committee == committee_id and action.date >= tenure_start:
+            reported_date = action.date
+            break
+    discharged_date = None
+    for action in sorted(referrals + discharges, key=lambda a: a.date):
+        if action.date > tenure_start:
+            next_committee = action.extracted_data
+            if next_committee and next_committee != committee_id:
+                discharged_date = action.date
+                break
+    tenure_end = None
+    is_active = True
+    if reported_date:
+        tenure_end = reported_date
+        is_active = False
+    elif discharged_date:
+        tenure_end = discharged_date
+        is_active = False
+    else:
+        tenure_end = date.today()
+        is_active = True
+    scheduled = timeline.get_actions_by_type("HEARING_SCHEDULED")
+    rescheduled = timeline.get_actions_by_type("HEARING_RESCHEDULED")
+    all_hearings = []
+    hearing_announcement_date = None
+    hearing_date = None
+    for action in sorted(scheduled + rescheduled, key=lambda a: a.date):
+        action_committee = action.extracted_data.get("committee_id")
+        if not action_committee:
+            action_committee = committee_id
+        if action_committee == committee_id:
+            if tenure_start <= action.date <= tenure_end:
+                hearing_date_str = action.extracted_data.get("hearing_date")
+                if hearing_date_str:
+                    hearing_dt = date.fromisoformat(hearing_date_str)
+                    all_hearings.append({
+                        "announcement_date": action.date,
+                        "hearing_date": hearing_dt,
+                        "action_type": action.action_type,
+                    })
+    if all_hearings:
+        latest_hearing = max(all_hearings, key=lambda h: h["hearing_date"])
+        hearing_announcement_date = latest_hearing["announcement_date"]
+        hearing_date = latest_hearing["hearing_date"]
+    notice_days = None
+    if hearing_announcement_date and hearing_date:
+        notice_days = (hearing_date - hearing_announcement_date).days
+    hearing_to_report_days = None
+    if hearing_date and reported_date:
+        hearing_to_report_days = (reported_date - hearing_date).days
+    referred_to_report_days = None
+    if reported_date:
+        referred_to_report_days = (reported_date - tenure_start).days
+    return {
+        "committee_id": committee_id,
+        "referred_date": tenure_start,
+        "hearing_announcement_date": hearing_announcement_date,
+        "hearing_date": hearing_date,
+        "all_hearing_dates": [h["hearing_date"] for h in all_hearings],
+        "all_hearings": all_hearings,
+        "reported_date": reported_date,
+        "discharged_date": discharged_date,
+        "tenure_start": tenure_start,
+        "tenure_end": tenure_end,
+        "notice_days": notice_days,
+        "hearing_to_report_days": hearing_to_report_days,
+        "referred_to_report_days": referred_to_report_days,
+        "is_active": is_active,
+    }
+
+
 def build_status_row(
     _base_url: str, row: BillAtHearing, cache: Cache, extension_until=None
 ) -> BillStatus:
@@ -299,17 +399,51 @@ def build_status_row(
     reported, rdate = _reported_out_from_bill_page(
         row.bill_url, row.committee_id, row.hearing_date
     )
+    tenure_info = get_committee_tenure(row.bill_url, row.committee_id)
+    if tenure_info:
+        if tenure_info["reported_date"] != rdate:
+            print(row.bill_url)
+            print(
+                f"Discrepancy in reported_date for bill {row.bill_id} "
+                f"committee {row.committee_id}: "
+                f"tenure_info has {tenure_info['reported_date']}, "
+                f"but _reported_out_from_bill_page found {rdate}."
+            )
+        if tenure_info["hearing_date"] != sched_hearing:
+            print(row.bill_url)
+            print(
+                f"Discrepancy in hearing_date for bill {row.bill_id} "
+                f"committee {row.committee_id}: "
+                f"tenure_info has {tenure_info['hearing_date']}, "
+                f"but _hearing_announcement_from_bill_page found {sched_hearing}."
+            )
+        if tenure_info["hearing_announcement_date"] != announce_date:
+            print(row.bill_url)
+            print(
+                f"Discrepancy in hearing_announcement_date for bill "
+                f"{row.bill_id} committee {row.committee_id}: "
+                f"tenure_info has {tenure_info['hearing_announcement_date']}, "
+                f"but _hearing_announcement_from_bill_page found "
+                f"{announce_date}."
+            )
+    if not tenure_info:
+        tenure_info = {
+            "reported_date": None,
+            "hearing_announcement_date": None,
+            "hearing_date": None,
+        }
+    if "4693" in row.bill_id:
+        breakpoint()
     return BillStatus(
         bill_id=row.bill_id,
         committee_id=row.committee_id,
         hearing_date=row.hearing_date,
         deadline_60=d60,
         deadline_90=d90,
-        reported_out=reported,
-        reported_date=rdate,
+        reported_out=tenure_info["reported_date"] is not None,
+        reported_date=tenure_info["reported_date"],
         extension_until=extension_until,
         effective_deadline=effective,
-        announcement_date=announce_date,
-        scheduled_hearing_date=sched_hearing,
+        announcement_date=tenure_info["hearing_announcement_date"],
+        scheduled_hearing_date=tenure_info["hearing_date"],
     )
-

@@ -9,10 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Report-out compliance logic now bundles the reported-out date alongside the binary presence check, which will enrich datasets, unlock additional insights, and allow for future UI elements.
-- Expanding report-out logic to be conscious of rules-based deadlines beyond basic 60/90 day compliance by incorporating October, December, January, and March deadlines as prescribed in Joint Rules
+- Expanding report-out logic to be conscious of rules-based deadlines beyond basic 60/90 day compliance by incorporating October, December, January, and March deadlines as prescribed in Joint Rules for 2026 preparedness
+- Training new timeline engine for stricter report-out, hearing, and referral parsing (not yet implemented)
+- Added support for vote date detection, allowing further compliance granularity checking (not yet counted for compliance)
+
+### Deprecated
+- Slated old bill action parser for deprecation following successful training of timeline engine
 
 ### Fixed
-- Added report-out exception for the Joint Committee on Health Care Financing based on JR19
+- Carved out report-out deadline exception for the Joint Committee on Health Care Financing based on Joint Rule 19
 
 
 ## [1.1.10] - 2025-11-21

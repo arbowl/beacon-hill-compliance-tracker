@@ -52,6 +52,10 @@ def create_action_nodes() -> List[ActionNode]:
                 r"Read[;,]?\s+and\s+referred\s+to\s+the\s+committee\s+on\s+(?P<committee>.+)",
                 re.I
             ),
+            re.compile(
+                r"referred.*?to\s+the\s+committee\s+on\s+(?P<committee>.+)",
+                re.I
+            ),
         ],
         extractors={
             "committee_name": extract_committee_name,

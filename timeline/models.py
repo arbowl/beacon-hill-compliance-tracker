@@ -169,7 +169,7 @@ class BillActionTimeline:
         """
         # Get the first REFERRED action for this committee
         for action in self.actions:
-            if action.action_type == "REFERRED":
+            if action.action_type in {"REFERRED", "DISCHARGED"}:
                 action_committee = action.extracted_data.get("committee_id")
                 if action_committee == committee_id:
                     return action.date
