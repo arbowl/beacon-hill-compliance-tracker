@@ -82,18 +82,21 @@ class ActionExtractor:
             action_date = parse_date(date_text)
             if not action_date:
                 continue
-            # Match against action nodes
-            matched_action = self._match_action(
+            # Match against action nodes (can return multiple actions for compounds)
+            matched_actions = self._match_actions(
                 action_date, branch_text, action_text
             )
-            actions.append(matched_action)
+            actions.extend(matched_actions)
         # Sort by date
         return sorted(actions, key=lambda a: a.date)
 
-    def _match_action(
+    def _match_actions(
         self, action_date: date, branch: str, action_text: str
-    ) -> BillAction:
-        """Match action text against node patterns.
+    ) -> list[BillAction]:
+        """Match action text against ALL node patterns.
+
+        A single action text can match multiple patterns (e.g., compound 
+        "reported and referred" actions). All matches are returned.
 
         Args:
             action_date: Date of the action
@@ -101,15 +104,15 @@ class ActionExtractor:
             action_text: Raw action text
 
         Returns:
-            BillAction (UNKNOWN type if no match found)
+            List of BillAction objects (at least one, UNKNOWN if no matches)
         """
-        # Try to match against known patterns
+        actions = []
         for node in self.nodes:
             match = node.match(action_text)
             if match:
                 extracted_data = node.extract_data(match)
                 confidence = node.calculate_confidence(match)
-                return BillAction(
+                actions.append(BillAction(
                     date=action_date,
                     branch=branch,
                     action_type=node.action_type,
@@ -117,17 +120,18 @@ class ActionExtractor:
                     raw_text=action_text,
                     extracted_data=extracted_data,
                     confidence=confidence,
-                )
-        # No match found - create UNKNOWN action
-        return BillAction(
-            date=action_date,
-            branch=branch,
-            action_type="UNKNOWN",
-            category="other",
-            raw_text=action_text,
-            extracted_data={},
-            confidence=0.0,
-        )
+                ))
+        if not actions:
+            actions.append(BillAction(
+                date=action_date,
+                branch=branch,
+                action_type="UNKNOWN",
+                category="other",
+                raw_text=action_text,
+                extracted_data={},
+                confidence=0.0,
+            ))
+        return actions
 
 
 def extract_timeline(
