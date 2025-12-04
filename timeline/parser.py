@@ -9,7 +9,7 @@ from typing import Optional
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from components.interfaces import ParserInterface
-from timeline.models import BillAction, BillActionTimeline, ActionNode
+from timeline.models import BillAction, BillActionTimeline, ActionNode, ActionType
 from timeline.nodes import ACTION_NODES
 
 
@@ -115,7 +115,7 @@ class ActionExtractor:
                 actions.append(BillAction(
                     date=action_date,
                     branch=branch,
-                    action_type=node.action_type,
+                    action_type=node.action_type.value,
                     category=node.category,
                     raw_text=action_text,
                     extracted_data=extracted_data,
@@ -125,7 +125,7 @@ class ActionExtractor:
             actions.append(BillAction(
                 date=action_date,
                 branch=branch,
-                action_type="UNKNOWN",
+                action_type=ActionType.UNKNOWN,
                 category="other",
                 raw_text=action_text,
                 extracted_data={},

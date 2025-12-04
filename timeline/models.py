@@ -5,7 +5,38 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from datetime import date
+from enum import Enum
 from typing import Any, Callable, Optional
+
+
+class ActionType(str, Enum):
+    """Enumeration of all legislative action types."""
+
+    REFERRED = "REFERRED"
+    DISCHARGED = "DISCHARGED"
+    REPORTED = "REPORTED"
+    STUDY_ORDER = "STUDY_ORDER"
+    ACCOMPANIED = "ACCOMPANIED"
+    HEARING_SCHEDULED = "HEARING_SCHEDULED"
+    HEARING_RESCHEDULED = "HEARING_RESCHEDULED"
+    HEARING_LOCATION_CHANGED = "HEARING_LOCATION_CHANGED"
+    HEARING_TIME_CHANGED = "HEARING_TIME_CHANGED"
+    REPORTING_EXTENDED = "REPORTING_EXTENDED"
+    READ = "READ"
+    READ_SECOND = "READ_SECOND"
+    READ_THIRD = "READ_THIRD"
+    RULES_SUSPENDED = "RULES_SUSPENDED"
+    CONCURRED = "CONCURRED"
+    PASSED_TO_BE_ENGROSSED = "PASSED_TO_BE_ENGROSSED"
+    ENACTED = "ENACTED"
+    SIGNED = "SIGNED"
+    PLACED_IN_ORDERS = "PLACED_IN_ORDERS"
+    REFERRED_TO_BILLS_IN_THIRD_READING = "REFERRED_TO_BILLS_IN_THIRD_READING"
+    STEERING_REFERRAL = "STEERING_REFERRAL"
+    AMENDED = "AMENDED"
+    TITLE_CHANGED = "TITLE_CHANGED"
+    EMERGENCY_PREAMBLE = "EMERGENCY_PREAMBLE"
+    UNKNOWN = "UNKNOWN"
 
 
 @dataclass
@@ -16,9 +47,9 @@ class BillAction:
     parsed into structured data.
     """
     date: date
-    branch: str  # "House", "Senate", "Joint", "Executive"
-    action_type: str  # "REFERRED", "REPORTED", "HEARING_SCHEDULED", etc.
-    category: str  # OpenStates-style category
+    branch: str  # "House", "Senate", "Joint"
+    action_type: ActionType  # "REFERRED", "REPORTED", etc.
+    category: str  # Category: "referral-committee", etc.
     raw_text: str  # Original action text from the website
     extracted_data: dict[str, Any] = field(default_factory=dict)
     confidence: float = 1.0  # 0.0 to 1.0, how confident we are in the match
@@ -46,8 +77,8 @@ class ActionNode:
     - Normalizers to clean/standardize extracted data
     - Priority for disambiguation when multiple patterns match
     """
-    action_type: str  # "REFERRED", "REPORTED", etc.
-    category: str  # OpenStates category: "referral-committee", etc.
+    action_type: ActionType  # "REFERRED", "REPORTED", etc.
+    category: str  # Category: "referral-committee", etc.
     patterns: list[re.Pattern]  # Compiled regex patterns
     extractors: dict[str, Callable] = field(default_factory=dict)
     normalizers: dict[str, Callable] = field(default_factory=dict)
@@ -141,7 +172,7 @@ class BillActionTimeline:
             Date of report-out, or None if not reported
         """
         for action in reversed(self.actions):
-            if action.action_type == "REPORTED":
+            if action.action_type == ActionType.REPORTED:
                 action_committee = action.extracted_data.get("committee_id")
                 if action_committee == committee_id:
                     return action.date
@@ -169,7 +200,9 @@ class BillActionTimeline:
         """
         # Get the first REFERRED action for this committee
         for action in self.actions:
-            if action.action_type in {"REFERRED", "DISCHARGED"}:
+            if action.action_type in {
+                ActionType.REFERRED, ActionType.DISCHARGED
+            }:
                 action_committee = action.extracted_data.get("committee_id")
                 if action_committee == committee_id:
                     return action.date
@@ -187,9 +220,9 @@ class BillActionTimeline:
             List of hearing actions (scheduled, rescheduled, etc.)
         """
         hearing_types = {
-            "HEARING_SCHEDULED",
-            "HEARING_RESCHEDULED",
-            "HEARING_LOCATION_CHANGED",
+            ActionType.HEARING_SCHEDULED,
+            ActionType.HEARING_RESCHEDULED,
+            ActionType.HEARING_LOCATION_CHANGED,
         }
         hearings = [
             a for a in self.actions
@@ -236,7 +269,7 @@ class BillActionTimeline:
         """
         extensions = [
             a for a in self.actions
-            if a.action_type == "REPORTING_EXTENDED"
+            if a.action_type == ActionType.REPORTING_EXTENDED:
         ]
         if not extensions:
             return None
@@ -249,7 +282,7 @@ class BillActionTimeline:
                 pass
         return None
 
-    def get_actions_by_type(self, action_type: str) -> list[BillAction]:
+    def get_actions_by_type(self, action_type: ActionType) -> list[BillAction]:
         """Get all actions of a specific type.
 
         Args:
@@ -264,7 +297,7 @@ class BillActionTimeline:
         """Get all actions in a specific category.
 
         Args:
-            category: OpenStates category to filter by
+            category: Category to filter by
 
         Returns:
             List of matching actions
@@ -294,7 +327,7 @@ class BillActionTimeline:
         Returns:
             List of UNKNOWN type actions
         """
-        return self.get_actions_by_type("UNKNOWN")
+        return self.get_actions_by_type(ActionType.UNKNOWN)
 
     def __len__(self) -> int:
         """Number of actions in timeline."""

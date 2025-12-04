@@ -7,7 +7,7 @@ corresponding regex patterns, extractors, and normalizers.
 import re
 from typing import List
 
-from timeline.models import ActionNode
+from timeline.models import ActionNode, ActionType
 from timeline.extractors import (
     extract_committee_name,
     extract_date,
@@ -36,7 +36,7 @@ def create_action_nodes() -> List[ActionNode]:
     # =========================================================================
 
     nodes.append(ActionNode(
-        action_type="REFERRED",
+        action_type=ActionType.REFERRED,
         category="referral-committee",
         patterns=[
             re.compile(
@@ -68,7 +68,7 @@ def create_action_nodes() -> List[ActionNode]:
         priority=10,
     ))
     nodes.append(ActionNode(
-        action_type="DISCHARGED",
+        action_type=ActionType.DISCHARGED,
         category="referral-committee",
         patterns=[
             re.compile(
@@ -91,7 +91,7 @@ def create_action_nodes() -> List[ActionNode]:
     # =========================================================================
 
     nodes.append(ActionNode(
-        action_type="REPORTED",
+        action_type=ActionType.REPORTED,
         category="committee-passage",
         patterns=[
             re.compile(
@@ -139,7 +139,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="STUDY_ORDER",
+        action_type=ActionType.STUDY_ORDER,
         category="committee-passage-unfavorable",
         patterns=[
             re.compile(r"\bstudy\s+order\b", re.I),
@@ -149,7 +149,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="ACCOMPANIED",
+        action_type=ActionType.ACCOMPANIED,
         category="other",
         patterns=[
             re.compile(
@@ -172,7 +172,7 @@ def create_action_nodes() -> List[ActionNode]:
     # =========================================================================
 
     nodes.append(ActionNode(
-        action_type="HEARING_SCHEDULED",
+        action_type=ActionType.HEARING_SCHEDULED,
         category="hearing-scheduled",
         patterns=[
             re.compile(
@@ -209,7 +209,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="HEARING_RESCHEDULED",
+        action_type=ActionType.HEARING_RESCHEDULED,
         category="hearing-rescheduled",
         patterns=[
             # With committee name in parentheses
@@ -252,21 +252,21 @@ def create_action_nodes() -> List[ActionNode]:
             "location": normalize_location,
         },
         priority=5,
-        metadata={"supersedes": "HEARING_SCHEDULED"},
+        metadata={"supersedes": ActionType.HEARING_SCHEDULED},
     ))
 
     nodes.append(ActionNode(
-        action_type="HEARING_LOCATION_CHANGED",
+        action_type=ActionType.HEARING_LOCATION_CHANGED,
         category="hearing-updated",
         patterns=[
             re.compile(r"Hearing\s+location\s+changed", re.I),
         ],
         priority=5,
-        metadata={"modifies": "HEARING_SCHEDULED"},
+        metadata={"modifies": ActionType.HEARING_SCHEDULED},
     ))
 
     nodes.append(ActionNode(
-        action_type="HEARING_TIME_CHANGED",
+        action_type=ActionType.HEARING_TIME_CHANGED,
         category="hearing-updated",
         patterns=[
             re.compile(
@@ -275,7 +275,7 @@ def create_action_nodes() -> List[ActionNode]:
             ),
         ],
         priority=5,
-        metadata={"modifies": "HEARING_SCHEDULED"},
+        metadata={"modifies": ActionType.HEARING_SCHEDULED},
     ))
 
     # =========================================================================
@@ -283,7 +283,7 @@ def create_action_nodes() -> List[ActionNode]:
     # =========================================================================
 
     nodes.append(ActionNode(
-        action_type="REPORTING_EXTENDED",
+        action_type=ActionType.REPORTING_EXTENDED,
         category="deadline-extension",
         patterns=[
             re.compile(
@@ -305,7 +305,7 @@ def create_action_nodes() -> List[ActionNode]:
     # =========================================================================
 
     nodes.append(ActionNode(
-        action_type="READ",
+        action_type=ActionType.READ,
         category="reading-1",
         patterns=[
             re.compile(r"^Read[,;]?\s*$", re.I),
@@ -315,7 +315,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="READ_SECOND",
+        action_type=ActionType.READ_SECOND,
         category="reading-2",
         patterns=[
             re.compile(r"Read\s+second", re.I),
@@ -325,7 +325,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="READ_THIRD",
+        action_type=ActionType.READ_THIRD,
         category="reading-3",
         patterns=[
             re.compile(r"Read\s+third", re.I),
@@ -335,7 +335,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="RULES_SUSPENDED",
+        action_type=ActionType.RULES_SUSPENDED,
         category="other",
         patterns=[
             re.compile(r"Rules\s+suspended", re.I),
@@ -344,7 +344,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="CONCURRED",
+        action_type=ActionType.CONCURRED,
         category="passage",
         patterns=[
             re.compile(r"Senate\s+concurred", re.I),
@@ -355,7 +355,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="PASSED_TO_BE_ENGROSSED",
+        action_type=ActionType.PASSED_TO_BE_ENGROSSED,
         category="passage",
         patterns=[
             re.compile(r"[Pp]assed\s+to\s+be\s+engrossed", re.I),
@@ -364,7 +364,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="ENACTED",
+        action_type=ActionType.ENACTED,
         category="passage",
         patterns=[
             re.compile(r"^Enacted$", re.I),
@@ -374,7 +374,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="SIGNED",
+        action_type=ActionType.SIGNED,
         category="executive-signature",
         patterns=[
             re.compile(
@@ -386,7 +386,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="PLACED_IN_ORDERS",
+        action_type=ActionType.PLACED_IN_ORDERS,
         category="other",
         patterns=[
             re.compile(
@@ -400,7 +400,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="REFERRED_TO_BILLS_IN_THIRD_READING",
+        action_type=ActionType.REFERRED_TO_BILLS_IN_THIRD_READING,
         category="referral-committee",
         patterns=[
             re.compile(
@@ -412,7 +412,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="STEERING_REFERRAL",
+        action_type=ActionType.STEERING_REFERRAL,
         category="referral-committee",
         patterns=[
             re.compile(
@@ -436,7 +436,7 @@ def create_action_nodes() -> List[ActionNode]:
     # =========================================================================
 
     nodes.append(ActionNode(
-        action_type="AMENDED",
+        action_type=ActionType.AMENDED,
         category="amendment-passage",
         patterns=[
             re.compile(
@@ -454,7 +454,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="TITLE_CHANGED",
+        action_type=ActionType.TITLE_CHANGED,
         category="other",
         patterns=[
             re.compile(r"Read\s+third\s+\(title\s+changed\)", re.I),
@@ -463,7 +463,7 @@ def create_action_nodes() -> List[ActionNode]:
     ))
 
     nodes.append(ActionNode(
-        action_type="EMERGENCY_PREAMBLE",
+        action_type=ActionType.EMERGENCY_PREAMBLE,
         category="other",
         patterns=[
             re.compile(r"Emergency\s+preamble\s+adopted", re.I),
