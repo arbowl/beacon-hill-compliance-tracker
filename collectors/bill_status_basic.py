@@ -141,9 +141,12 @@ def get_committee_tenure(
                 "action_type": action.action_type,
             })
     if all_hearings:
-        latest_hearing = max(all_hearings, key=lambda h: h["hearing_date"])
-        hearing_announcement_date: date = latest_hearing["announcement_date"]
-        hearing_date: date = latest_hearing["hearing_date"]
+        hearing_with_min_notice = min(
+            all_hearings,
+            key=lambda h: (h["hearing_date"] - h["announcement_date"]).days
+        )
+        hearing_announcement_date: date = hearing_with_min_notice["announcement_date"]
+        hearing_date: date = hearing_with_min_notice["hearing_date"]
     notice_days = None
     if hearing_announcement_date and hearing_date:
         notice_days = (hearing_date - hearing_announcement_date).days
