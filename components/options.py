@@ -198,7 +198,6 @@ def submit_data(
         signing_key_secret=getenv("SIGNING_SECRET", ""),
     )
     print(client.upload_file(str(cache.path), kind="cache"))
-    print(client.upload_file(str(cache.path), kind="cache"))
     # Find the latest output directory
     latest_dir = get_latest_output_dir()
     if latest_dir is None:
