@@ -299,7 +299,6 @@ def compute_notice_status(
     if (
         status.announcement_date is None
         or status.scheduled_hearing_date is None
-        or status.hearing_date is None
     ):
         return NoticeStatus.MISSING, None
     gap_days = (
