@@ -48,7 +48,7 @@ The tool supports three execution modes:
 Interactive mode with prompts and menu options:
 
 ```bash
-python app.py --manual
+python app.py
 # or simply:
 python app.py
 ```
@@ -72,14 +72,14 @@ This mode processes all committees, generates reports, and automatically submits
 Run automatically on a daily schedule (like a cron job):
 
 ```bash
-python app.py --scheduled --at "02:00"
+python app.py --scheduled "02:00"
 ```
 
 This runs daily at 2:00 AM. You can specify any time in `HH:MM` format (24-hour):
 
 ```bash
-python app.py --scheduled --at "14:30"  # 2:30 PM daily
-python app.py --scheduled --at "02:00" --check-extensions  # With extension checking
+python app.py --scheduled "14:30"  # 2:30 PM daily
+python app.py --scheduled "02:00" --check-extensions  # With extension checking
 ```
 
 The scheduled mode runs continuously, executing the compliance check at the specified time each day. Press `Ctrl+C` to stop.
@@ -604,6 +604,7 @@ deferred_review:
 5. Submit a pull request
 
 The codebase is designed to be easily understood and extended by students, hobbyists, and grassroots organizations tracking legislative compliance.
+
 
 
 
