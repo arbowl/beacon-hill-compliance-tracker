@@ -552,8 +552,6 @@ class ComplianceRuleSet:
         for rule in self.rules:
             result = rule.check(context, status, summary, votes)
             rule_results.append((rule, result))
-            if rule.is_deal_breaker(result):
-                break
         return rule_results
 
 
@@ -660,18 +658,47 @@ def aggregate_to_compliance(
                 "cannot evaluate deadline compliance"
             ),
         )
+    deal_breaker_result = None
     for rule, result in rule_results:
         if rule.is_deal_breaker(result):
-            return BillCompliance(
-                bill_id=context.bill_id,
-                committee_id=context.committee_id,
-                hearing_date=status.hearing_date,
-                summary=summary,
-                votes=votes,
-                status=status,
-                state=ComplianceState.NON_COMPLIANT,
-                reason=result.reason,
-            )
+            deal_breaker_result = (rule, result)
+            break
+    if deal_breaker_result:
+        rule, result = deal_breaker_result
+        non_dealbreaker_results = [
+            (r, res) for r, res in rule_results 
+            if r != rule
+        ]
+        core_results = [
+            res for r, res in non_dealbreaker_results
+            if r.is_core_requirement()
+        ]
+        is_before_deadline = any(
+            res.is_before_deadline 
+            for res in core_results
+        )
+        if not is_before_deadline:
+            notice_part = result.reason.replace("Insufficient notice: ", "insufficient hearing notice (")
+            if not notice_part.endswith(")"):
+                notice_part += ")"
+            factors = [notice_part]
+            for r, res in non_dealbreaker_results:
+                contrib = r.contributes_to_reason(res)
+                if contrib:
+                    factors.append(contrib)
+            reason = f"Factors: {', '.join(factors)}"
+        else:
+            reason = result.reason
+        return BillCompliance(
+            bill_id=context.bill_id,
+            committee_id=context.committee_id,
+            hearing_date=status.hearing_date,
+            summary=summary,
+            votes=votes,
+            status=status,
+            state=ComplianceState.NON_COMPLIANT,
+            reason=reason,
+        )
     for rule, result in rule_results:
         if rule.requires_special_handling(result):
             special_state = rule.get_special_state(result, rule_results)
