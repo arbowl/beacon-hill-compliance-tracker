@@ -22,14 +22,13 @@ class Constants194:
     """Constants for the 194th Session of the Massachusetts Legislature."""
 
     notice_requirement_start_date: date = date(2025, 6, 26)
-    senate_october_dsenateyeadline: date = date(2025, 10, 1)
+    senate_october_deadline: date = date(2025, 10, 1)
     first_wednesday_december: date = date(2025, 12, 3)
     third_wednesday_december: date = date(2025, 12, 17)
     third_wednesday_march: date = date(2026, 3, 18)
     hcf_december_deadline: date = date(2025, 12, 24)
     last_wednesday_january: date = date(2026, 1, 28)
     end_of_session: date = date(2026, 12, 31)
-
 
 
 class BillType(str, Enum):
@@ -401,11 +400,13 @@ class ReportedOutRequirementRule(ComplianceRule):
     ) -> Optional[tuple[ComplianceState, str]]:
         if not result.is_before_deadline:
             return None
+
         notice_desc = None
         for rule, r in all_results:
             if isinstance(rule, NoticeRequirementRule):
                 notice_desc = rule.contributes_to_reason(r)
                 break
+
         reason_parts = ["Before deadline"]
         if notice_desc:
             reason_parts.append(notice_desc)
@@ -618,6 +619,19 @@ def aggregate_to_compliance(
     votes: VoteInfo,
 ) -> BillCompliance:
     """Aggregate rule results into final BillCompliance.
+
+    This function assembles building blocks
+    provided by the rules. All logic lives in the rule classes.
+
+    Args:
+        rule_results: List of (rule, result) tuples from evaluate()
+        context: Bill and committee context
+        status: Bill status information
+        summary: Summary information
+        votes: Vote information
+
+    Returns:
+        BillCompliance with final state and reason
     """
     if status.hearing_date is None:
         status = BillStatus(
@@ -641,59 +655,73 @@ def aggregate_to_compliance(
             votes=votes,
             status=status,
             state=ComplianceState.UNKNOWN,
-            reason="No hearing scheduled - cannot evaluate deadline compliance",
+            reason=(
+                "No hearing scheduled - "
+                "cannot evaluate deadline compliance"
+            ),
         )
-    deal_breaker_result: Optional[RuleResult] = None
     for rule, result in rule_results:
         if rule.is_deal_breaker(result):
-            deal_breaker_result = result
-    if deal_breaker_result is None:
-        for rule, result in rule_results:
-            if rule.requires_special_handling(result):
-                special_state = rule.get_special_state(result, rule_results)
-                if special_state is not None:
-                    state, reason = special_state
-                    return BillCompliance(
-                        bill_id=context.bill_id,
-                        committee_id=context.committee_id,
-                        hearing_date=status.hearing_date,
-                        summary=summary,
-                        votes=votes,
-                        status=status,
-                        state=state,
-                        reason=reason,
-                    )
-    reason_parts: list[str] = []
-    if deal_breaker_result:
-        reason_parts.append(deal_breaker_result.reason)
+            return BillCompliance(
+                bill_id=context.bill_id,
+                committee_id=context.committee_id,
+                hearing_date=status.hearing_date,
+                summary=summary,
+                votes=votes,
+                status=status,
+                state=ComplianceState.NON_COMPLIANT,
+                reason=result.reason,
+            )
+    for rule, result in rule_results:
+        if rule.requires_special_handling(result):
+            special_state = rule.get_special_state(result, rule_results)
+            if special_state is not None:
+                state, reason = special_state
+                return BillCompliance(
+                    bill_id=context.bill_id,
+                    committee_id=context.committee_id,
+                    hearing_date=status.hearing_date,
+                    summary=summary,
+                    votes=votes,
+                    status=status,
+                    state=state,
+                    reason=reason,
+                )
     core_results = [
-        (rule, result)
-        for rule, result in rule_results
+        (rule, result) for rule, result in rule_results
         if rule.is_core_requirement()
     ]
-    compliant_count = sum(1 for _, r in core_results if r.passed == Status.COMPLIANT)
-    missing_parts = []
-    for rule, result in core_results:
-        contrib = rule.contributes_to_reason(result)
-        if contrib:
-            missing_parts.append(contrib)
-    if missing_parts:
-        reason_parts.append(f"Factors: {', '.join(missing_parts)}")
+    compliant_count = sum(
+        1
+        for _, r in core_results
+        if r.passed == Status.COMPLIANT
+    )
+    reason_parts = []
+    if compliant_count == 3:
+        reason_parts.append(
+            "All requirements met: "
+            "reported out, votes posted, summaries posted"
+        )
+    else:
+        missing_parts = []
+        for rule, result in core_results:
+            contrib = rule.contributes_to_reason(result)
+            if contrib:
+                missing_parts.append(contrib)
+        if missing_parts:
+            reason_parts.append(f"Factors: {', '.join(missing_parts)}")
     for rule, result in rule_results:
         if isinstance(rule, NoticeRequirementRule):
             notice_desc = rule.contributes_to_reason(result)
             if notice_desc:
                 reason_parts.append(notice_desc)
             break
-    if deal_breaker_result:
-        final_state = ComplianceState.NON_COMPLIANT
-    else:
-        final_state = (
-            ComplianceState.COMPLIANT
-            if compliant_count == 3
-            else ComplianceState.NON_COMPLIANT
-        )
-    final_reason = ", ".join(r for r in reason_parts if r)
+    final_state = (
+        ComplianceState.COMPLIANT
+        if compliant_count == 3
+        else ComplianceState.NON_COMPLIANT
+    )
+    reason = ", ".join(reason_parts)
     return BillCompliance(
         bill_id=context.bill_id,
         committee_id=context.committee_id,
@@ -702,7 +730,7 @@ def aggregate_to_compliance(
         votes=votes,
         status=status,
         state=final_state,
-        reason=final_reason,
+        reason=reason,
     )
 
 
