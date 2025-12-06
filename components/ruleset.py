@@ -329,7 +329,7 @@ class ReportedOutRequirementRule(ComplianceRule):
                 deadline_60 = status.hearing_date + timedelta(days=60)
                 deadline_90 = deadline_60
         else:  # Senate bill
-            if today < c.first_wednesday_december:
+            if status.hearing_date < c.first_wednesday_december:
                 deadline_60 = c.first_wednesday_december
                 deadline_90 = deadline_60 + timedelta(days=30)
             else:
