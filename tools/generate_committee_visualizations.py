@@ -409,7 +409,7 @@ def create_topic_analysis(committees: Dict[str, Dict], output_path: Path):
 def main():
     """Main function to generate all visualizations."""
     script_dir = Path(__file__).parent.parent
-    json_dir = script_dir / "out" / "2025" / "12" / "04"
+    json_dir = script_dir / "out" / "2025" / "12" / "06"
     output_dir = script_dir / "out" / "visualizations"
     output_dir.mkdir(parents=True, exist_ok=True)
 
