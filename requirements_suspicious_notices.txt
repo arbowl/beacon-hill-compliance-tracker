@@ -1,0 +1,16 @@
+# Optional dependencies for Suspicious Notices Review System
+#
+# The system works without these, but they provide a better user experience
+# in the interactive review tool.
+#
+# Install with:
+#   pip install -r requirements_suspicious_notices.txt
+
+# Rich library for terminal UI formatting
+# Used by tools/review_suspicious_notices.py for:
+# - Colored output
+# - Tables and panels
+# - Better text formatting
+# Falls back to basic console interface if not installed
+rich>=13.0.0
+

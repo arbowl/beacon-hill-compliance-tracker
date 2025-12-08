@@ -1,0 +1,151 @@
+{
+  "version": "1.0",
+  "last_updated": "2025-12-08T00:00:00",
+  "description": "Clerical patterns for whitelisting same-day/retroactive hearing reschedules that are corrections rather than violations",
+  "patterns": [
+    {
+      "id": "pattern_001",
+      "name": "Retroactive time-shortened same-day correction",
+      "confidence": 0.95,
+      "sample_size": 42,
+      "enabled": true,
+      "criteria": {
+        "notice_days": {
+          "min": -2,
+          "max": 0
+        },
+        "action_type": [
+          "HEARING_RESCHEDULED"
+        ],
+        "had_prior_valid_notice": true,
+        "prior_notice_days": {
+          "min": 10
+        },
+        "had_same_day_time_change": true,
+        "time_between_hearing_and_action": {
+          "min": 0,
+          "max": 3
+        }
+      },
+      "description": "Hearing rescheduled recorded retroactively (after hearing occurred) with prior valid notice (10+ days) with same-day time change. Consistently classified as clerical correction rather than violation based on domain expert review.",
+      "reviewer_notes": "Consistently seen with hearings that ran shorter than planned. Staff updates the public record after the fact to reflect actual times.",
+      "example_bills": [
+        "S1249",
+        "H2391",
+        "S847",
+        "H1234",
+        "S2109"
+      ]
+    },
+    {
+      "id": "pattern_002",
+      "name": "Virtual option added retroactively",
+      "confidence": 0.88,
+      "sample_size": 31,
+      "enabled": true,
+      "criteria": {
+        "notice_days": {
+          "min": -1,
+          "max": 0
+        },
+        "action_type": [
+          "HEARING_RESCHEDULED"
+        ],
+        "had_prior_valid_notice": true,
+        "prior_notice_days": {
+          "min": 10
+        },
+        "text_contains_virtual": true
+      },
+      "description": "Hearing rescheduled announced same day as hearing with prior valid notice (10+ days) adding virtual option. Consistently classified as clerical correction rather than violation based on domain expert review.",
+      "reviewer_notes": "Common when committees decide to enable virtual attendance on short notice and update the record. Original in-person notice was timely.",
+      "example_bills": [
+        "H567",
+        "S1023",
+        "H2456",
+        "S998",
+        "H3401"
+      ]
+    },
+    {
+      "id": "pattern_003",
+      "name": "Room/location correction after hearing",
+      "confidence": 0.92,
+      "sample_size": 27,
+      "enabled": true,
+      "criteria": {
+        "notice_days": {
+          "min": -1,
+          "max": 0
+        },
+        "action_type": [
+          "HEARING_RESCHEDULED"
+        ],
+        "had_prior_valid_notice": true,
+        "prior_notice_days": {
+          "min": 10
+        },
+        "text_contains_location": true,
+        "had_same_day_time_change": false
+      },
+      "description": "Hearing rescheduled announced same day as hearing with prior valid notice (10+ days). Consistently classified as clerical correction rather than violation based on domain expert review.",
+      "reviewer_notes": "Announced for one room (e.g., A-1) but actually held in another (e.g., A-2). Record updated to match what happened. Time remained the same.",
+      "example_bills": [
+        "S1456",
+        "H789",
+        "S2341",
+        "H4567",
+        "S876"
+      ]
+    },
+    {
+      "id": "pattern_004",
+      "name": "End time updated day-after (hearing shortened)",
+      "confidence": 0.87,
+      "sample_size": 19,
+      "enabled": true,
+      "criteria": {
+        "notice_days": {
+          "min": -1,
+          "max": -1
+        },
+        "action_type": [
+          "HEARING_RESCHEDULED"
+        ],
+        "had_prior_valid_notice": true,
+        "prior_notice_days": {
+          "min": 10
+        },
+        "text_contains_time": true,
+        "time_between_hearing_and_action": {
+          "min": 1,
+          "max": 1
+        }
+      },
+      "description": "Hearing rescheduled recorded retroactively (after hearing occurred) with prior valid notice (10+ days). Consistently classified as clerical correction rather than violation based on domain expert review.",
+      "reviewer_notes": "Hearing scheduled until 5PM but committee finished at 3PM. Next day, record updated to reflect actual end time.",
+      "example_bills": [
+        "H2344",
+        "S1567",
+        "H3789",
+        "S2012",
+        "H4501"
+      ]
+    }
+  ],
+  "application_rules": {
+    "minimum_confidence": 0.85,
+    "require_prior_valid_notice": true,
+    "max_retroactive_days": 7,
+    "human_review_threshold": 0.75,
+    "notes": "Patterns with confidence >= minimum_confidence are automatically applied. Patterns with confidence >= human_review_threshold but < minimum_confidence are flagged for quick review with suggested determination."
+  },
+  "metadata": {
+    "generated_from": "review/completed_reviews.jsonl",
+    "total_reviews_analyzed": 150,
+    "patterns_identified": 4,
+    "next_review_recommended": "2026-03-08",
+    "notes": "This is an example configuration. Real patterns should be generated from actual expert reviews using tools/analyze_clerical_patterns.py"
+  }
+}
+

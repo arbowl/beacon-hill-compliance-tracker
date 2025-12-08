@@ -3,6 +3,7 @@
 """
 
 import re
+import logging
 from dataclasses import dataclass
 from datetime import date
 from typing import Optional
@@ -14,6 +15,14 @@ from components.utils import (
 from components.interfaces import ParserInterface
 from timeline.parser import extract_timeline
 from timeline.models import ActionType
+from components.suspicious_notices import (
+    SuspiciousHearingNotice,
+    SuspiciousNoticeLogger,
+    compute_signature,
+    should_whitelist_as_clerical,
+)
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -34,6 +43,126 @@ class CommitteeTenure:
     hearing_to_report_days: Optional[int]
     referred_to_report_days: Optional[int]
     is_active: bool
+
+
+# Minimum acceptable notice days for detecting suspicious cases
+MINIMUM_ACCEPTABLE_NOTICE = 3  # Flag anything with < 3 days notice
+
+
+def detect_and_log_suspicious_notice(
+    bill_url: str,
+    bill_id: str,
+    committee_id: str,
+    all_hearings: list[dict],
+    selected_hearing: dict,
+    notice_days: int,
+) -> Optional[SuspiciousHearingNotice]:
+    """Detect and log suspicious hearing notices (same-day or retroactive).
+    
+    This function is called when a hearing has insufficient notice and creates
+    a detailed record for later review by domain experts.
+    
+    Args:
+        bill_url: URL of the bill
+        bill_id: Bill identifier
+        committee_id: Committee identifier
+        all_hearings: All hearing actions for this bill/committee
+        selected_hearing: The hearing with minimum notice (the problematic one)
+        notice_days: Number of days notice (can be 0 or negative)
+    
+    Returns:
+        SuspiciousHearingNotice if one was created and logged, None otherwise
+    """
+    # Extract session from URL
+    session = extract_session_from_bill_url(bill_url) or "unknown"
+    
+    # Find if there was a prior valid announcement
+    prior_hearings = [
+        h for h in all_hearings
+        if (h["hearing_date"] - h["announcement_date"]).days >= MINIMUM_ACCEPTABLE_NOTICE
+    ]
+    
+    had_prior_announcement = len(prior_hearings) > 0
+    prior_best = None
+    prior_best_notice_days = None
+    
+    if had_prior_announcement:
+        # Find the prior hearing with the best (most) notice
+        prior_best = max(
+            prior_hearings,
+            key=lambda h: (h["hearing_date"] - h["announcement_date"]).days
+        )
+        prior_best_notice_days = (
+            prior_best["hearing_date"] - prior_best["announcement_date"]
+        ).days
+    
+    # Get the raw action text from the timeline (we'll need to enhance this)
+    action_type_str = selected_hearing.get("action_type", "UNKNOWN")
+    if hasattr(action_type_str, "value"):
+        action_type_str = action_type_str.value
+    
+    # Construct a representative raw text (ideally we'd get this from the actual action)
+    announcement_date = selected_hearing["announcement_date"]
+    hearing_date = selected_hearing["hearing_date"]
+    raw_text = f"Hearing {action_type_str.lower().replace('_', ' ')} for {hearing_date.strftime('%m/%d/%Y')}"
+    
+    # Calculate temporal relationships
+    days_between = (announcement_date - hearing_date).days if notice_days < 0 else 0
+    
+    # Create the suspicious notice record
+    notice = SuspiciousHearingNotice(
+        bill_id=bill_id,
+        committee_id=committee_id,
+        session=session,
+        bill_url=bill_url,
+        announcement_date=announcement_date,
+        scheduled_hearing_date=hearing_date,
+        notice_days=notice_days,
+        action_type=action_type_str,
+        raw_action_text=raw_text,
+        all_hearing_actions=[
+            {
+                "announcement_date": h["announcement_date"].isoformat(),
+                "hearing_date": h["hearing_date"].isoformat(),
+                "action_type": h["action_type"].value if hasattr(h["action_type"], "value") else str(h["action_type"]),
+                "notice_days": (h["hearing_date"] - h["announcement_date"]).days,
+            }
+            for h in all_hearings
+        ],
+        had_prior_announcement=had_prior_announcement,
+        prior_best_notice_days=prior_best_notice_days,
+        prior_announcement_date=prior_best["announcement_date"] if prior_best else None,
+        prior_scheduled_date=prior_best["hearing_date"] if prior_best else None,
+        action_date=announcement_date,
+        days_between_action_and_hearing=days_between,
+    )
+    
+    # Compute signature
+    notice.signature = compute_signature(notice)
+    
+    # Check if this matches a known clerical pattern
+    is_whitelisted, pattern_id = should_whitelist_as_clerical(notice)
+    
+    if is_whitelisted:
+        notice.whitelist_pattern_id = pattern_id
+        logger.info(
+            f"Bill {bill_id}: Suspicious notice whitelisted as clerical "
+            f"(pattern: {pattern_id})"
+        )
+        # Still log it for tracking, but mark as whitelisted
+    
+    # Log the suspicious notice
+    try:
+        notice_logger = SuspiciousNoticeLogger()
+        notice_logger.log(notice)
+        logger.debug(
+            f"Logged suspicious notice for {bill_id}: "
+            f"{notice_days} days notice (signature: {notice.signature.get('composite_key', 'unknown')})"
+        )
+    except Exception as e:
+        logger.error(f"Failed to log suspicious notice for {bill_id}: {e}")
+    
+    return notice
 
 
 def get_bill_title(bill_url: str) -> str | None:
@@ -150,6 +279,23 @@ def get_committee_tenure(
     notice_days = None
     if hearing_announcement_date and hearing_date:
         notice_days = (hearing_date - hearing_announcement_date).days
+        
+        # DETECTION: Log same-day and retroactive hearing reschedules
+        # These may be clerical corrections or actual violations
+        if notice_days < MINIMUM_ACCEPTABLE_NOTICE:
+            # Extract bill_id from the bill_url
+            # URL format: https://malegislature.gov/Bills/194/H2244
+            bill_id_match = re.search(r'/([HS]\d+)', bill_url)
+            if bill_id_match:
+                bill_id = bill_id_match.group(1)
+                detect_and_log_suspicious_notice(
+                    bill_url=bill_url,
+                    bill_id=bill_id,
+                    committee_id=committee_id,
+                    all_hearings=all_hearings,
+                    selected_hearing=hearing_with_min_notice,
+                    notice_days=notice_days,
+                )
     hearing_to_report_days = None
     if hearing_date and reported_date:
         hearing_to_report_days = (reported_date - hearing_date).days
