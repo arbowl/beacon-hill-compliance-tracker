@@ -366,10 +366,10 @@ def _fetch_html(
     headers: Optional[dict] = None
 ) -> str:
     """Fetch HTML content with persistent caching and deduplication.
-    
+
     Similar to _fetch_binary but returns text instead of bytes.
     Uses the document cache infrastructure for persistent storage.
-    
+
     Args:
         url: URL to fetch
         timeout: Request timeout in seconds
@@ -377,7 +377,7 @@ def _fetch_html(
         config: Optional configuration (required if cache is provided)
         params: Optional query parameters
         headers: Optional request headers
-        
+
     Returns:
         HTML content as string
     """
@@ -841,3 +841,70 @@ bill_id: {bill_id}
     def document_cache(self) -> Config.DocumentCache:
         """Document cache configuration."""
         return Config.DocumentCache(self.config)  # type: ignore
+
+    class Logging:
+        """Comprehensive audit logging configuration."""
+
+        def __init__(self, config: dict[str, dict[str, str]]) -> None:
+            self.logging_config = config.get("logging", {})
+
+        @property
+        def enabled(self) -> bool:
+            """Whether to enable comprehensive audit logging."""
+            return bool(self.logging_config.get("enabled", True))
+
+        @property
+        def output_dir(self) -> str:
+            """Directory for run logs."""
+            return str(self.logging_config.get("output_dir", "out/runs"))
+
+        @property
+        def retention_days(self) -> int:
+            """Days to keep old run logs (0 = keep forever)."""
+            return int(self.logging_config.get("retention_days", 90))
+
+        class Components:
+            """Individual logging components that can be toggled."""
+
+            def __init__(self, logging_config: dict) -> None:
+                self.components = logging_config.get("components", {})
+
+            @property
+            def manifest(self) -> bool:
+                """Enable run manifest generation."""
+                return bool(self.components.get("manifest", True))
+
+            @property
+            def parser_analytics(self) -> bool:
+                """Enable parser performance analytics."""
+                return bool(self.components.get("parser_analytics", True))
+
+            @property
+            def bill_processing(self) -> bool:
+                """Enable bill-by-bill processing log."""
+                return bool(self.components.get("bill_processing", True))
+
+            @property
+            def errors(self) -> bool:
+                """Enable structured error ledger."""
+                return bool(self.components.get("errors", True))
+
+            @property
+            def performance(self) -> bool:
+                """Enable performance metrics collection."""
+                return bool(self.components.get("performance", True))
+
+            @property
+            def audit(self) -> bool:
+                """Enable event audit trail."""
+                return bool(self.components.get("audit", True))
+
+        @property
+        def components(self) -> "Config.Logging.Components":
+            """Which logging components to enable."""
+            return Config.Logging.Components(self.logging_config)
+
+    @property
+    def logging(self) -> Config.Logging:
+        """Comprehensive audit logging configuration."""
+        return Config.Logging(self.config)  # type: ignore

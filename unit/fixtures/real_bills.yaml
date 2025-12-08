@@ -1,0 +1,26 @@
+# Real bills for integration testing against live data
+# Format: bill_id, committee_id, expected_state, notes
+
+compliant_examples:
+  - bill_id: "H73"
+    bill_url: "https://malegislature.gov/Bills/194/H73"
+    committee_id: "J33"
+    expected_hearing_date: "2025-04-14"
+    notes: "Classic compliant bill with all docs"
+    
+  - bill_id: "S197"
+    bill_url: "https://malegislature.gov/Bills/194/S197"
+    committee_id: "J10"
+    notes: "Senate bill example"
+
+noncompliant_examples:
+  - bill_id: "H2244"
+    bill_url: "https://malegislature.gov/Bills/194/H2244"
+    committee_id: "J33"
+    notes: "Missing votes or summary"
+
+edge_cases:
+  - bill_id: "H100"
+    bill_url: "https://malegislature.gov/Bills/194/H100"
+    notes: "Complex timeline with multiple referrals"
+

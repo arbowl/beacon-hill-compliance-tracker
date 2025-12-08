@@ -80,3 +80,16 @@ document_cache:
   validate_after_days: 7              # Validate cached documents after N days
 
   store_extracted_text: true          # Store extracted text from PDFs/DOCX
+
+# Comprehensive audit logging configuration
+logging:
+  enabled: true                       # Enable comprehensive audit logging
+  output_dir: "out/runs"              # Directory for run logs
+  retention_days: 90                  # Days to keep old run logs (0 = keep forever)
+  components:
+    manifest: true                    # Enable run manifest generation
+    parser_analytics: true            # Enable parser performance analytics
+    bill_processing: true             # Enable bill-by-bill processing log
+    errors: true                      # Enable structured error ledger
+    performance: true                 # Enable performance metrics collection
+    audit: true                       # Enable event audit trail
