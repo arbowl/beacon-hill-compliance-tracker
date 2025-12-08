@@ -678,9 +678,10 @@ def aggregate_to_compliance(
             for res in core_results
         )
         if not is_before_deadline:
-            notice_part = result.reason.replace("Insufficient notice: ", "insufficient hearing notice (")
-            if not notice_part.endswith(")"):
-                notice_part += ")"
+            notice_part = result.reason.replace(
+                "Insufficient notice: ", "insufficient hearing notice ("
+            )
+            notice_part += ")"
             factors = [notice_part]
             for r, res in non_dealbreaker_results:
                 contrib = r.contributes_to_reason(res)
