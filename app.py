@@ -10,6 +10,7 @@ from dotenv import dotenv_values, load_dotenv
 from components.interfaces import Config
 from components.options import runner_loop, one_run_mode, scheduled_mode
 from components.utils import Cache
+from components.auditing import RunLogger
 
 
 @dataclass
@@ -30,17 +31,19 @@ class Mode:
 
 def main(cfg: Config, yaml: Cache, mode: Mode) -> None:
     """Entry point for the compliance pipeline"""
-    match mode:
-        case Mode(manual=True):
-            runner_loop(cfg, yaml)
-        case Mode(one_run=True, check_extensions=check_ext):
-            one_run_mode(cfg, yaml, check_ext)
-        case Mode(scheduled=None):
-            runner_loop(cfg, yaml)
-        case Mode(scheduled=at_time, check_extensions=check_ext):
-            scheduled_mode(cfg, yaml, at_time, check_ext)
-        case _:
-            runner_loop(cfg, yaml)
+    # Wrap execution with audit logging
+    with RunLogger(cfg, mode):
+        match mode:
+            case Mode(manual=True):
+                runner_loop(cfg, yaml)
+            case Mode(one_run=True, check_extensions=check_ext):
+                one_run_mode(cfg, yaml, check_ext)
+            case Mode(scheduled=None):
+                runner_loop(cfg, yaml)
+            case Mode(scheduled=at_time, check_extensions=check_ext):
+                scheduled_mode(cfg, yaml, at_time, check_ext)
+            case _:
+                runner_loop(cfg, yaml)
 
 
 if __name__ == "__main__":
