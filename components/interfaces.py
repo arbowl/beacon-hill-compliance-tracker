@@ -908,3 +908,29 @@ bill_id: {bill_id}
     def logging(self) -> Config.Logging:
         """Comprehensive audit logging configuration."""
         return Config.Logging(self.config)  # type: ignore
+
+    class Artifacts:
+        """Bill artifact storage configuration."""
+
+        def __init__(self, config: dict[str, dict[str, str]]) -> None:
+            self.artifacts = config.get("artifacts", {})
+
+        @property
+        def enabled(self) -> bool:
+            """Whether to enable bill artifact storage."""
+            return bool(self.artifacts.get("enabled", True))
+
+        @property
+        def db_path(self) -> str:
+            """SQLite database path."""
+            return str(self.artifacts.get("db_path", "bill_artifacts.db"))
+
+        @property
+        def ruleset_version(self) -> str:
+            """Track which ruleset version is active."""
+            return str(self.artifacts.get("ruleset_version", "194.v1"))
+
+    @property
+    def artifacts(self) -> Config.Artifacts:
+        """Bill artifact storage configuration."""
+        return Config.Artifacts(self.config)  # type: ignore
