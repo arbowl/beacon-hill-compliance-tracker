@@ -222,7 +222,7 @@ def aggregate_notices(
     # Sort groups by case count (most common first)
     sorted_groups = sorted(
         groups.values(),
-        key=lambda g: (g.case_count, g.reviewed_count),
+        key=lambda g: (len(g.cases), g.reviewed_count),
         reverse=True
     )
     

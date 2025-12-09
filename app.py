@@ -47,7 +47,7 @@ def main(cfg: Config, yaml: Cache, mode: Mode) -> None:
 
 
 if __name__ == "__main__":
-    load_dotenv()
+    #load_dotenv()
     for key in (keys := dotenv_values().keys()):
         print(f'Loaded "{key}"!')
     if not keys:
