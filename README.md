@@ -344,6 +344,68 @@ Each bill entry can include additional cached data:
 
 This cache improves performance by avoiding re-scraping bill pages for hearing notice data and preserves historical announcement information even if the source pages change.
 
+## Bill History Artifacts
+
+The system stores reconstructable bill artifacts in a SQLite database (`bill_artifacts.db`). These artifacts contain all the raw data needed to recompute compliance using different rulesets, enabling algorithm updates, auditing, and testing without re-scraping.
+
+Each artifact stores:
+- Bill metadata (title, URL, session)
+- Hearing records (dates, announcements, notice gaps)
+- Timeline actions (referred, reported, hearing scheduled, etc.)
+- Document artifacts (summaries, votes with parser info)
+- Extension records
+- Compliance snapshots (state, reason, deadlines at time of computation)
+
+Artifacts are saved automatically during normal runs and can be queried or recomputed later.
+
+### Configuration
+
+Control artifact storage in `config.yaml`:
+
+```yaml
+artifacts:
+  enabled: true                       # Enable bill artifact storage
+  db_path: "bill_artifacts.db"       # SQLite database path
+  ruleset_version: "194.v1"          # Track which ruleset version is active
+```
+
+### Usage Example
+
+Load an artifact and recompute compliance with a different ruleset:
+
+```python
+from history.repository import BillArtifactRepository
+from history.evaluator import BillArtifactEvaluator
+
+repo = BillArtifactRepository()
+artifact = repo.load_artifact("H2391", "J33", "194")
+
+evaluator = BillArtifactEvaluator()
+new_compliance = evaluator.recompute_compliance(artifact, "194.v2")
+
+print(f"{artifact.bill_id}: {new_compliance.state} - {new_compliance.reason}")
+```
+
+### Testing with Real Data
+
+Use artifacts for unit testing with real-world data:
+
+```python
+def test_notice_requirement():
+    repo = BillArtifactRepository("test_artifacts.db")
+    artifact = repo.load_artifact("H2391", "J33", "194")
+    
+    hearing = artifact.hearing_records[0]
+    hearing.announcement_date = date(2025, 7, 1)
+    hearing.scheduled_hearing_date = date(2025, 7, 15)
+    
+    evaluator = BillArtifactEvaluator()
+    compliance = evaluator.recompute_compliance(artifact)
+    
+    assert compliance.state == "Compliant"
+    assert "adequate notice" in compliance.reason
+```
+
 ## LLM Integration
 
 The system includes optional LLM (Large Language Model) integration to automatically determine whether discovered documents match the requirements (summary, vote record, etc.) without requiring human intervention. This significantly speeds up the review process by reducing manual confirmation dialogs.
