@@ -14,7 +14,6 @@ huggingface-hub==0.36.0
 safetensors==0.7.0
 regex==2025.11.3
 tqdm==4.67.1
-requests==2.32.5
 PyYAML==6.0.2
 
 # Plotting
