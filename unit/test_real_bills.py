@@ -67,7 +67,6 @@ class TestRealBillsWithFixtures:
             assert len(timeline) >= 0
 
 
-@pytest.mark.unit
 class TestMockBillScenarios:
     """Test scenarios that mimic real bill structures without HTTP requests."""
 

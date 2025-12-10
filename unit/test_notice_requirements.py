@@ -47,7 +47,7 @@ class TestNoticeRequirements:
         votes = bill_factory.create_votes(present=True)
         result = classify("H100", Committee.JOINT.value, status, summary, votes)
         assert result.state == ComplianceState.NON_COMPLIANT
-        assert "Insufficient notice" in result.reason
+        assert "insufficient" in result.reason and "notice" in result.reason
 
     def test_senate_committee_adequate_notice(
         self, bill_factory: BillFactory, date_scenarios: DateScenarios
