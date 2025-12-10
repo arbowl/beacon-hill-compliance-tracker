@@ -93,3 +93,8 @@ logging:
     errors: true                      # Enable structured error ledger
     performance: true                 # Enable performance metrics collection
     audit: true                       # Enable event audit trail
+
+artifacts:
+  enabled: true                       # Enable bill artifact storage
+  db_path: "bill_artifacts.db"       # SQLite database path
+  ruleset_version: "194.v1"          # Track which ruleset version is active

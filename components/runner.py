@@ -43,6 +43,10 @@ from collectors.bills_from_committee_tab import get_all_committee_bills
 from collectors.bill_status_basic import build_status_row
 from collectors.bill_status_basic import get_bill_title
 from collectors.committee_contact_info import get_committee_contact
+from timeline.parser import extract_timeline
+from timeline.models import BillActionTimeline
+from history.composer import BillArtifactComposer
+from history.repository import BillArtifactRepository
 
 # Configure logging
 logging.basicConfig(
@@ -173,6 +177,23 @@ def _process_single_bill(
                         cache.set_title(row.bill_id, bill_title)
             except Exception:  # pylint: disable=broad-exception-caught
                 bill_title = None
+        if cfg.artifacts.enabled:
+            timeline: BillActionTimeline = extract_timeline(
+                row.bill_url, row.bill_id
+            )
+            artifact = BillArtifactComposer.compose_from_scrape(
+                bill=row,
+                status=status,
+                summary=summary,
+                votes=votes,
+                timeline=timeline,
+                extensions=extension_lookup.get(row.bill_id, []),
+                compliance=comp,
+                bill_title=bill_title,
+                ruleset_version=cfg.artifacts.ruleset_version,
+            )
+            repo = BillArtifactRepository(cfg.artifacts.db_path)
+            repo.save_artifact(artifact)
         hearing_str = str(
             status.hearing_date
         ) if status.hearing_date else "N/A"
