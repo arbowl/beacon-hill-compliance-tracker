@@ -1,3 +1,6 @@
+![Tests](https://github.com/arbowl/beacon-hill-compliance-tracker/actions/workflows/tests.yml/badge.svg)
+
+
 Beacon Hill Compliance Tracker
 
 A Python tool for tracking compliance of Massachusetts legislative committees with their reporting deadlines. Designed to be simple, maintainable, and accessible for students or hobbyists to extend.
