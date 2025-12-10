@@ -664,7 +664,7 @@ def aggregate_to_compliance(
     if deal_breaker_result:
         rule, result = deal_breaker_result
         non_dealbreaker_results = [
-            (r, res) for r, res in rule_results 
+            (r, res) for r, res in rule_results
             if r != rule
         ]
         core_results = [
@@ -672,7 +672,7 @@ def aggregate_to_compliance(
             if r.is_core_requirement()
         ]
         is_before_deadline = any(
-            res.is_before_deadline 
+            res.is_before_deadline
             for res in core_results
         )
         if not is_before_deadline:
