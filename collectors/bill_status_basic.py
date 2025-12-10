@@ -175,6 +175,24 @@ def get_committee_tenure(
         # Calculate notice period
         days_notice = (current_hearing_date - announcement_date).days
         
+        # Skip retroactive/same-day amendments if there was a prior announcement
+        # (These are clerical corrections, not compliance issues)
+        is_amendment = action.action_type in (
+            ActionType.HEARING_RESCHEDULED,
+            ActionType.HEARING_LOCATION_CHANGED,
+            ActionType.HEARING_TIME_CHANGED
+        )
+        is_retroactive_or_same_day = announcement_date >= current_hearing_date
+        
+        if is_amendment and is_retroactive_or_same_day:
+            # Check if there was a prior valid announcement
+            has_prior_announcement = len(all_hearings) > 0
+            
+            if has_prior_announcement:
+                # This is a clerical correction after the fact, skip it
+                continue
+            # else: No prior announcement - process as violation (fall through)
+        
         # Determine required notice period based on action type
         if action.action_type == ActionType.HEARING_SCHEDULED:
             # Initial hearing announcement: needs 10 days
