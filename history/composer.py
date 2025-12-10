@@ -69,7 +69,7 @@ class BillArtifactComposer:
             timeline_action = TimelineAction.new(
                 action_date=action.date,
                 branch=action.branch,
-                action_type=action.action_type.value,
+                action_type=action.action_type,
                 category=action.category,
                 raw_text=action.raw_text,
             )

@@ -1,6 +1,5 @@
 """Test timeline extraction and parsing."""
 
-import pytest
 from datetime import date, timedelta
 
 from timeline.models import ActionType, BillActionTimeline
@@ -9,20 +8,17 @@ from unit.fixtures.timeline_factory import TimelineFactory
 
 class TestTimelineConstruction:
     """Test creating timelines with factory."""
-    
-    def test_simple_timeline(self, timeline_factory):
+
+    def test_simple_timeline(self, timeline_factory: TimelineFactory):
         """Test creating a simple timeline."""
         timeline = timeline_factory.create_simple_timeline(
             bill_id="H100",
             committee_id="J33",
         )
-        
         assert len(timeline) >= 2
-        
         # Check actions using ActionType enum
         referrals = timeline.get_actions_by_type(ActionType.REFERRED)
         assert len(referrals) == 1
-        
         hearings = timeline.get_actions_by_type(ActionType.HEARING_SCHEDULED)
         assert len(hearings) == 1
     

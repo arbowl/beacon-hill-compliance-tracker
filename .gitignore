@@ -215,3 +215,6 @@ cache.json
 *.png
 *.html
 *.pdf
+*.db
+*.db-journal
+.vscode/

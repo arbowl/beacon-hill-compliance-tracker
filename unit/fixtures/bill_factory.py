@@ -11,7 +11,7 @@ from unit.fixtures import Requirement
 
 class BillFactory:
     """Factory for creating test bills with various configurations."""
-    
+
     @staticmethod
     def create_bill_at_hearing(
         bill_id: str = "H100",
@@ -22,7 +22,7 @@ class BillFactory:
         """Create a basic BillAtHearing structure."""
         if hearing_date is None:
             hearing_date = date.today() - timedelta(days=30)
-        
+
         defaults = {
             "bill_label": f"Bill {bill_id}",
             "bill_url": f"https://malegislature.gov/Bills/194/{bill_id}",
@@ -30,14 +30,14 @@ class BillFactory:
             "hearing_url": "https://malegislature.gov/Events/Hearings/Detail/1234",
         }
         defaults.update(kwargs)
-        
+
         return BillAtHearing(
             bill_id=bill_id,
             committee_id=committee_id,
             hearing_date=hearing_date,
             **defaults
         )
-    
+
     @staticmethod
     def create_status(
         bill_id: str = "H100",
@@ -50,18 +50,13 @@ class BillFactory:
         **kwargs
     ) -> BillStatus:
         """Create a BillStatus with automatic deadline calculation."""
-        if hearing_date is None:
-            hearing_date = date.today() - timedelta(days=30)
-        
         # Auto-calculate deadlines
-        deadline_60 = hearing_date + timedelta(days=60)
-        deadline_90 = hearing_date + timedelta(days=90)
+        deadline_60: Optional[date] = None
+        deadline_90: Optional[date] = None
+        if hearing_date is not None:
+            deadline_60 = hearing_date + timedelta(days=60)
+            deadline_90 = hearing_date + timedelta(days=90)
         effective_deadline = extension_until or deadline_60
-        
-        # Default announcement to 15 days before hearing
-        if announcement_date is None and hearing_date:
-            announcement_date = hearing_date - timedelta(days=15)
-        
         return BillStatus(
             bill_id=bill_id,
             committee_id=committee_id,
@@ -76,7 +71,7 @@ class BillFactory:
             scheduled_hearing_date=hearing_date,
             **kwargs
         )
-    
+
     @staticmethod
     def create_summary(
         present: bool = True,
@@ -91,7 +86,7 @@ class BillFactory:
             source_url=source_url,
             parser_module=parser_module,
         )
-    
+
     @staticmethod
     def create_votes(
         present: bool = True,
@@ -105,7 +100,6 @@ class BillFactory:
         """Create a VoteInfo."""
         if tallies is None and present:
             tallies = {"yea": 10, "nay": 2}
-        
         return VoteInfo(
             present=present,
             location=location,
@@ -115,7 +109,7 @@ class BillFactory:
             tallies=tallies,
             records=records,
         )
-    
+
     @staticmethod
     def create_complete_compliant_bill(
         bill_id: str = "H100",
@@ -125,21 +119,20 @@ class BillFactory:
         """Create a fully compliant bill (all requirements met)."""
         if hearing_date is None:
             hearing_date = date.today() - timedelta(days=30)
-        
+        announcement = hearing_date - timedelta(days=15)
         reported_date = hearing_date + timedelta(days=20)
-        
         status = BillFactory.create_status(
             bill_id=bill_id,
             committee_id=committee_id,
             hearing_date=hearing_date,
             reported_out=True,
             reported_date=reported_date,
+            announcement_date=announcement,
         )
         summary = BillFactory.create_summary(present=True)
         votes = BillFactory.create_votes(present=True)
-        
         return status, summary, votes
-    
+
     @staticmethod
     def create_noncompliant_bill(
         bill_id: str = "H100",
@@ -154,15 +147,15 @@ class BillFactory:
         """
         if missing is None:
             missing = [Requirement.REPORTED, Requirement.SUMMARY]
-        
         hearing_date = date.today() - timedelta(days=100)  # Past deadline
-        
+        announcement = hearing_date - timedelta(days=10)
         status = BillFactory.create_status(
             bill_id=bill_id,
             committee_id=committee_id,
             hearing_date=hearing_date,
             reported_out=Requirement.REPORTED not in missing,
             reported_date=None,
+            announcement_date=announcement,
         )
         summary = BillFactory.create_summary(
             present=Requirement.SUMMARY not in missing
@@ -170,6 +163,4 @@ class BillFactory:
         votes = BillFactory.create_votes(
             present=Requirement.VOTES not in missing
         )
-        
         return status, summary, votes
-
