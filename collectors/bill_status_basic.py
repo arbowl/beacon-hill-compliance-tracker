@@ -119,37 +119,132 @@ def get_committee_tenure(
     else:
         tenure_end = date.today()
         is_active = True
+    # Get all hearing-related actions
     scheduled = timeline.get_actions_by_type(ActionType.HEARING_SCHEDULED)
     rescheduled = timeline.get_actions_by_type(ActionType.HEARING_RESCHEDULED)
+    location_changed = timeline.get_actions_by_type(
+        ActionType.HEARING_LOCATION_CHANGED
+    )
+    time_changed = timeline.get_actions_by_type(ActionType.HEARING_TIME_CHANGED)
+    
+    all_hearing_actions = sorted(
+        scheduled + rescheduled + location_changed + time_changed,
+        key=lambda a: a.date
+    )
+    
+    # Build timeline of hearings and track compliance
     all_hearings = []
+    current_hearing_date = None
     hearing_announcement_date = None
     hearing_date = None
-    for action in sorted(scheduled + rescheduled, key=lambda a: a.date):
+    worst_violation = None  # Track the worst compliance violation
+    
+    for action in all_hearing_actions:
         action_committee = action.extracted_data.get("committee_id")
         if not action_committee:
             action_committee = committee_id
         if action_committee != committee_id:
             continue
-        if tenure_start <= action.date <= tenure_end:
+        if not (tenure_start <= action.date <= tenure_end):
+            continue
+        
+        announcement_date = action.date
+        
+        # Update or use current_hearing_date
+        if action.action_type in (
+            ActionType.HEARING_SCHEDULED,
+            ActionType.HEARING_RESCHEDULED
+        ):
+            # These actions set the hearing date
             hearing_date_str = action.extracted_data.get("hearing_date")
-            if not hearing_date_str:
-                continue
-            hearing_dt = date.fromisoformat(hearing_date_str)
-            all_hearings.append({
-                "announcement_date": action.date,
-                "hearing_date": hearing_dt,
-                "action_type": action.action_type,
-            })
-    if all_hearings:
-        hearing_with_min_notice = min(
-            all_hearings,
-            key=lambda h: (h["hearing_date"] - h["announcement_date"]).days
-        )
-        hearing_announcement_date: date = hearing_with_min_notice["announcement_date"]
-        hearing_date: date = hearing_with_min_notice["hearing_date"]
-    notice_days = None
-    if hearing_announcement_date and hearing_date:
-        notice_days = (hearing_date - hearing_announcement_date).days
+            if hearing_date_str:
+                current_hearing_date = date.fromisoformat(hearing_date_str)
+            else:
+                continue  # Can't process without a date
+        elif action.action_type in (
+            ActionType.HEARING_LOCATION_CHANGED,
+            ActionType.HEARING_TIME_CHANGED
+        ):
+            # These actions modify the current hearing
+            if current_hearing_date is None:
+                continue  # No hearing to modify yet
+            # Use the existing current_hearing_date
+        else:
+            continue
+        
+        # Calculate notice period
+        days_notice = (current_hearing_date - announcement_date).days
+        
+        # Determine required notice period based on action type
+        if action.action_type == ActionType.HEARING_SCHEDULED:
+            # Initial hearing announcement: needs 10 days
+            required_days = 10
+            violation_type = "initial_hearing"
+            
+        elif action.action_type == ActionType.HEARING_RESCHEDULED:
+            # Check if this is a date change
+            previous_dates = [h["hearing_date"] for h in all_hearings]
+            
+            if previous_dates and current_hearing_date not in previous_dates:
+                # Date changed: needs 10 days notice
+                required_days = 10
+                violation_type = "date_reschedule"
+            else:
+                # No date change (agenda/details change): needs 72 hours (3 days)
+                required_days = 3
+                violation_type = "agenda_change"
+                
+        elif action.action_type in (
+            ActionType.HEARING_LOCATION_CHANGED,
+            ActionType.HEARING_TIME_CHANGED
+        ):
+            # Location or time changes: need 72 hours (3 days)
+            required_days = 3
+            violation_type = "location_or_time_change"
+        else:
+            continue  # Unknown action type
+        
+        # Check compliance
+        is_compliant = days_notice >= required_days
+        
+        # Record this hearing/change
+        hearing_record = {
+            "announcement_date": announcement_date,
+            "hearing_date": current_hearing_date,
+            "action_type": action.action_type,
+            "days_notice": days_notice,
+            "required_days": required_days,
+            "violation_type": violation_type,
+            "is_compliant": is_compliant,
+        }
+        all_hearings.append(hearing_record)
+        
+        # Track worst violation for compliance reporting
+        if not is_compliant:
+            if worst_violation is None:
+                worst_violation = hearing_record
+            else:
+                # Choose the violation with fewer days notice
+                if days_notice < worst_violation["days_notice"]:
+                    worst_violation = hearing_record
+    
+    # Determine which hearing/announcement to report for compliance
+    if worst_violation:
+        # Report the worst violation
+        hearing_announcement_date = worst_violation["announcement_date"]
+        hearing_date = worst_violation["hearing_date"]
+        notice_days = worst_violation["days_notice"]
+    elif all_hearings:
+        # All compliant - report the final hearing
+        final_hearing = all_hearings[-1]
+        hearing_announcement_date = final_hearing["announcement_date"]
+        hearing_date = final_hearing["hearing_date"]
+        notice_days = final_hearing["days_notice"]
+    else:
+        # No hearings found
+        hearing_announcement_date = None
+        hearing_date = None
+        notice_days = None
     hearing_to_report_days = None
     if hearing_date and reported_date:
         hearing_to_report_days = (reported_date - hearing_date).days
