@@ -97,7 +97,7 @@ class TestNonCompliance:
         }
         assert "no votes" in result.reason.lower()
 
-    def test_missing_multiple_requirements(self, bill_factory):
+    def test_missing_multiple_requirements(self, bill_factory: BillFactory):
         """Missing 2+ requirements should be NON_COMPLIANT."""
         status, summary, votes = bill_factory.create_noncompliant_bill(
             bill_id="H100",
@@ -109,7 +109,7 @@ class TestNonCompliance:
         assert "no summaries" in result.reason.lower()
         assert "no votes" in result.reason.lower()
 
-    def test_missing_all_requirements(self, bill_factory):
+    def test_missing_all_requirements(self, bill_factory: BillFactory):
         """Missing all requirements should be NON_COMPLIANT."""
         status, summary, votes = bill_factory.create_noncompliant_bill(
             missing=[
@@ -190,7 +190,9 @@ class TestCommitteeVariations:
         Committee.HOUSE,
         Committee.SENATE,
     ])
-    def test_compliant_across_committee_types(self, bill_factory, committee_id):
+    def test_compliant_across_committee_types(
+        self, bill_factory: BillFactory, committee_id: Committee
+    ):
         """Test compliant bills across different committee types."""
         status, summary, votes = bill_factory.create_complete_compliant_bill(
             committee_id=committee_id.value,

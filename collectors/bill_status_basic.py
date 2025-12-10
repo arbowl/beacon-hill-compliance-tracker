@@ -126,30 +126,25 @@ def get_committee_tenure(
         ActionType.HEARING_LOCATION_CHANGED
     )
     time_changed = timeline.get_actions_by_type(ActionType.HEARING_TIME_CHANGED)
-    
     all_hearing_actions = sorted(
         scheduled + rescheduled + location_changed + time_changed,
         key=lambda a: a.date
     )
-    
     # Build timeline of hearings and track compliance
     all_hearings = []
     current_hearing_date = None
     hearing_announcement_date = None
     hearing_date = None
     worst_violation = None  # Track the worst compliance violation
-    
     for action in all_hearing_actions:
         action_committee = action.extracted_data.get("committee_id")
         if not action_committee:
             action_committee = committee_id
         if action_committee != committee_id:
             continue
-        if not (tenure_start <= action.date <= tenure_end):
+        if not tenure_start <= action.date <= tenure_end:
             continue
-        
         announcement_date = action.date
-        
         # Update or use current_hearing_date
         if action.action_type in (
             ActionType.HEARING_SCHEDULED,
@@ -171,10 +166,8 @@ def get_committee_tenure(
             # Use the existing current_hearing_date
         else:
             continue
-        
         # Calculate notice period
         days_notice = (current_hearing_date - announcement_date).days
-        
         # Skip retroactive/same-day amendments if there was a prior announcement
         # (These are clerical corrections, not compliance issues)
         is_amendment = action.action_type in (
@@ -183,26 +176,21 @@ def get_committee_tenure(
             ActionType.HEARING_TIME_CHANGED
         )
         is_retroactive_or_same_day = announcement_date >= current_hearing_date
-        
         if is_amendment and is_retroactive_or_same_day:
             # Check if there was a prior valid announcement
             has_prior_announcement = len(all_hearings) > 0
-            
             if has_prior_announcement:
                 # This is a clerical correction after the fact, skip it
                 continue
             # else: No prior announcement - process as violation (fall through)
-        
         # Determine required notice period based on action type
         if action.action_type == ActionType.HEARING_SCHEDULED:
             # Initial hearing announcement: needs 10 days
             required_days = 10
             violation_type = "initial_hearing"
-            
         elif action.action_type == ActionType.HEARING_RESCHEDULED:
             # Check if this is a date change
             previous_dates = [h["hearing_date"] for h in all_hearings]
-            
             if previous_dates and current_hearing_date not in previous_dates:
                 # Date changed: needs 10 days notice
                 required_days = 10
@@ -211,7 +199,6 @@ def get_committee_tenure(
                 # No date change (agenda/details change): needs 72 hours (3 days)
                 required_days = 3
                 violation_type = "agenda_change"
-                
         elif action.action_type in (
             ActionType.HEARING_LOCATION_CHANGED,
             ActionType.HEARING_TIME_CHANGED
@@ -221,10 +208,8 @@ def get_committee_tenure(
             violation_type = "location_or_time_change"
         else:
             continue  # Unknown action type
-        
         # Check compliance
         is_compliant = days_notice >= required_days
-        
         # Record this hearing/change
         hearing_record = {
             "announcement_date": announcement_date,
@@ -236,7 +221,6 @@ def get_committee_tenure(
             "is_compliant": is_compliant,
         }
         all_hearings.append(hearing_record)
-        
         # Track worst violation for compliance reporting
         if not is_compliant:
             if worst_violation is None:
@@ -245,7 +229,6 @@ def get_committee_tenure(
                 # Choose the violation with fewer days notice
                 if days_notice < worst_violation["days_notice"]:
                     worst_violation = hearing_record
-    
     # Determine which hearing/announcement to report for compliance
     if worst_violation:
         # Report the worst violation

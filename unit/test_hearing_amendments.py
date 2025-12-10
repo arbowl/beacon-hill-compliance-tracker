@@ -14,6 +14,8 @@ from collectors.bill_status_basic import get_committee_tenure, CommitteeTenure
 from timeline.models import BillActionTimeline, ActionType
 from unit.fixtures.timeline_factory import TimelineFactory
 
+# pytest: disable=redefine-outer-name
+
 
 class MockBillURL:
     """Mock bill URLs for testing."""
@@ -45,14 +47,13 @@ def mock_extract_timeline():
 
 class TestInitialHearingNotice:
     """Test basic initial hearing notice scenarios."""
-    
+
     def test_initial_hearing_adequate_notice(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Initial hearing with 10+ days notice is compliant."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -67,24 +68,21 @@ class TestInitialHearingNotice:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         assert tenure.hearing_announcement_date == date(2025, 7, 5)
         assert tenure.hearing_date == hearing_date
         assert tenure.notice_days == 15
         assert len(tenure.all_hearings) == 1
         assert tenure.all_hearings[0]["is_compliant"] is True
-    
+
     def test_initial_hearing_inadequate_notice(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Initial hearing with <10 days notice is a violation."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -99,10 +97,8 @@ class TestInitialHearingNotice:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         assert tenure.hearing_announcement_date == date(2025, 7, 13)
         assert tenure.notice_days == 7
@@ -112,13 +108,12 @@ class TestInitialHearingNotice:
 
 class TestDateRescheduleNotice:
     """Test date reschedule scenarios (10-day requirement)."""
-    
+
     def test_date_reschedule_adequate_notice(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Date reschedule with 10+ days notice is compliant."""
         referred_date = date(2025, 7, 1)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -139,23 +134,20 @@ class TestDateRescheduleNotice:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         assert tenure.hearing_date == date(2025, 7, 25)
         assert tenure.notice_days == 15
         assert len(tenure.all_hearings) == 2
         # Both should be compliant
         assert all(h["is_compliant"] for h in tenure.all_hearings)
-    
+
     def test_date_reschedule_inadequate_notice(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Date reschedule with <10 days notice is a violation."""
         referred_date = date(2025, 7, 1)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -176,15 +168,12 @@ class TestDateRescheduleNotice:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Should report the violation (reschedule announcement)
         assert tenure.hearing_announcement_date == date(2025, 7, 18)
         assert tenure.notice_days == 7
-        
         # Check violation details
         violations = [h for h in tenure.all_hearings if not h["is_compliant"]]
         assert len(violations) == 1
@@ -194,14 +183,13 @@ class TestDateRescheduleNotice:
 
 class TestAgendaAmendmentNotice:
     """Test non-date reschedule scenarios (3-day / 72-hour requirement)."""
-    
+
     def test_agenda_change_adequate_notice(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Agenda change (reschedule to same date) with 3+ days is compliant."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -222,27 +210,23 @@ class TestAgendaAmendmentNotice:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Should report the final hearing (all compliant)
         assert tenure.hearing_date == hearing_date
         assert tenure.notice_days == 5  # From the agenda change
-        
         # Both should be compliant
         assert all(h["is_compliant"] for h in tenure.all_hearings)
         assert tenure.all_hearings[1]["violation_type"] == "agenda_change"
         assert tenure.all_hearings[1]["required_days"] == 3
-    
+
     def test_agenda_change_inadequate_notice(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Agenda change with <3 days notice is a violation."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -263,15 +247,12 @@ class TestAgendaAmendmentNotice:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Should report the violation
         assert tenure.hearing_announcement_date == date(2025, 7, 18)
         assert tenure.notice_days == 2
-        
         violations = [h for h in tenure.all_hearings if not h["is_compliant"]]
         assert len(violations) == 1
         assert violations[0]["violation_type"] == "agenda_change"
@@ -280,14 +261,13 @@ class TestAgendaAmendmentNotice:
 
 class TestLocationTimeChangeNotice:
     """Test location and time change scenarios (3-day / 72-hour requirement)."""
-    
+
     def test_location_change_adequate_notice(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Location change with 3+ days notice is compliant."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -308,22 +288,19 @@ class TestLocationTimeChangeNotice:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         assert tenure.hearing_date == hearing_date
         assert tenure.notice_days == 5
         assert all(h["is_compliant"] for h in tenure.all_hearings)
-    
+
     def test_location_change_within_72_hours(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Location change within 72 hours is a violation."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -343,26 +320,22 @@ class TestLocationTimeChangeNotice:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Should report the violation
         assert tenure.hearing_announcement_date == date(2025, 7, 18)
         assert tenure.notice_days == 2
-        
         violations = [h for h in tenure.all_hearings if not h["is_compliant"]]
         assert len(violations) == 1
         assert violations[0]["violation_type"] == "location_or_time_change"
-    
+
     def test_time_change_within_72_hours(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Time change within 72 hours is a violation."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -382,25 +355,21 @@ class TestLocationTimeChangeNotice:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         assert tenure.hearing_announcement_date == date(2025, 7, 19)
         assert tenure.notice_days == 1
-        
         violations = [h for h in tenure.all_hearings if not h["is_compliant"]]
         assert len(violations) == 1
         assert violations[0]["violation_type"] == "location_or_time_change"
-    
+
     def test_exactly_72_hours_notice(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Exactly 3 days (72 hours) notice is compliant."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -420,10 +389,8 @@ class TestLocationTimeChangeNotice:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # All should be compliant (3 days meets the requirement)
         assert all(h["is_compliant"] for h in tenure.all_hearings)
@@ -431,14 +398,13 @@ class TestLocationTimeChangeNotice:
 
 class TestMultipleViolations:
     """Test worst violation tracking with multiple changes."""
-    
+
     def test_multiple_violations_reports_worst(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """With multiple violations, report the one with fewest days notice."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -463,25 +429,21 @@ class TestMultipleViolations:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Should report the worst violation (1 day)
         assert tenure.hearing_announcement_date == date(2025, 7, 19)
         assert tenure.notice_days == 1
-        
         violations = [h for h in tenure.all_hearings if not h["is_compliant"]]
         assert len(violations) == 2  # Two violations total
-    
+
     def test_one_violation_among_compliant_changes(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """One violation among many compliant changes is reported."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -516,28 +478,24 @@ class TestMultipleViolations:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Should report the only violation
         assert tenure.hearing_announcement_date == date(2025, 7, 18)
         assert tenure.notice_days == 2
-        
         violations = [h for h in tenure.all_hearings if not h["is_compliant"]]
         assert len(violations) == 1
 
 
 class TestEdgeCases:
     """Test edge cases and boundary conditions."""
-    
+
     def test_location_change_without_prior_hearing(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Location change before any scheduled hearing is ignored."""
         referred_date = date(2025, 7, 1)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -552,23 +510,20 @@ class TestEdgeCases:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # No hearing should be recorded (location change was ignored)
         assert len(tenure.all_hearings) == 0
         assert tenure.hearing_date is None
     
     def test_changes_outside_committee_tenure(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Changes after committee tenure ends are ignored."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
         reported_date = date(2025, 7, 30)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -593,22 +548,19 @@ class TestEdgeCases:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Only the initial hearing should be recorded
         assert len(tenure.all_hearings) == 1
         assert tenure.reported_date == reported_date
-    
+
     def test_changes_for_different_committee(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Changes for a different committee are ignored."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -628,22 +580,19 @@ class TestEdgeCases:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Only the initial hearing for J33 should be recorded
         assert len(tenure.all_hearings) == 1
         assert tenure.all_hearings[0]["is_compliant"] is True
-    
+
     def test_all_compliant_reports_final_hearing(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """When all changes are compliant, report the final hearing."""
         referred_date = date(2025, 7, 1)
         hearing_date = date(2025, 7, 20)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -668,22 +617,19 @@ class TestEdgeCases:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Should report the final change (time change on day 12)
         assert tenure.hearing_announcement_date == date(2025, 7, 12)
         assert tenure.notice_days == 8
         assert all(h["is_compliant"] for h in tenure.all_hearings)
-    
+
     def test_multiple_date_reschedules(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Multiple date reschedules are all tracked."""
         referred_date = date(2025, 7, 1)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -710,10 +656,8 @@ class TestEdgeCases:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         assert len(tenure.all_hearings) == 3
         # All should be compliant
@@ -724,14 +668,13 @@ class TestEdgeCases:
 
 class TestRetroactiveClericalUpdates:
     """Test retroactive/same-day clerical updates (like end time adjustments)."""
-    
+
     def test_same_day_time_update_ignored_with_prior_announcement(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Same-day time update after valid announcement is ignored (clerical)."""
         referred_date = date(2025, 11, 1)
         hearing_date = date(2025, 11, 25)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -753,24 +696,21 @@ class TestRetroactiveClericalUpdates:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="S1249")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Only the initial hearing should be recorded (same-day update ignored)
         assert len(tenure.all_hearings) == 1
         assert tenure.hearing_announcement_date == date(2025, 11, 14)
         assert tenure.notice_days == 11
         assert tenure.all_hearings[0]["is_compliant"] is True
-    
+
     def test_retroactive_update_ignored_with_prior_announcement(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Retroactive update after hearing date is ignored (clerical)."""
         referred_date = date(2025, 11, 1)
         hearing_date = date(2025, 11, 25)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -792,24 +732,21 @@ class TestRetroactiveClericalUpdates:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="S1249")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Only the initial hearing should be recorded (retroactive update ignored)
         assert len(tenure.all_hearings) == 1
         assert tenure.hearing_announcement_date == date(2025, 11, 14)
         assert tenure.notice_days == 11
         assert tenure.all_hearings[0]["is_compliant"] is True
-    
+
     def test_multiple_retroactive_updates_ignored(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Multiple retroactive updates are all ignored (S.1249 example)."""
         referred_date = date(2025, 11, 1)
         hearing_date = date(2025, 11, 25)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -836,24 +773,21 @@ class TestRetroactiveClericalUpdates:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="S1249")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Only the initial hearing should be recorded (both updates ignored)
         assert len(tenure.all_hearings) == 1
         assert tenure.hearing_announcement_date == date(2025, 11, 14)
         assert tenure.notice_days == 11
         assert tenure.all_hearings[0]["is_compliant"] is True
-    
+
     def test_retroactive_reschedule_without_prior_announcement_is_violation(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Retroactive reschedule with NO prior announcement is a violation."""
         referred_date = date(2025, 11, 1)
         hearing_date = date(2025, 11, 25)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -870,10 +804,8 @@ class TestRetroactiveClericalUpdates:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Should record this as a violation (they "rescheduled" something never announced)
         assert len(tenure.all_hearings) == 1
@@ -881,14 +813,13 @@ class TestRetroactiveClericalUpdates:
         assert tenure.notice_days == -1
         assert tenure.all_hearings[0]["is_compliant"] is False
         assert tenure.all_hearings[0]["violation_type"] == "agenda_change"
-    
+
     def test_same_day_reschedule_without_prior_announcement_is_violation(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Same-day reschedule with NO prior announcement is a violation."""
         referred_date = date(2025, 11, 1)
         hearing_date = date(2025, 11, 25)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -904,23 +835,20 @@ class TestRetroactiveClericalUpdates:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Should record this as a violation
         assert len(tenure.all_hearings) == 1
         assert tenure.notice_days == 0
         assert tenure.all_hearings[0]["is_compliant"] is False
-    
+
     def test_retroactive_location_change_ignored_with_prior_announcement(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Retroactive location change is ignored if there was a prior announcement."""
         referred_date = date(2025, 11, 1)
         hearing_date = date(2025, 11, 25)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -940,22 +868,19 @@ class TestRetroactiveClericalUpdates:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Only the initial hearing should be recorded
         assert len(tenure.all_hearings) == 1
         assert tenure.notice_days == 11
-    
+
     def test_pre_hearing_amendment_not_affected_by_retroactive_logic(
-        self, committee_id, mock_extract_timeline
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
         """Legitimate pre-hearing amendments should still be evaluated."""
         referred_date = date(2025, 11, 1)
         hearing_date = date(2025, 11, 25)
-        
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -980,13 +905,10 @@ class TestRetroactiveClericalUpdates:
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")
-        
         with mock_extract_timeline(timeline):
             tenure = get_committee_tenure(MockBillURL.H100, committee_id)
-        
         assert tenure is not None
         # Both initial hearing and pre-hearing location change recorded
         # Retroactive time change ignored
         assert len(tenure.all_hearings) == 2
         assert all(h["is_compliant"] for h in tenure.all_hearings)
-
