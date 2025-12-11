@@ -1,7 +1,7 @@
-"""Repository for storing and retrieving bill artifacts from SQLite."""
+"""Repository for storing and retrieving bill artifacts from DuckDB."""
 
 import json
-import sqlite3
+import duckdb
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
@@ -26,7 +26,7 @@ class BillArtifactRepository:
 
     def _init_db(self):
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(self.db_path)
+        conn = duckdb.connect(self.db_path)
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS bill_artifacts (
                 artifact_id TEXT PRIMARY KEY,
@@ -116,7 +116,7 @@ class BillArtifactRepository:
 
     def save_artifact(self, artifact: BillArtifact) -> None:
         """Save a bill artifact to the database."""
-        conn = sqlite3.connect(self.db_path)
+        conn = duckdb.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -263,8 +263,7 @@ class BillArtifactRepository:
         session: str = "194"
     ) -> Optional[BillArtifact]:
         """Load a bill artifact from the database."""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
+        conn = duckdb.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -371,7 +370,7 @@ class BillArtifactRepository:
         self, committee_id: Optional[str] = None
     ) -> list[str]:
         """Get all bill IDs from the database."""
-        conn = sqlite3.connect(self.db_path)
+        conn = duckdb.connect(self.db_path)
         cursor = conn.cursor()
         if committee_id:
             cursor.execute(
