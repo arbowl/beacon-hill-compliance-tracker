@@ -685,7 +685,7 @@ def main():
     # Determine paths
     script_dir = Path(__file__).parent
     project_root = script_dir.parent
-    json_dir = project_root / 'out' / '2025' / '12' / '06'
+    json_dir = project_root / 'out' / '2025' / '12' / '13'
     output_dir = project_root / 'out'
     
     print("="*80)

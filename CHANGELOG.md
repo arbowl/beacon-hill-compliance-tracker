@@ -5,13 +5,13 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [1.2.2] - 2025-12-13
 
 ### Added
 - New logic for differentiating between "hearing announced", "hearing rescheduled", "hearing time changed", and "hearing location changed" with sub-conditions for evaluating a bill's chain of custody within a committee tenure window.
 
 ### Changed
-- Purely clerical timeline updates (such as retroactive end-time adjustments to reflect the record as it happened) will not count as hearing reannouncements that reset the hearing notice timer. Reschedules without original announcements will count as non-compliant.
+- Clerical timeline updates (such as retroactive end-time adjustments to reflect the record as it happened) will not count as hearing reannouncements that reset the hearing notice timer. Reschedules without original announcements will count as non-compliant.
 - Per a functional reading of Joint Rule 10, changes to the hearing location and/or time (but not the date) are allowed outside of a 72-hour window prior to the hearing; material changes to the format of a hearing within that window will count as non-compliant.
 
 
