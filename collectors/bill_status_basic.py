@@ -176,7 +176,12 @@ def get_committee_tenure(
             ActionType.HEARING_TIME_CHANGED
         )
         is_retroactive_or_same_day = announcement_date >= current_hearing_date
-        if is_amendment and is_retroactive_or_same_day:
+        is_duplicate_scheduled = (
+            action.action_type == ActionType.HEARING_SCHEDULED and
+            is_retroactive_or_same_day and
+            any(h["hearing_date"] == current_hearing_date for h in all_hearings)
+        )
+        if (is_amendment or is_duplicate_scheduled) and is_retroactive_or_same_day:
             # Check if there was a prior valid announcement
             has_prior_announcement = len(all_hearings) > 0
             if has_prior_announcement:
