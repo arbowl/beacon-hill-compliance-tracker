@@ -912,3 +912,144 @@ class TestRetroactiveClericalUpdates:
         # Retroactive time change ignored
         assert len(tenure.all_hearings) == 2
         assert all(h["is_compliant"] for h in tenure.all_hearings)
+
+    def test_retroactive_duplicate_hearing_scheduled_ignored(
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
+    ):
+        """Retroactive duplicate HEARING_SCHEDULED is waived (S.1106 example)."""
+        referred_date = date(2025, 2, 27)
+        hearing_date = date(2025, 6, 3)
+        actions = [
+            TimelineFactory.create_action(
+                referred_date,
+                ActionType.REFERRED,
+                committee_id=committee_id,
+            ),
+            TimelineFactory.create_action(
+                date(2025, 5, 29),  # 5 days before hearing
+                ActionType.HEARING_SCHEDULED,
+                committee_id=committee_id,
+                hearing_date=hearing_date.isoformat(),
+            ),
+            TimelineFactory.create_action(
+                date(2025, 10, 20),  # After hearing (-139 days)
+                ActionType.HEARING_SCHEDULED,  # Duplicate for same date
+                committee_id=committee_id,
+                hearing_date=hearing_date.isoformat(),
+            ),
+        ]
+        timeline = BillActionTimeline(actions, bill_id="S1106")
+        with mock_extract_timeline(timeline):
+            tenure = get_committee_tenure(MockBillURL.H100, committee_id)
+        assert tenure is not None
+        # Should only record the first hearing (duplicate ignored)
+        assert len(tenure.all_hearings) == 1
+        assert tenure.hearing_announcement_date == date(2025, 5, 29)
+        assert tenure.hearing_date == hearing_date
+        assert tenure.notice_days == 5
+        # Note: Still non-compliant (5 < 10), but not due to -139 days
+        assert tenure.all_hearings[0]["is_compliant"] is False
+        assert tenure.all_hearings[0]["days_notice"] == 5
+        assert tenure.all_hearings[0]["required_days"] == 10
+
+    def test_same_day_duplicate_hearing_scheduled_ignored(
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
+    ):
+        """Same-day duplicate HEARING_SCHEDULED is waived."""
+        referred_date = date(2025, 11, 1)
+        hearing_date = date(2025, 11, 25)
+        actions = [
+            TimelineFactory.create_action(
+                referred_date,
+                ActionType.REFERRED,
+                committee_id=committee_id,
+            ),
+            TimelineFactory.create_action(
+                date(2025, 11, 14),  # 11 days before hearing
+                ActionType.HEARING_SCHEDULED,
+                committee_id=committee_id,
+                hearing_date=hearing_date.isoformat(),
+            ),
+            TimelineFactory.create_action(
+                date(2025, 11, 25),  # Same day as hearing (0 days)
+                ActionType.HEARING_SCHEDULED,  # Duplicate for same date
+                committee_id=committee_id,
+                hearing_date=hearing_date.isoformat(),
+            ),
+        ]
+        timeline = BillActionTimeline(actions, bill_id="H100")
+        with mock_extract_timeline(timeline):
+            tenure = get_committee_tenure(MockBillURL.H100, committee_id)
+        assert tenure is not None
+        # Should only record the first hearing (same-day duplicate ignored)
+        assert len(tenure.all_hearings) == 1
+        assert tenure.hearing_announcement_date == date(2025, 11, 14)
+        assert tenure.notice_days == 11
+        assert tenure.all_hearings[0]["is_compliant"] is True
+
+    def test_duplicate_scheduled_different_date_not_ignored(
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
+    ):
+        """Duplicate HEARING_SCHEDULED with DIFFERENT date is NOT waived."""
+        referred_date = date(2025, 11, 1)
+        first_hearing_date = date(2025, 11, 25)
+        second_hearing_date = date(2025, 12, 10)
+        actions = [
+            TimelineFactory.create_action(
+                referred_date,
+                ActionType.REFERRED,
+                committee_id=committee_id,
+            ),
+            TimelineFactory.create_action(
+                date(2025, 11, 14),  # 11 days before first hearing
+                ActionType.HEARING_SCHEDULED,
+                committee_id=committee_id,
+                hearing_date=first_hearing_date.isoformat(),
+            ),
+            TimelineFactory.create_action(
+                date(2025, 12, 9),  # 1 day before second hearing
+                ActionType.HEARING_SCHEDULED,  # Different date - legitimate new hearing
+                committee_id=committee_id,
+                hearing_date=second_hearing_date.isoformat(),
+            ),
+        ]
+        timeline = BillActionTimeline(actions, bill_id="H100")
+        with mock_extract_timeline(timeline):
+            tenure = get_committee_tenure(MockBillURL.H100, committee_id)
+        assert tenure is not None
+        # Should record both hearings (different dates)
+        assert len(tenure.all_hearings) == 2
+        assert tenure.all_hearings[0]["hearing_date"] == first_hearing_date
+        assert tenure.all_hearings[1]["hearing_date"] == second_hearing_date
+        # Second hearing is non-compliant (1 < 10)
+        assert tenure.all_hearings[1]["is_compliant"] is False
+
+    def test_retroactive_duplicate_without_prior_announcement_is_violation(
+        self, committee_id: str, mock_extract_timeline: BillActionTimeline
+    ):
+        """Retroactive duplicate HEARING_SCHEDULED with NO prior announcement is a violation."""
+        referred_date = date(2025, 11, 1)
+        hearing_date = date(2025, 11, 25)
+        actions = [
+            TimelineFactory.create_action(
+                referred_date,
+                ActionType.REFERRED,
+                committee_id=committee_id,
+            ),
+            # NO initial HEARING_SCHEDULED!
+            TimelineFactory.create_action(
+                date(2025, 11, 26),  # Day after hearing (-1 days)
+                ActionType.HEARING_SCHEDULED,
+                committee_id=committee_id,
+                hearing_date=hearing_date.isoformat(),
+            ),
+        ]
+        timeline = BillActionTimeline(actions, bill_id="H100")
+        with mock_extract_timeline(timeline):
+            tenure = get_committee_tenure(MockBillURL.H100, committee_id)
+        assert tenure is not None
+        # Should record this as a violation (no prior announcement to waive)
+        assert len(tenure.all_hearings) == 1
+        assert tenure.hearing_announcement_date == date(2025, 11, 26)
+        assert tenure.notice_days == -1
+        assert tenure.all_hearings[0]["is_compliant"] is False
