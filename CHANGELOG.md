@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Clerical timeline updates (such as retroactive end-time adjustments to reflect the record as it happened) will not count as hearing reannouncements that reset the hearing notice timer. Reschedules without original announcements will count as non-compliant.
-- Per a functional reading of Joint Rule 10, changes to the hearing location and/or time (but not the date) are allowed outside of a 72-hour window prior to the hearing; material changes to the format of a hearing within that window will count as non-compliant.
+- Per a functional reading of the Joint Rules, changes to the hearing location and/or time (but not the date) are allowed outside of a 72-hour window prior to the hearing; material changes to the format of a hearing within that window will count as non-compliant.
 
 
 ## [1.2.1] - 2025-12-07
