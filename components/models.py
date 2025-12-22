@@ -75,6 +75,7 @@ class BillStatus:
     effective_deadline: Optional[date]
     announcement_date: Optional[date] = None
     scheduled_hearing_date: Optional[date] = None
+    referred_date: Optional[date] = None
 
 
 @dataclass(frozen=True)
@@ -274,3 +275,4 @@ class DeferredReviewSession:
     def get_bill_ids(self) -> list[str]:
         """Get unique list of bill IDs in this session."""
         return list(set(c.bill_id for c in self.confirmations))
+
