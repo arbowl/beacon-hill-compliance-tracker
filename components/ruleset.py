@@ -346,11 +346,14 @@ class ReportedOutRequirementRule(ComplianceRule):
                     deadline_60 = c.end_of_session
                     deadline_90 = deadline_60
         if context.committee_id == "J24":
-            if status.hearing_date < c.hcf_december_deadline:
+            if status.referred_date and status.referred_date < c.hcf_december_deadline:
                 deadline_60 = c.last_wednesday_january
                 deadline_90 = deadline_60
+            elif status.referred_date:
+                deadline_60 = status.referred_date + timedelta(days=60)
+                deadline_90 = deadline_60
             else:
-                deadline_60 = status.hearing_date + timedelta(days=60)
+                deadline_60 = c.last_wednesday_january
                 deadline_90 = deadline_60
         if not status.extension_until:
             effective_deadline = deadline_60
