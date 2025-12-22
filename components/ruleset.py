@@ -326,25 +326,42 @@ class ReportedOutRequirementRule(ComplianceRule):
             else:  # After Jan 18, 2026
                 deadline_60 = status.hearing_date + timedelta(days=60)
                 deadline_90 = deadline_60
-        else:  # Senate bill
-            if today < c.first_wednesday_december:
-                deadline_60 = c.first_wednesday_december
-                deadline_90 = deadline_60 + timedelta(days=30)
+        else:
+            if context.committee_type == CommitteeType.JOINT and status.referred_date:
+                if status.referred_date >= c.senate_october_deadline:
+                    deadline_60 = status.referred_date + timedelta(days=60)
+                    deadline_90 = deadline_60
+                else:
+                    if today < c.first_wednesday_december:
+                        deadline_60 = c.first_wednesday_december
+                        deadline_90 = deadline_60 + timedelta(days=30)
+                    else:
+                        deadline_60 = c.end_of_session
+                        deadline_90 = deadline_60
             else:
-                deadline_60 = c.end_of_session
-                deadline_90 = deadline_60
-        if context.committee_id == "J24":  # Health Care Financing Exception
+                if today < c.first_wednesday_december:
+                    deadline_60 = c.first_wednesday_december
+                    deadline_90 = deadline_60 + timedelta(days=30)
+                else:
+                    deadline_60 = c.end_of_session
+                    deadline_90 = deadline_60
+        if context.committee_id == "J24":
             if status.hearing_date < c.hcf_december_deadline:
                 deadline_60 = c.last_wednesday_january
                 deadline_90 = deadline_60
-            else:  # After Dec 24, 2025
+            else:
                 deadline_60 = status.hearing_date + timedelta(days=60)
                 deadline_90 = deadline_60
         if not status.extension_until:
             effective_deadline = deadline_60
         else:
-            effective_deadline = min(status.extension_until, deadline_90)
-            effective_deadline = max(effective_deadline, deadline_60)
+            if context.committee_id == "J24":
+                effective_deadline = deadline_60
+            elif context.bill_type == BillType.HOUSE:
+                effective_deadline = min(status.extension_until, deadline_90)
+                effective_deadline = max(effective_deadline, deadline_60)
+            else:
+                effective_deadline = max(status.extension_until, deadline_60)
         if status.reported_date and status.reported_date <= effective_deadline:
             return RuleResult(
                 passed=Status.COMPLIANT,
