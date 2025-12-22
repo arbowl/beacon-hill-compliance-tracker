@@ -820,7 +820,9 @@ def compute_deadlines(
     hearing_date: Optional[date],
     extension_until: Optional[date] = None,
     bill_id: Optional[str] = None,
-    session: Optional[str] = None
+    session: Optional[str] = None,
+    referred_date: Optional[date] = None,
+    committee_id: Optional[str] = None
 ) -> tuple[Optional[date], Optional[date], Optional[date]]:
     """Return (deadline_60, deadline_90, effective_deadline).
 
@@ -831,6 +833,10 @@ def compute_deadlines(
                  if Senate bill rules apply
         session: Optional session number (e.g., "194") - used to look up
                  session-specific Wednesday deadlines
+        referred_date: Date bill was referred to committee (for Senate bill
+                       referral-based deadlines per Joint Rule 10)
+        committee_id: Committee identifier (e.g., "J33") - used to determine
+                      if joint committee rules apply
 
     Returns:
         Tuple of (deadline_60, deadline_90, effective_deadline)
@@ -838,24 +844,56 @@ def compute_deadlines(
 
     Rules:
         - House bills: 60 days from hearing + optional 30-day extension
-          (90 max)
-        - Senate bills: First Wednesday in December + optional 30-day
-          extension
+          (90 max, capped at March deadline for late-session hearings)
+        - Senate bills in joint committees (Joint Rule 10):
+          * Referred before Oct 1: First Wednesday in December deadline
+          * Referred on/after Oct 1: 60 days from referral date
+        - Senate bills in other committees: Session-specific Wednesday deadline
     """
     if hearing_date is None:
         return None, None, None
     is_house_bill = bill_id and bill_id.upper().startswith('H')
     if is_house_bill:
+        from components.ruleset import Constants194
+        c = Constants194()
         d60 = hearing_date + timedelta(days=60)
         d90 = hearing_date + timedelta(days=90)
+        if hearing_date >= c.third_wednesday_december:
+            if d90 > c.third_wednesday_march:
+                d90 = c.third_wednesday_march
     else:
-        # Senate bills use session-specific Wednesday deadline
-        d60 = SESSION_WEDNESDAY_DEADLINES[session]
-        d90 = d60 + timedelta(days=30)
+        from components.ruleset import Constants194
+        c = Constants194()
+        if committee_id == "J24":
+            if hearing_date < c.hcf_december_deadline:
+                d60 = c.last_wednesday_january
+                d90 = d60
+            else:
+                d60 = hearing_date + timedelta(days=60)
+                d90 = d60
+        else:
+            is_joint_committee = (committee_id and
+                                  committee_id.upper().startswith('J'))
+            if is_joint_committee and referred_date:
+                if referred_date >= c.senate_october_deadline:
+                    d60 = referred_date + timedelta(days=60)
+                    d90 = d60
+                else:
+                    d60 = SESSION_WEDNESDAY_DEADLINES[session]
+                    d90 = d60 + timedelta(days=30)
+            else:
+                d60 = SESSION_WEDNESDAY_DEADLINES[session]
+                d90 = d60 + timedelta(days=30)
     if not extension_until:
         return d60, d90, d60
-    effective = min(extension_until, d90)
-    effective = max(effective, d60)
+    is_hcf_committee = committee_id == "J24"
+    if is_hcf_committee:
+        return d60, d90, d60
+    if is_house_bill:
+        effective = min(extension_until, d90)
+        effective = max(effective, d60)
+    else:
+        effective = max(extension_until, d60)
     return d60, d90, effective
 
 
