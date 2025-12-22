@@ -865,11 +865,14 @@ def compute_deadlines(
         from components.ruleset import Constants194
         c = Constants194()
         if committee_id == "J24":
-            if hearing_date < c.hcf_december_deadline:
+            if referred_date and referred_date < c.hcf_december_deadline:
                 d60 = c.last_wednesday_january
                 d90 = d60
+            elif referred_date:
+                d60 = referred_date + timedelta(days=60)
+                d90 = d60
             else:
-                d60 = hearing_date + timedelta(days=60)
+                d60 = c.last_wednesday_january
                 d90 = d60
         else:
             is_joint_committee = (committee_id and
