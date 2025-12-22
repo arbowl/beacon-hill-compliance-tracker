@@ -283,9 +283,6 @@ def build_status_row(
         extract_session_from_bill_url(row.bill_url)
         if row.bill_url else None
     )
-    d60, d90, effective = compute_deadlines(
-        row.hearing_date, extension_until, row.bill_id, session
-    )
     tenure_info = get_committee_tenure(row.bill_url, row.committee_id)
     if not tenure_info:
         tenure_info = CommitteeTenure(
@@ -304,6 +301,14 @@ def build_status_row(
             referred_to_report_days=None,
             is_active=True,
         )
+    d60, d90, effective = compute_deadlines(
+        row.hearing_date,
+        extension_until,
+        row.bill_id,
+        session,
+        tenure_info.referred_date,
+        row.committee_id
+    )
     return BillStatus(
         bill_id=row.bill_id,
         committee_id=row.committee_id,
@@ -316,4 +321,5 @@ def build_status_row(
         effective_deadline=effective,
         announcement_date=tenure_info.hearing_announcement_date,
         scheduled_hearing_date=tenure_info.hearing_date,
+        referred_date=tenure_info.referred_date,
     )
