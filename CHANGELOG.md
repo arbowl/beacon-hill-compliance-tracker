@@ -5,6 +5,13 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-12-23
+
+### Changed
+- Senate-origin bills in joint committees now begin the report-out countdown at the referral date, per Joint Rule 10, even when no hearing date has been announced yet.
+- Senate deadlines have been formally computed and encoded in the ruleset engine for the current session in accordance with Joint Rule 10.
+
+
 ## [1.2.2] - 2025-12-13
 
 ### Added
