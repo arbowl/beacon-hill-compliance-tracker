@@ -41,20 +41,14 @@ class VotesBillEmbeddedParser(ParserInterface):
 
     @classmethod
     def discover(
-        cls,
-        base_url: str,
-        bill: BillAtHearing,
-        cache=None,
-        config=None
+        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the votes."""
         logger.debug("Trying %s...", cls.__name__)
         soup = cls.soup(f"{bill.bill_url}/CommitteeVote")
         # 1) Look for site-specific committee vote panels by class name
         # Example seen in HTML: div.panel.panel-primary committeeVote
-        panels = soup.find_all(
-            "div", class_=lambda c: c and "committeeVote" in c
-        )
+        panels = soup.find_all("div", class_=lambda c: c and "committeeVote" in c)
         for panel in panels:
             if cls._looks_like_vote_table(panel):
                 txt = " ".join(panel.get_text(" ", strip=True).split())
@@ -100,10 +94,7 @@ class VotesBillEmbeddedParser(ParserInterface):
         return None
 
     @classmethod
-    def parse(
-        cls, base_url: str, candidate: ParserInterface.DiscoveryResult
-    ) -> dict:
+    def parse(cls, base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """Parse the votes."""
         # For compliance we only need presence + URL right now.
         return {"location": cls.location, "source_url": candidate.source_url}
-

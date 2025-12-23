@@ -4,7 +4,11 @@ from datetime import date, timedelta
 from typing import Optional
 
 from components.models import (
-    BillAtHearing, BillStatus, SummaryInfo, VoteInfo, VoteRecord
+    BillAtHearing,
+    BillStatus,
+    SummaryInfo,
+    VoteInfo,
+    VoteRecord,
 )
 from unit.fixtures import Requirement
 
@@ -17,7 +21,7 @@ class BillFactory:
         bill_id: str = "H100",
         committee_id: str = "J33",
         hearing_date: Optional[date] = None,
-        **kwargs
+        **kwargs,
     ) -> BillAtHearing:
         """Create a basic BillAtHearing structure."""
         if hearing_date is None:
@@ -35,7 +39,7 @@ class BillFactory:
             bill_id=bill_id,
             committee_id=committee_id,
             hearing_date=hearing_date,
-            **defaults
+            **defaults,
         )
 
     @staticmethod
@@ -47,7 +51,7 @@ class BillFactory:
         reported_date: Optional[date] = None,
         announcement_date: Optional[date] = None,
         extension_until: Optional[date] = None,
-        **kwargs
+        **kwargs,
     ) -> BillStatus:
         """Create a BillStatus with automatic deadline calculation."""
         # Auto-calculate deadlines
@@ -69,7 +73,7 @@ class BillFactory:
             effective_deadline=effective_deadline,
             announcement_date=announcement_date,
             scheduled_hearing_date=hearing_date,
-            **kwargs
+            **kwargs,
         )
 
     @staticmethod
@@ -140,9 +144,9 @@ class BillFactory:
         missing: Optional[list[Requirement]] = None,
     ) -> tuple[BillStatus, SummaryInfo, VoteInfo]:
         """Create a non-compliant bill.
-        
+
         Args:
-            missing: List of requirements to make missing 
+            missing: List of requirements to make missing
                      (use Requirement enum values)
         """
         if missing is None:
@@ -157,10 +161,6 @@ class BillFactory:
             reported_date=None,
             announcement_date=announcement,
         )
-        summary = BillFactory.create_summary(
-            present=Requirement.SUMMARY not in missing
-        )
-        votes = BillFactory.create_votes(
-            present=Requirement.VOTES not in missing
-        )
+        summary = BillFactory.create_summary(present=Requirement.SUMMARY not in missing)
+        votes = BillFactory.create_votes(present=Requirement.VOTES not in missing)
         return status, summary, votes

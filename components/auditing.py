@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 from version import __version__
+
 if TYPE_CHECKING:
     from components.interfaces import Config
     from app import Mode
@@ -38,6 +39,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class LogContext:
     """Thread-local context for correlating log entries."""
+
     run_id: str
     thread_id: int
     committee_id: Optional[str] = None
@@ -119,6 +121,7 @@ def parser_context(parser_module: str, stage: str):
 @dataclass
 class BillProcessingEntry:
     """Represents a bill's processing journey."""
+
     timestamp: str
     bill_id: str
     committee_id: str
@@ -133,6 +136,7 @@ class BillProcessingEntry:
 @dataclass
 class ErrorEntry:
     """Structured error record."""
+
     timestamp: str
     error_type: str
     message: str
@@ -146,6 +150,7 @@ class ErrorEntry:
 @dataclass
 class PerformanceMetric:
     """Performance measurement."""
+
     metric_name: str
     value: float
     unit: str  # "seconds", "milliseconds", "count", "bytes"
@@ -156,6 +161,7 @@ class PerformanceMetric:
 @dataclass
 class AuditEvent:
     """Audit trail event."""
+
     timestamp: str
     event_type: str  # "config_change", "cache_update", etc.
     description: str
@@ -232,7 +238,8 @@ class ManifestWriter:
                 "bills_failed": self.bills_failed,
                 "success_rate": (
                     round(self.bills_succeeded / self.bills_processed * 100, 2)
-                    if self.bills_processed > 0 else 0.0
+                    if self.bills_processed > 0
+                    else 0.0
                 ),
             },
             "errors_and_warnings": {
@@ -304,18 +311,14 @@ class ParserAnalyticsWriter:
             # Track confidence scores
             if confidence is not None:
                 stats["confidence_samples"].append(confidence)
-                stats["avg_confidence"] = sum(
-                    stats["confidence_samples"]
-                ) / len(
+                stats["avg_confidence"] = sum(stats["confidence_samples"]) / len(
                     stats["confidence_samples"]
                 )
 
             # Track duration
             if duration_ms is not None:
                 stats["duration_samples"].append(duration_ms)
-                stats["avg_duration_ms"] = sum(
-                    stats["duration_samples"]
-                ) / len(
+                stats["avg_duration_ms"] = sum(stats["duration_samples"]) / len(
                     stats["duration_samples"]
                 )
 
@@ -333,16 +336,13 @@ class ParserAnalyticsWriter:
                 "summary": {
                     "total_parsers_used": len(self.parser_attempts),
                     "total_attempts": sum(
-                        p["total_attempts"]
-                        for p in self.parser_attempts.values()
+                        p["total_attempts"] for p in self.parser_attempts.values()
                     ),
                     "total_successes": sum(
-                        p["successful_attempts"]
-                        for p in self.parser_attempts.values()
+                        p["successful_attempts"] for p in self.parser_attempts.values()
                     ),
                     "total_failures": sum(
-                        p["failed_attempts"]
-                        for p in self.parser_attempts.values()
+                        p["failed_attempts"] for p in self.parser_attempts.values()
                     ),
                 },
             }
@@ -374,9 +374,7 @@ class BillProcessingWriter:
     def open(self) -> None:
         """Open the log file for writing."""
         try:
-            self.file_handle = open(
-                self.log_path, "w", encoding="utf-8", buffering=1
-            )
+            self.file_handle = open(self.log_path, "w", encoding="utf-8", buffering=1)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to open bill processing log: %s", e)
 
@@ -448,12 +446,8 @@ class ErrorLedgerWriter:
             ledger = {
                 "generated_at": datetime.utcnow().isoformat() + "Z",
                 "total_errors": len(self.errors),
-                "recoverable_errors": sum(
-                    1 for e in self.errors if e.recoverable
-                ),
-                "fatal_errors": sum(
-                    1 for e in self.errors if not e.recoverable
-                ),
+                "recoverable_errors": sum(1 for e in self.errors if e.recoverable),
+                "fatal_errors": sum(1 for e in self.errors if not e.recoverable),
                 "errors": [asdict(e) for e in self.errors],
             }
             return ledger
@@ -484,9 +478,7 @@ class PerformanceWriter:
         with self.lock:
             self.timers[timer_name] = time.time()
 
-    def end_timer(
-        self, timer_name: str, context: Optional[dict] = None
-    ) -> None:
+    def end_timer(self, timer_name: str, context: Optional[dict] = None) -> None:
         """End a named timer and record the metric."""
         with self.lock:
             if timer_name not in self.timers:
@@ -574,9 +566,7 @@ class AuditTrailWriter:
     def open(self) -> None:
         """Open the audit log file."""
         try:
-            self.file_handle = open(
-                self.log_path, "w", encoding="utf-8", buffering=1
-            )
+            self.file_handle = open(self.log_path, "w", encoding="utf-8", buffering=1)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to open audit log: %s", e)
 
@@ -695,14 +685,10 @@ class RunLogger:
                 )
 
             if self.config.logging.components.parser_analytics:
-                self.parser_analytics_writer = ParserAnalyticsWriter(
-                    self.run_dir
-                )
+                self.parser_analytics_writer = ParserAnalyticsWriter(self.run_dir)
 
             if self.config.logging.components.bill_processing:
-                self.bill_processing_writer = BillProcessingWriter(
-                    self.run_dir
-                )
+                self.bill_processing_writer = BillProcessingWriter(self.run_dir)
                 self.bill_processing_writer.open()
 
             if self.config.logging.components.errors:
@@ -861,9 +847,7 @@ class RunLogger:
             if not runs_dir.exists():
                 return
 
-            cutoff_time = time.time() - (
-                self.config.logging.retention_days * 86400
-            )
+            cutoff_time = time.time() - (self.config.logging.retention_days * 86400)
 
             for run_dir in runs_dir.iterdir():
                 if not run_dir.is_dir():
@@ -888,8 +872,10 @@ class RunLogger:
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("Failed to cleanup old runs: %s", e)
 
+
 # These are module-level functions that provide easy access to logging
 # functionality from other modules without needing to pass RunLogger around
+
 
 def get_current_logger() -> Optional[RunLogger]:
     """Get the current RunLogger instance if available."""
@@ -912,6 +898,7 @@ def log_parser_attempt(
 ) -> None:
     """Log a parser attempt."""
     # This would need access to the ParserAnalyticsWriter
+
 
 # For now, these are stubs. The main usage pattern is through the
 # RunLogger context manager, which is sufficient for MVP.

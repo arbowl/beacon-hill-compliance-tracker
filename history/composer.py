@@ -37,7 +37,7 @@ class BillArtifactComposer:
         extensions: list[ExtensionOrder],
         compliance: BillCompliance,
         bill_title: Optional[str] = None,
-        ruleset_version: str = "194.v1"
+        ruleset_version: str = "194.v1",
     ) -> BillArtifact:
         """Compose a bill artifact from scraped data."""
         session = extract_session_from_bill_url(bill.bill_url) or "194"
@@ -57,12 +57,11 @@ class BillArtifactComposer:
             hearing_record.hearing_date = bill.hearing_date
             hearing_record.hearing_url = bill.hearing_url
             hearing_record.announcement_date = status.announcement_date
-            hearing_record.scheduled_hearing_date = status.\
-                scheduled_hearing_date
+            hearing_record.scheduled_hearing_date = status.scheduled_hearing_date
             hearing_record.announcement_metadata = {
-                MetadataKey.SOURCE.value: "cache.json"
-                if status.announcement_date
-                else "scraped",
+                MetadataKey.SOURCE.value: (
+                    "cache.json" if status.announcement_date else "scraped"
+                ),
             }
             artifact.hearing_records.append(hearing_record)
         for action in timeline.actions:
@@ -91,9 +90,8 @@ class BillArtifactComposer:
                 "date": votes.date,
                 "tallies": votes.tallies,
                 "records": [
-                    {"member": r.member, "vote": r.vote}
-                    for r in (votes.records or [])
-                ]
+                    {"member": r.member, "vote": r.vote} for r in (votes.records or [])
+                ],
             }
             doc = DocumentArtifact.new(DocumentType.VOTES, votes.location)
             doc.source_url = votes.source_url
@@ -117,19 +115,19 @@ class BillArtifactComposer:
             computed_reason=compliance.reason or "",
         )
         snapshot.computation_metadata = {
-            MetadataKey.DEADLINE_60.value: str(
-                status.deadline_60
-            ) if status.deadline_60 else None,
-            MetadataKey.DEADLINE_90.value: str(
-                status.deadline_90
-            ) if status.deadline_90 else None,
-            MetadataKey.EFFECTIVE_DEADLINE.value: str(
-                status.effective_deadline
-            ) if status.effective_deadline else None,
+            MetadataKey.DEADLINE_60.value: (
+                str(status.deadline_60) if status.deadline_60 else None
+            ),
+            MetadataKey.DEADLINE_90.value: (
+                str(status.deadline_90) if status.deadline_90 else None
+            ),
+            MetadataKey.EFFECTIVE_DEADLINE.value: (
+                str(status.effective_deadline) if status.effective_deadline else None
+            ),
             MetadataKey.REPORTED_OUT.value: status.reported_out,
-            MetadataKey.REPORTED_DATE.value: str(
-                status.reported_date
-            ) if status.reported_date else None,
+            MetadataKey.REPORTED_DATE.value: (
+                str(status.reported_date) if status.reported_date else None
+            ),
             MetadataKey.NOTICE_GAP_DAYS.value: (
                 (status.scheduled_hearing_date - status.announcement_date).days
                 if status.announcement_date and status.scheduled_hearing_date

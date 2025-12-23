@@ -1,4 +1,4 @@
-""" Parser for summary PDFs on hearing pages. """
+"""Parser for summary PDFs on hearing pages."""
 
 import logging
 import re
@@ -29,10 +29,8 @@ class SummaryHearingPdfParser(ParserInterface):
     cost = 5
 
     @staticmethod
-    def _find_candidate_pdf(
-        soup: BeautifulSoup, base_url: str
-    ) -> Optional[str]:
-        """ Find a candidate PDF on the hearing page. """
+    def _find_candidate_pdf(soup: BeautifulSoup, base_url: str) -> Optional[str]:
+        """Find a candidate PDF on the hearing page."""
         # Strategy: any <a> on the hearing page whose text or filename suggests
         # "summary" and is a PDF.
         for a in soup.find_all("a", href=True):
@@ -49,11 +47,7 @@ class SummaryHearingPdfParser(ParserInterface):
 
     @classmethod
     def discover(
-        cls,
-        base_url: str,
-        bill: BillAtHearing,
-        cache=None,
-        config=None
+        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Quick probe. Return a Candidate
         or None if nothing plausible is found.
@@ -70,20 +64,12 @@ class SummaryHearingPdfParser(ParserInterface):
             return None
 
         preview = (
-            "Possible summary PDF found on hearing documents"
-            f"for {bill.bill_id}"
+            "Possible summary PDF found on hearing documents" f"for {bill.bill_id}"
         )
-        return ParserInterface.DiscoveryResult(
-            preview,
-            "",
-            pdf_url,
-            0.8
-        )
+        return ParserInterface.DiscoveryResult(preview, "", pdf_url, 0.8)
 
     @staticmethod
-    def parse(
-        base_url: str, candidate: ParserInterface.DiscoveryResult
-    ) -> dict:
+    def parse(base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """
         Second stage. We don't parse PDF text yet—just confirm a stable link.
         Return {"source_url": str}

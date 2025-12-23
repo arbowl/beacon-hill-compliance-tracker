@@ -8,8 +8,9 @@ from pathlib import Path
 from timeline.normalizers import (
     CommitteeAlias,
     COMMITTEE_REGISTRY,
-    load_committee_registry_from_cache
+    load_committee_registry_from_cache,
 )
+
 if TYPE_CHECKING:
     from components.utils import Cache
     from timeline.normalizers import CommitteeChamber
@@ -56,7 +57,7 @@ def add_committee(
     committee_id: str,
     canonical_name: str,
     chamber: CommitteeChamber,
-    short_names: list[str]
+    short_names: list[str],
 ) -> None:
     """Add a committee to the registry.
 
@@ -71,7 +72,7 @@ def add_committee(
 
 
 def save_registry(
-    output_path: Path = Path("cache/timeline_committee_registry.json")
+    output_path: Path = Path("cache/timeline_committee_registry.json"),
 ) -> None:
     """Save committee registry to a JSON file.
 

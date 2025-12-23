@@ -22,17 +22,10 @@ class SummaryCommitteeDocxParser(ParserInterface):
     cost = 3
 
     @staticmethod
-    def _extract_docx_text(
-        docx_url: str,
-        cache=None,
-        config=None
-    ) -> Optional[str]:
+    def _extract_docx_text(docx_url: str, cache=None, config=None) -> Optional[str]:
         """Extract text content from a DOCX URL using extraction service."""
         return DocumentExtractionService.extract_text(
-            url=docx_url,
-            cache=cache,
-            config=config,
-            timeout=30
+            url=docx_url, cache=cache, config=config, timeout=30
         )
 
     @staticmethod
@@ -43,7 +36,7 @@ class SummaryCommitteeDocxParser(ParserInterface):
         # Look for any DOCX file on the page - Committee Summary pages
         # typically have only one DOCX file which is the summary
         for a in soup.find_all("a", href=True):
-            if not hasattr(a, 'get'):
+            if not hasattr(a, "get"):
                 continue
             try:
                 href = a.get("href", "")
@@ -58,18 +51,9 @@ class SummaryCommitteeDocxParser(ParserInterface):
                     return urljoin(base_url, href)
                 # Also check for committee summary patterns in text or href
                 text = a.get_text(strip=True).lower()
-                if (
-                    re.search(
-                        r"committee.*summary|summary.*committee",
-                        text,
-                        re.I
-                    ) or
-                    re.search(
-                        r"committee.*summary|summary.*committee",
-                        href,
-                        re.I
-                    )
-                ):
+                if re.search(
+                    r"committee.*summary|summary.*committee", text, re.I
+                ) or re.search(r"committee.*summary|summary.*committee", href, re.I):
                     return urljoin(base_url, href)
             except (AttributeError, TypeError):
                 continue
@@ -77,11 +61,7 @@ class SummaryCommitteeDocxParser(ParserInterface):
 
     @classmethod
     def discover(
-        cls,
-        base_url: str,
-        bill: BillAtHearing,
-        cache=None,
-        config=None
+        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the Committee Summary DOCX."""
         logger.debug("Trying %s...", cls.__name__)
@@ -120,9 +100,7 @@ class SummaryCommitteeDocxParser(ParserInterface):
             )
 
     @staticmethod
-    def parse(
-        _base_url: str, candidate: ParserInterface.DiscoveryResult
-    ) -> dict:
+    def parse(_base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """Parse the Committee Summary DOCX."""
         # For now, just return the URL we confirmed
         # Later we can add actual DOCX text extraction if needed

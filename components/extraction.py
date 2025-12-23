@@ -113,15 +113,11 @@ class DocumentExtractionService:
             if cached_doc:
                 content_hash = cached_doc.get("content_hash")
                 if content_hash:
-                    cached_text = cache.get_cached_extracted_text(
-                        content_hash, config
-                    )
+                    cached_text = cache.get_cached_extracted_text(content_hash, config)
                     if cached_text:
                         with _METRICS_LOCK:
                             _EXTRACTION_METRICS["cache_hits"] += 1
-                        logger.debug(
-                            "Using cached extracted text for %s", url
-                        )
+                        logger.debug("Using cached extracted text for %s", url)
                         return cached_text
 
         # Step 2: Check if extraction is already in progress (deduplication)
@@ -132,13 +128,9 @@ class DocumentExtractionService:
                 pending_extraction = _PENDING_EXTRACTIONS[url]
                 with _METRICS_LOCK:
                     _EXTRACTION_METRICS["dedup_waits"] += 1
-                logger.debug(
-                    "Waiting for extraction in progress: %s", url
-                )
+                logger.debug("Waiting for extraction in progress: %s", url)
             else:
-                pending_extraction = _PendingExtraction(
-                    event=threading.Event()
-                )
+                pending_extraction = _PendingExtraction(event=threading.Event())
                 _PENDING_EXTRACTIONS[url] = pending_extraction
                 should_extract = True
 
@@ -170,27 +162,19 @@ class DocumentExtractionService:
             if not (is_pdf or is_docx):
                 # Try to determine from content type if available
                 # For now, default to PDF if uncertain
-                logger.debug(
-                    "Unknown document type for %s, defaulting to PDF", url
-                )
+                logger.debug("Unknown document type for %s, defaulting to PDF", url)
                 is_pdf = True
 
             # Download document (uses document cache if available)
-            content = _fetch_binary(
-                url, timeout=timeout, cache=cache, config=config
-            )
+            content = _fetch_binary(url, timeout=timeout, cache=cache, config=config)
 
             # Extract text based on document type
             if is_pdf:
-                extracted_text = DocumentExtractionService._extract_pdf_text(
-                    content
-                )
+                extracted_text = DocumentExtractionService._extract_pdf_text(content)
                 with _METRICS_LOCK:
                     _EXTRACTION_METRICS["pdf_extractions"] += 1
             elif is_docx:
-                extracted_text = DocumentExtractionService._extract_docx_text(
-                    content
-                )
+                extracted_text = DocumentExtractionService._extract_docx_text(content)
                 with _METRICS_LOCK:
                     _EXTRACTION_METRICS["docx_extractions"] += 1
             else:
@@ -203,9 +187,7 @@ class DocumentExtractionService:
                 if cached_doc:
                     content_hash = cached_doc.get("content_hash")
                     if content_hash:
-                        cache.cache_extracted_text(
-                            content_hash, extracted_text, config
-                        )
+                        cache.cache_extracted_text(content_hash, extracted_text, config)
                         logger.debug("Cached extracted text for %s", url)
 
             # Store result and notify waiting threads
@@ -218,9 +200,7 @@ class DocumentExtractionService:
             return extracted_text
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            logger.warning(
-                "Could not extract text from %s: %s", url, e, exc_info=True
-            )
+            logger.warning("Could not extract text from %s: %s", url, e, exc_info=True)
             # Store error and notify waiting threads
             with _PENDING_EXTRACTION_LOCK:
                 if url in _PENDING_EXTRACTIONS:
@@ -253,12 +233,11 @@ class DocumentExtractionService:
                 full_text = "\n".join(text_content)
                 # Normalize whitespace within lines (preserve newlines)
                 # Split by newlines, normalize each line, then rejoin
-                lines = full_text.split('\n')
+                lines = full_text.split("\n")
                 normalized_lines = [
-                    re.sub(r'[ \t]+', ' ', line).strip()
-                    for line in lines
+                    re.sub(r"[ \t]+", " ", line).strip() for line in lines
                 ]
-                full_text = '\n'.join(normalized_lines)
+                full_text = "\n".join(normalized_lines)
                 return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("PDF text extraction failed: %s", e)
@@ -312,7 +291,7 @@ class DocumentExtractionService:
                 # Join parts with spaces (DOCX structure is less line-oriented)
                 full_text = " ".join(parts)
                 # Normalize whitespace (spaces/tabs, but preserve structure)
-                full_text = re.sub(r'[ \t]+', ' ', full_text).strip()
+                full_text = re.sub(r"[ \t]+", " ", full_text).strip()
                 return full_text
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning("DOCX text extraction failed: %s", e)

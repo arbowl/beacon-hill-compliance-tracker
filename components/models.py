@@ -1,5 +1,4 @@
-""" Data models for the Massachusetts Legislature website.
-"""
+"""Data models for the Massachusetts Legislature website."""
 
 from __future__ import annotations
 
@@ -31,27 +30,28 @@ class ComplianceState:
 class Committee:
     """A committee in the Massachusetts Legislature."""
 
-    id: str        # e.g., "J33", "H33", "S33"
-    name: str      # visible title on the site
-    chamber: str   # "Joint", "House", or "Senate"
-    url: str       # absolute detail URL
+    id: str  # e.g., "J33", "H33", "S33"
+    name: str  # visible title on the site
+    chamber: str  # "Joint", "House", or "Senate"
+    url: str  # absolute detail URL
 
 
 @dataclass(frozen=True)
 class Hearing:
     """A hearing in the Massachusetts Legislature."""
 
-    id: str              # e.g., "5114" from /Events/Hearings/Detail/5114
-    committee_id: str    # e.g., "J33"
+    id: str  # e.g., "5114" from /Events/Hearings/Detail/5114
+    committee_id: str  # e.g., "J33"
     url: str
     date: date
-    status: str          # "Completed"/"Confirmed"/etc (best-effort)
-    title: str           # short topic/label from committee hearings list
+    status: str  # "Completed"/"Confirmed"/etc (best-effort)
+    title: str  # short topic/label from committee hearings list
 
 
 @dataclass(frozen=True)
 class BillAtHearing:
     """A bill at a hearing in the Massachusetts Legislature."""
+
     bill_id: str
     bill_label: str
     bill_url: str
@@ -64,6 +64,7 @@ class BillAtHearing:
 @dataclass(frozen=True)
 class BillStatus:
     """A bill status in the Massachusetts Legislature."""
+
     bill_id: str
     committee_id: str
     hearing_date: Optional[date]
@@ -81,11 +82,12 @@ class BillStatus:
 @dataclass(frozen=True)
 class SummaryInfo:
     """A summary of a bill in the Massachusetts Legislature."""
-    present: bool                 # True if we found/confirmed a summary
-    location: str                 # e.g., "hearing_pdf"
-    source_url: Optional[str]     # direct link to the PDF or tab
+
+    present: bool  # True if we found/confirmed a summary
+    location: str  # e.g., "hearing_pdf"
+    source_url: Optional[str]  # direct link to the PDF or tab
     parser_module: Optional[str]  # which parser landed
-    needs_review: bool = False    # if we auto-accepted in headless mode
+    needs_review: bool = False  # if we auto-accepted in headless mode
 
     def to_dict(self) -> dict:
         """Convert to dictionary, omitting None values."""
@@ -101,7 +103,7 @@ class SummaryInfo:
         return result
 
     @staticmethod
-    def from_dict(data: dict) -> 'SummaryInfo':
+    def from_dict(data: dict) -> "SummaryInfo":
         """Create SummaryInfo from a dictionary."""
         return SummaryInfo(
             present=data.get("present", False),
@@ -124,12 +126,12 @@ class VoteRecord:
 class VoteInfo:  # pylint: disable=too-many-instance-attributes
     """A vote info in the Massachusetts Legislature."""
 
-    present: bool                   # did we find confirmed vote info?
-    location: str                   # "bill_embedded", "bill_pdf", etc.
-    source_url: Optional[str]       # where we found it
-    parser_module: Optional[str]    # which parser landed
+    present: bool  # did we find confirmed vote info?
+    location: str  # "bill_embedded", "bill_pdf", etc.
+    source_url: Optional[str]  # where we found it
+    parser_module: Optional[str]  # which parser landed
     motion: Optional[str] = None
-    date: Optional[str] = None      # ISO/human date if we can parse it cheaply
+    date: Optional[str] = None  # ISO/human date if we can parse it cheaply
     tallies: Optional[dict] = None  # {"yea": 10, "nay": 3, ...}
     records: Optional[list[VoteRecord]] = None
     needs_review: bool = False
@@ -153,11 +155,9 @@ class VoteInfo:  # pylint: disable=too-many-instance-attributes
             result["tallies"] = self.tallies
         if self.records is not None:
             result["records"] = (
-                [
-                    {"member": r.member, "vote": r.vote}
-                    for r in self.records
-                ]
-                if self.records else None
+                [{"member": r.member, "vote": r.vote} for r in self.records]
+                if self.records
+                else None
             )
         return result
 
@@ -166,10 +166,9 @@ class VoteInfo:  # pylint: disable=too-many-instance-attributes
         """Create VoteInfo from a dictionary."""
         records_data = data.get("records")
         records = (
-            [VoteRecord(
-                member=r["member"], vote=r["vote"]
-            ) for r in records_data]
-            if records_data else None
+            [VoteRecord(member=r["member"], vote=r["vote"]) for r in records_data]
+            if records_data
+            else None
         )
         return VoteInfo(
             present=data.get("present", False),
@@ -201,16 +200,17 @@ class ExtensionOrder:
 @dataclass(frozen=True)
 class CommitteeContact:  # pylint: disable=too-many-instance-attributes
     """A committee contact in the Massachusetts Legislature."""
+
     committee_id: str
     name: str
     chamber: str
     url: str
     # House contact details
-    house_room: Optional[str] = None   # e.g., "Room 130"
+    house_room: Optional[str] = None  # e.g., "Room 130"
     house_address: Optional[str] = None  # Address format example
     house_phone: Optional[str] = None  # "(617) 722-2130"
     # Senate contact details
-    senate_room: Optional[str] = None   # e.g., "Room 507"
+    senate_room: Optional[str] = None  # e.g., "Room 507"
     senate_address: Optional[str] = None  # Address format example
     senate_phone: Optional[str] = None  # "(617) 722-1643"
     # Chair and Vice-Chair information
@@ -227,6 +227,7 @@ class CommitteeContact:  # pylint: disable=too-many-instance-attributes
 @dataclass
 class DeferredConfirmation:
     """Represents a parser confirmation that needs review."""
+
     confirmation_id: str
     bill_id: str
     parser_type: str  # "summary" or "votes"
@@ -239,12 +240,13 @@ class DeferredConfirmation:
     def __post_init__(self):
         """Generate confirmation ID if not provided."""
         if not self.confirmation_id:
-            object.__setattr__(self, 'confirmation_id', str(uuid.uuid4())[:8])
+            object.__setattr__(self, "confirmation_id", str(uuid.uuid4())[:8])
 
 
 @dataclass
 class DeferredReviewSession:
     """Collection of all deferred confirmations for batch review."""
+
     session_id: str
     committee_id: str
     confirmations: list[DeferredConfirmation] = field(default_factory=list)
@@ -253,9 +255,9 @@ class DeferredReviewSession:
 
     def __post_init__(self):
         """Generate session ID if not provided."""
-        object.__setattr__(self, '_lock', Lock())
+        object.__setattr__(self, "_lock", Lock())
         if not self.session_id:
-            object.__setattr__(self, 'session_id', str(uuid.uuid4())[:8])
+            object.__setattr__(self, "session_id", str(uuid.uuid4())[:8])
 
     def add_confirmation(self, confirmation: DeferredConfirmation) -> None:
         """Add a confirmation to the session (thread-safe)."""
@@ -264,9 +266,7 @@ class DeferredReviewSession:
 
     def get_summary_count(self) -> int:
         """Get count of summary confirmations."""
-        return len(
-            [c for c in self.confirmations if c.parser_type == "summary"]
-        )
+        return len([c for c in self.confirmations if c.parser_type == "summary"])
 
     def get_votes_count(self) -> int:
         """Get count of vote confirmations."""
@@ -275,4 +275,3 @@ class DeferredReviewSession:
     def get_bill_ids(self) -> list[str]:
         """Get unique list of bill IDs in this session."""
         return list(set(c.bill_id for c in self.confirmations))
-

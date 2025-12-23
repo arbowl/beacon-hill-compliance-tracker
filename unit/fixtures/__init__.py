@@ -5,6 +5,7 @@ from enum import Enum
 
 class Requirement(str, Enum):
     """Bill requirements for compliance."""
+
     REPORTED = "reported"
     SUMMARY = "summary"
     VOTES = "votes"
@@ -12,6 +13,7 @@ class Requirement(str, Enum):
 
 class Committee(str, Enum):
     """Common committee IDs for testing."""
+
     JOINT = "J33"
     HOUSE = "H33"
     SENATE = "S33"
@@ -20,6 +22,6 @@ class Committee(str, Enum):
 
 class BillPrefix(str, Enum):
     """Bill prefixes for test bills."""
+
     HOUSE = "H"
     SENATE = "S"
-

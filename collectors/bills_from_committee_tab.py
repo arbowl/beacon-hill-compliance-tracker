@@ -44,15 +44,17 @@ def get_all_committee_bills(
             seen_bill_ids.add(bill_id)
             bill_url = urljoin(base_url, href)
             label = " ".join(a.get_text(strip=True).split())
-            bills.append(BillAtHearing(
-                bill_id=bill_id,
-                bill_label=label,
-                bill_url=bill_url,
-                committee_id=committee_id,
-                hearing_id=None,
-                hearing_date=None,
-                hearing_url=None
-            ))
+            bills.append(
+                BillAtHearing(
+                    bill_id=bill_id,
+                    bill_label=label,
+                    bill_url=bill_url,
+                    committee_id=committee_id,
+                    hearing_id=None,
+                    hearing_date=None,
+                    hearing_url=None,
+                )
+            )
             found_bills_on_page = True
         if not found_bills_on_page:
             break

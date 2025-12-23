@@ -12,12 +12,7 @@ from components.extraction import DocumentExtractionService
 logger = logging.getLogger(__name__)
 
 PDF_RX = re.compile(r"\.pdf($|\?)", re.I)
-VOTE_HINTS = [
-    r"\bvote\b",
-    r"\bvoting\b"
-    r"\brecorded vote\b",
-    r"\broll[- ]?call\b"
-]
+VOTE_HINTS = [r"\bvote\b", r"\bvoting\b" r"\brecorded vote\b", r"\broll[- ]?call\b"]
 
 
 class VotesBillPdfParser(ParserInterface):
@@ -28,26 +23,15 @@ class VotesBillPdfParser(ParserInterface):
     cost = 5
 
     @staticmethod
-    def _extract_pdf_text(
-        pdf_url: str,
-        cache=None,
-        config=None
-    ) -> Optional[str]:
+    def _extract_pdf_text(pdf_url: str, cache=None, config=None) -> Optional[str]:
         """Extract text content from a PDF URL using extraction service."""
         return DocumentExtractionService.extract_text(
-            url=pdf_url,
-            cache=cache,
-            config=config,
-            timeout=30
+            url=pdf_url, cache=cache, config=config, timeout=30
         )
 
     @classmethod
     def discover(
-        cls,
-        base_url: str,
-        bill: BillAtHearing,
-        cache=None,
-        config=None
+        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the votes."""
         logger.debug("Trying %s...", cls.__name__)
@@ -67,9 +51,7 @@ class VotesBillPdfParser(ParserInterface):
                 if pdf_text:
                     preview = f"Possible vote PDF on bill page: {text or href}"
                     if len(pdf_text) > 200:
-                        preview += (
-                            f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
-                        )
+                        preview += f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
                     else:
                         preview += f"\n\nPDF Content:\n{pdf_text}"
                     return ParserInterface.DiscoveryResult(
@@ -92,8 +74,6 @@ class VotesBillPdfParser(ParserInterface):
         return None
 
     @classmethod
-    def parse(
-        cls, base_url: str, candidate: ParserInterface.DiscoveryResult
-    ) -> dict:
+    def parse(cls, base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """Parse the votes."""
         return {"location": cls.location, "source_url": candidate.source_url}

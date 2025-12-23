@@ -46,6 +46,7 @@ class BillAction:
     Represents one row from the bill's action history table,
     parsed into structured data.
     """
+
     date: date
     branch: str  # "House", "Senate", "Joint"
     action_type: ActionType  # "REFERRED", "REPORTED", etc.
@@ -77,6 +78,7 @@ class ActionNode:
     - Normalizers to clean/standardize extracted data
     - Priority for disambiguation when multiple patterns match
     """
+
     action_type: ActionType  # "REFERRED", "REPORTED", etc.
     category: str  # Category: "referral-committee", etc.
     patterns: list[re.Pattern]  # Compiled regex patterns
@@ -200,17 +202,13 @@ class BillActionTimeline:
         """
         # Get the first REFERRED action for this committee
         for action in self.actions:
-            if action.action_type in {
-                ActionType.REFERRED, ActionType.DISCHARGED
-            }:
+            if action.action_type in {ActionType.REFERRED, ActionType.DISCHARGED}:
                 action_committee = action.extracted_data.get("committee_id")
                 if action_committee == committee_id:
                     return action.date
         return None
 
-    def get_hearings(
-        self, committee_id: Optional[str] = None
-    ) -> list[BillAction]:
+    def get_hearings(self, committee_id: Optional[str] = None) -> list[BillAction]:
         """Get all hearing-related actions.
 
         Args:
@@ -224,13 +222,11 @@ class BillActionTimeline:
             ActionType.HEARING_RESCHEDULED,
             ActionType.HEARING_LOCATION_CHANGED,
         }
-        hearings = [
-            a for a in self.actions
-            if a.action_type in hearing_types
-        ]
+        hearings = [a for a in self.actions if a.action_type in hearing_types]
         if committee_id:
             hearings = [
-                h for h in hearings
+                h
+                for h in hearings
                 if h.extracted_data.get("committee_id") == committee_id
             ]
         return hearings
@@ -268,8 +264,7 @@ class BillActionTimeline:
             Extended deadline date, or None if no extensions
         """
         extensions = [
-            a for a in self.actions
-            if a.action_type == ActionType.REPORTING_EXTENDED
+            a for a in self.actions if a.action_type == ActionType.REPORTING_EXTENDED
         ]
         if not extensions:
             return None
@@ -304,9 +299,7 @@ class BillActionTimeline:
         """
         return [a for a in self.actions if a.category == category]
 
-    def get_actions_in_range(
-        self, start: date, end: date
-    ) -> list[BillAction]:
+    def get_actions_in_range(self, start: date, end: date) -> list[BillAction]:
         """Get actions within a date range.
 
         Args:
@@ -316,10 +309,7 @@ class BillActionTimeline:
         Returns:
             List of actions in range
         """
-        return [
-            a for a in self.actions
-            if start <= a.date <= end
-        ]
+        return [a for a in self.actions if start <= a.date <= end]
 
     def get_unknown_actions(self) -> list[BillAction]:
         """Get all actions that couldn't be classified.
@@ -331,39 +321,39 @@ class BillActionTimeline:
 
     def infer_missing_committee_ids(self) -> None:
         """Infer committee IDs for hearings that don't explicitly mention them.
-        
+
         When a hearing action doesn't include the committee name, it's typically
         for the most recently referred committee that hasn't been discharged or
         reported out yet.
-        
+
         This method modifies actions in-place by adding inferred committee_ids
         to the extracted_data. It uses a two-pass approach to handle same-date
         actions correctly.
         """
         # Don't process if already processed
-        if hasattr(self, '_committee_ids_inferred'):
+        if hasattr(self, "_committee_ids_inferred"):
             return
         self._committee_ids_inferred = True
-        
+
         # Track active committees as we process actions chronologically
         # We track committee lifecycle separately from hearing inference
         # to handle same-date actions correctly
         active_committees_at_time: dict[str, date] = {}  # committee_id -> referral_date
-        
+
         for action in self.actions:
             action_type = action.action_type
             committee_id = action.extracted_data.get("committee_id")
-            
+
             # Update active committees up to this date
             if action_type == ActionType.REFERRED:
                 if committee_id:
                     active_committees_at_time[committee_id] = action.date
-                    
+
             elif action_type in {ActionType.DISCHARGED, ActionType.REPORTED}:
                 # Committee is no longer active after discharge/report
                 if committee_id and committee_id in active_committees_at_time:
                     del active_committees_at_time[committee_id]
-            
+
             # Infer committee for hearings without explicit committee
             elif action_type in {
                 ActionType.HEARING_SCHEDULED,
@@ -374,15 +364,14 @@ class BillActionTimeline:
                 if not committee_id and active_committees_at_time:
                     # Use the most recently referred active committee
                     most_recent = max(
-                        active_committees_at_time.items(),
-                        key=lambda item: item[1]
+                        active_committees_at_time.items(), key=lambda item: item[1]
                     )
                     inferred_committee_id = most_recent[0]
-                    
+
                     # Mark if multiple active committees (ambiguous case)
                     if len(active_committees_at_time) > 1:
                         action.extracted_data["committee_id_ambiguous"] = True
-                    
+
                     action.extracted_data["committee_id"] = inferred_committee_id
                     action.extracted_data["committee_id_inferred"] = True
 

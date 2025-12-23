@@ -29,7 +29,8 @@ class BillArtifactRepository:
         conn = duckdb.connect(self.db_path)
 
         # Create tables - DuckDB doesn't have executescript
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS bill_artifacts (
                 artifact_id VARCHAR PRIMARY KEY,
                 bill_id VARCHAR NOT NULL,
@@ -39,9 +40,11 @@ class BillArtifactRepository:
                 bill_metadata VARCHAR NOT NULL,
                 UNIQUE(bill_id, session, committee_id)
             )
-        """)
+        """
+        )
 
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS hearing_records (
                 record_id VARCHAR PRIMARY KEY,
                 artifact_id VARCHAR NOT NULL,
@@ -52,9 +55,11 @@ class BillArtifactRepository:
                 scheduled_hearing_date VARCHAR,
                 announcement_metadata VARCHAR
             )
-        """)
+        """
+        )
 
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS timeline_actions (
                 action_id VARCHAR PRIMARY KEY,
                 artifact_id VARCHAR NOT NULL,
@@ -66,9 +71,11 @@ class BillArtifactRepository:
                 extracted_data VARCHAR,
                 confidence REAL DEFAULT 1.0
             )
-        """)
+        """
+        )
 
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS document_artifacts (
                 document_id VARCHAR PRIMARY KEY,
                 artifact_id VARCHAR NOT NULL,
@@ -84,9 +91,11 @@ class BillArtifactRepository:
                 full_content VARCHAR,
                 needs_review INTEGER DEFAULT 0
             )
-        """)
+        """
+        )
 
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS extension_records (
                 extension_id VARCHAR PRIMARY KEY,
                 artifact_id VARCHAR NOT NULL,
@@ -96,9 +105,11 @@ class BillArtifactRepository:
                 order_type VARCHAR,
                 is_fallback INTEGER DEFAULT 0
             )
-        """)
+        """
+        )
 
-        conn.execute("""
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS artifact_snapshots (
                 snapshot_id VARCHAR PRIMARY KEY,
                 artifact_id VARCHAR NOT NULL,
@@ -108,7 +119,8 @@ class BillArtifactRepository:
                 computed_reason VARCHAR,
                 computation_metadata VARCHAR
             )
-        """)
+        """
+        )
 
         # Create indexes
         conn.execute(
@@ -153,27 +165,24 @@ class BillArtifactRepository:
         # Delete existing artifact and related records first
         conn.execute(
             "DELETE FROM artifact_snapshots WHERE artifact_id = ?",
-            [artifact.artifact_id]
+            [artifact.artifact_id],
         )
         conn.execute(
             "DELETE FROM extension_records WHERE artifact_id = ?",
-            [artifact.artifact_id]
+            [artifact.artifact_id],
         )
         conn.execute(
             "DELETE FROM document_artifacts WHERE artifact_id = ?",
-            [artifact.artifact_id]
+            [artifact.artifact_id],
         )
         conn.execute(
-            "DELETE FROM timeline_actions WHERE artifact_id = ?",
-            [artifact.artifact_id]
+            "DELETE FROM timeline_actions WHERE artifact_id = ?", [artifact.artifact_id]
         )
         conn.execute(
-            "DELETE FROM hearing_records WHERE artifact_id = ?",
-            [artifact.artifact_id]
+            "DELETE FROM hearing_records WHERE artifact_id = ?", [artifact.artifact_id]
         )
         conn.execute(
-            "DELETE FROM bill_artifacts WHERE artifact_id = ?",
-            [artifact.artifact_id]
+            "DELETE FROM bill_artifacts WHERE artifact_id = ?", [artifact.artifact_id]
         )
 
         # Insert the main artifact
@@ -197,16 +206,17 @@ class BillArtifactRepository:
         # Insert hearing records
         for hearing in artifact.hearing_records:
             hearing_date_iso = (
-                hearing.hearing_date.isoformat()
-                if hearing.hearing_date else None
+                hearing.hearing_date.isoformat() if hearing.hearing_date else None
             )
             announcement_date_iso = (
                 hearing.announcement_date.isoformat()
-                if hearing.announcement_date else None
+                if hearing.announcement_date
+                else None
             )
             scheduled_date_iso = (
                 hearing.scheduled_hearing_date.isoformat()
-                if hearing.scheduled_hearing_date else None
+                if hearing.scheduled_hearing_date
+                else None
             )
 
             conn.execute(
@@ -285,8 +295,7 @@ class BillArtifactRepository:
         # Insert extension records
         for ext in artifact.extension_records:
             extension_until_iso = (
-                ext.extension_until.isoformat()
-                if ext.extension_until else None
+                ext.extension_until.isoformat() if ext.extension_until else None
             )
             conn.execute(
                 """
@@ -329,10 +338,7 @@ class BillArtifactRepository:
         conn.close()
 
     def load_artifact(
-        self,
-        bill_id: str,
-        committee_id: str,
-        session: str = "194"
+        self, bill_id: str, committee_id: str, session: str = "194"
     ) -> Optional[BillArtifact]:
         """Load a bill artifact from the database."""
         conn = duckdb.connect(self.db_path)
@@ -343,7 +349,7 @@ class BillArtifactRepository:
             SELECT * FROM bill_artifacts
             WHERE bill_id = ? AND committee_id = ? AND session = ?
             """,
-            [bill_id, committee_id, session]
+            [bill_id, committee_id, session],
         ).fetchdf()
 
         if result.empty:
@@ -352,44 +358,43 @@ class BillArtifactRepository:
 
         row = result.iloc[0]
         artifact = BillArtifact(
-            artifact_id=row['artifact_id'],
-            bill_id=row['bill_id'],
-            session=row['session'],
-            committee_id=row['committee_id'],
-            created_at=datetime.fromisoformat(row['created_at']),
-            bill_metadata=json.loads(row['bill_metadata']),
+            artifact_id=row["artifact_id"],
+            bill_id=row["bill_id"],
+            session=row["session"],
+            committee_id=row["committee_id"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            bill_metadata=json.loads(row["bill_metadata"]),
         )
 
         # Load hearing records
         hearing_df = conn.execute(
             "SELECT * FROM hearing_records WHERE artifact_id = ?",
-            [artifact.artifact_id]
+            [artifact.artifact_id],
         ).fetchdf()
 
         for _, row in hearing_df.iterrows():
             hearing_date = (
-                date.fromisoformat(row['hearing_date'])
-                if row['hearing_date'] else None
+                date.fromisoformat(row["hearing_date"]) if row["hearing_date"] else None
             )
             announcement_date = (
-                date.fromisoformat(row['announcement_date'])
-                if row['announcement_date'] else None
+                date.fromisoformat(row["announcement_date"])
+                if row["announcement_date"]
+                else None
             )
             scheduled_hearing_date = (
-                date.fromisoformat(row['scheduled_hearing_date'])
-                if row['scheduled_hearing_date'] else None
+                date.fromisoformat(row["scheduled_hearing_date"])
+                if row["scheduled_hearing_date"]
+                else None
             )
 
             hearing = HearingRecord(
-                record_id=row['record_id'],
-                hearing_id=row['hearing_id'],
+                record_id=row["record_id"],
+                hearing_id=row["hearing_id"],
                 hearing_date=hearing_date,
-                hearing_url=row['hearing_url'],
+                hearing_url=row["hearing_url"],
                 announcement_date=announcement_date,
                 scheduled_hearing_date=scheduled_hearing_date,
-                announcement_metadata=json.loads(
-                    row['announcement_metadata']
-                ),
+                announcement_metadata=json.loads(row["announcement_metadata"]),
             )
             artifact.hearing_records.append(hearing)
 
@@ -399,67 +404,67 @@ class BillArtifactRepository:
             SELECT * FROM timeline_actions WHERE artifact_id = ?
             ORDER BY action_date
             """,
-            [artifact.artifact_id]
+            [artifact.artifact_id],
         ).fetchdf()
 
         for _, row in actions_df.iterrows():
             action = TimelineAction(
-                action_id=row['action_id'],
-                action_date=date.fromisoformat(row['action_date']),
-                branch=row['branch'],
-                action_type=row['action_type'],
-                category=row['category'],
-                raw_text=row['raw_text'],
-                extracted_data=json.loads(row['extracted_data']),
-                confidence=row['confidence'],
+                action_id=row["action_id"],
+                action_date=date.fromisoformat(row["action_date"]),
+                branch=row["branch"],
+                action_type=row["action_type"],
+                category=row["category"],
+                raw_text=row["raw_text"],
+                extracted_data=json.loads(row["extracted_data"]),
+                confidence=row["confidence"],
             )
             artifact.timeline_actions.append(action)
 
         # Load document artifacts
         docs_df = conn.execute(
             "SELECT * FROM document_artifacts WHERE artifact_id = ?",
-            [artifact.artifact_id]
+            [artifact.artifact_id],
         ).fetchdf()
 
         for _, row in docs_df.iterrows():
             full_content = (
-                json.loads(row['full_content'])
-                if row['full_content'] else None
+                json.loads(row["full_content"]) if row["full_content"] else None
             )
             doc = DocumentArtifact(
-                document_id=row['document_id'],
-                document_type=DocumentType(row['document_type']),
-                discovered_at=datetime.fromisoformat(row['discovered_at']),
-                source_url=row['source_url'],
-                location=row['location'],
-                parser_module=row['parser_module'],
-                parser_version=row['parser_version'],
-                confidence=row['confidence'],
-                content_hash=row['content_hash'],
-                content_preview=row['content_preview'],
+                document_id=row["document_id"],
+                document_type=DocumentType(row["document_type"]),
+                discovered_at=datetime.fromisoformat(row["discovered_at"]),
+                source_url=row["source_url"],
+                location=row["location"],
+                parser_module=row["parser_module"],
+                parser_version=row["parser_version"],
+                confidence=row["confidence"],
+                content_hash=row["content_hash"],
+                content_preview=row["content_preview"],
                 full_content=full_content,
-                needs_review=bool(row['needs_review']),
+                needs_review=bool(row["needs_review"]),
             )
             artifact.document_artifacts.append(doc)
 
         # Load extension records
         ext_df = conn.execute(
             "SELECT * FROM extension_records WHERE artifact_id = ?",
-            [artifact.artifact_id]
+            [artifact.artifact_id],
         ).fetchdf()
 
         for _, row in ext_df.iterrows():
             extension_until = (
-                date.fromisoformat(row['extension_until'])
-                if row['extension_until'] else None
+                date.fromisoformat(row["extension_until"])
+                if row["extension_until"]
+                else None
             )
             ext = ExtensionRecord(
-                extension_id=row['extension_id'],
-                extension_date=date.fromisoformat(row['extension_date']),
+                extension_id=row["extension_id"],
+                extension_date=date.fromisoformat(row["extension_date"]),
                 extension_until=extension_until,
-                order_url=row['order_url'],
-                order_type=row['order_type'],
-                is_fallback=bool(row['is_fallback']),
+                order_url=row["order_url"],
+                order_type=row["order_type"],
+                is_fallback=bool(row["is_fallback"]),
             )
             artifact.extension_records.append(ext)
 
@@ -469,28 +474,24 @@ class BillArtifactRepository:
             SELECT * FROM artifact_snapshots WHERE artifact_id = ?
             ORDER BY snapshot_date
             """,
-            [artifact.artifact_id]
+            [artifact.artifact_id],
         ).fetchdf()
 
         for _, row in snapshots_df.iterrows():
             snapshot = ArtifactSnapshot(
-                snapshot_id=row['snapshot_id'],
-                snapshot_date=datetime.fromisoformat(row['snapshot_date']),
-                ruleset_version=row['ruleset_version'],
-                computed_state=row['computed_state'],
-                computed_reason=row['computed_reason'],
-                computation_metadata=json.loads(
-                    row['computation_metadata']
-                ),
+                snapshot_id=row["snapshot_id"],
+                snapshot_date=datetime.fromisoformat(row["snapshot_date"]),
+                ruleset_version=row["ruleset_version"],
+                computed_state=row["computed_state"],
+                computed_reason=row["computed_reason"],
+                computation_metadata=json.loads(row["computation_metadata"]),
             )
             artifact.snapshots.append(snapshot)
 
         conn.close()
         return artifact
 
-    def get_all_bill_ids(
-        self, committee_id: Optional[str] = None
-    ) -> list[str]:
+    def get_all_bill_ids(self, committee_id: Optional[str] = None) -> list[str]:
         """Get all bill IDs from the database."""
         conn = duckdb.connect(self.db_path)
 
@@ -500,13 +501,13 @@ class BillArtifactRepository:
                 SELECT DISTINCT bill_id FROM bill_artifacts
                 WHERE committee_id = ?
                 """,
-                [committee_id]
+                [committee_id],
             ).fetchdf()
         else:
             result = conn.execute(
                 "SELECT DISTINCT bill_id FROM bill_artifacts"
             ).fetchdf()
 
-        bill_ids = result['bill_id'].tolist() if not result.empty else []
+        bill_ids = result["bill_id"].tolist() if not result.empty else []
         conn.close()
         return bill_ids

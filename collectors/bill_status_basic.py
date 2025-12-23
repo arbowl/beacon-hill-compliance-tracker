@@ -8,9 +8,7 @@ from datetime import date
 from typing import Optional
 
 from components.models import BillAtHearing, BillStatus
-from components.utils import (
-    compute_deadlines, extract_session_from_bill_url
-)
+from components.utils import compute_deadlines, extract_session_from_bill_url
 from components.interfaces import ParserInterface
 from timeline.parser import extract_timeline
 from timeline.models import ActionType
@@ -44,11 +42,11 @@ def get_bill_title(bill_url: str) -> str | None:
     appears in text that starts with "An Act", "An Resolve", or "A Resolve".
     """
     soup = ParserInterface.soup(bill_url)
-    for h2 in soup.find_all('h2'):
+    for h2 in soup.find_all("h2"):
         parent = h2.parent
         if parent:
-            parent_classes = parent.get('class')
-            if parent_classes and 'col-md-8' in parent_classes:
+            parent_classes = parent.get("class")
+            if parent_classes and "col-md-8" in parent_classes:
                 return " ".join(h2.get_text(" ", strip=True).split())
     tag = soup.find(class_=re.compile(r"bill-title", re.I))
     if tag and tag.get_text(strip=True):
@@ -68,9 +66,7 @@ def get_bill_title(bill_url: str) -> str | None:
     return None
 
 
-def get_committee_tenure(
-    bill_url: str, committee_id: str
-) -> Optional[CommitteeTenure]:
+def get_committee_tenure(bill_url: str, committee_id: str) -> Optional[CommitteeTenure]:
     """Get committee tenure information for a bill and committee."""
     try:
         timeline = extract_timeline(bill_url)
@@ -92,14 +88,10 @@ def get_committee_tenure(
     for action in sorted(reported_actions, key=lambda a: a.date):
         action_committee = action.extracted_data.get("committee_id")
         if not action_committee:
-            prior_refs = [
-                r for r in (referrals + discharges) if r.date < action.date
-            ]
+            prior_refs = [r for r in (referrals + discharges) if r.date < action.date]
             if prior_refs:
                 latest_ref = max(prior_refs, key=lambda r: r.date)
-                action_committee = latest_ref.extracted_data.get(
-                    "committee_id"
-                )
+                action_committee = latest_ref.extracted_data.get("committee_id")
         if action_committee == committee_id and action.date >= tenure_start:
             reported_date = action.date
             break
@@ -122,13 +114,10 @@ def get_committee_tenure(
     # Get all hearing-related actions
     scheduled = timeline.get_actions_by_type(ActionType.HEARING_SCHEDULED)
     rescheduled = timeline.get_actions_by_type(ActionType.HEARING_RESCHEDULED)
-    location_changed = timeline.get_actions_by_type(
-        ActionType.HEARING_LOCATION_CHANGED
-    )
+    location_changed = timeline.get_actions_by_type(ActionType.HEARING_LOCATION_CHANGED)
     time_changed = timeline.get_actions_by_type(ActionType.HEARING_TIME_CHANGED)
     all_hearing_actions = sorted(
-        scheduled + rescheduled + location_changed + time_changed,
-        key=lambda a: a.date
+        scheduled + rescheduled + location_changed + time_changed, key=lambda a: a.date
     )
     # Build timeline of hearings and track compliance
     all_hearings = []
@@ -148,7 +137,7 @@ def get_committee_tenure(
         # Update or use current_hearing_date
         if action.action_type in (
             ActionType.HEARING_SCHEDULED,
-            ActionType.HEARING_RESCHEDULED
+            ActionType.HEARING_RESCHEDULED,
         ):
             # These actions set the hearing date
             hearing_date_str = action.extracted_data.get("hearing_date")
@@ -158,7 +147,7 @@ def get_committee_tenure(
                 continue  # Can't process without a date
         elif action.action_type in (
             ActionType.HEARING_LOCATION_CHANGED,
-            ActionType.HEARING_TIME_CHANGED
+            ActionType.HEARING_TIME_CHANGED,
         ):
             # These actions modify the current hearing
             if current_hearing_date is None:
@@ -173,13 +162,13 @@ def get_committee_tenure(
         is_amendment = action.action_type in (
             ActionType.HEARING_RESCHEDULED,
             ActionType.HEARING_LOCATION_CHANGED,
-            ActionType.HEARING_TIME_CHANGED
+            ActionType.HEARING_TIME_CHANGED,
         )
         is_retroactive_or_same_day = announcement_date >= current_hearing_date
         is_duplicate_scheduled = (
-            action.action_type == ActionType.HEARING_SCHEDULED and
-            is_retroactive_or_same_day and
-            any(h["hearing_date"] == current_hearing_date for h in all_hearings)
+            action.action_type == ActionType.HEARING_SCHEDULED
+            and is_retroactive_or_same_day
+            and any(h["hearing_date"] == current_hearing_date for h in all_hearings)
         )
         if (is_amendment or is_duplicate_scheduled) and is_retroactive_or_same_day:
             # Check if there was a prior valid announcement
@@ -206,7 +195,7 @@ def get_committee_tenure(
                 violation_type = "agenda_change"
         elif action.action_type in (
             ActionType.HEARING_LOCATION_CHANGED,
-            ActionType.HEARING_TIME_CHANGED
+            ActionType.HEARING_TIME_CHANGED,
         ):
             # Location or time changes: need 72 hours (3 days)
             required_days = 3
@@ -279,10 +268,7 @@ def build_status_row(
     _base_url: str, row: BillAtHearing, extension_until=None
 ) -> BillStatus:
     """Build the status row."""
-    session = (
-        extract_session_from_bill_url(row.bill_url)
-        if row.bill_url else None
-    )
+    session = extract_session_from_bill_url(row.bill_url) if row.bill_url else None
     tenure_info = get_committee_tenure(row.bill_url, row.committee_id)
     if not tenure_info:
         tenure_info = CommitteeTenure(
@@ -307,7 +293,7 @@ def build_status_row(
         row.bill_id,
         session,
         tenure_info.referred_date,
-        row.committee_id
+        row.committee_id,
     )
     return BillStatus(
         bill_id=row.bill_id,

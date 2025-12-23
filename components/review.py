@@ -8,9 +8,7 @@ from components.utils import Cache
 
 
 def conduct_batch_review(
-    session: DeferredReviewSession,
-    config: Config,
-    cache: Cache
+    session: DeferredReviewSession, config: Config, cache: Cache
 ) -> dict[str, bool]:
     """
     Present all deferred confirmations for batch review.
@@ -24,10 +22,10 @@ def conduct_batch_review(
     print(f"{'='*64}")
     display_confirmation_summary(session)
     try:
-        proceed = input(
-            "\nPress Enter to begin review, or 'q' to quit: "
-        ).strip().lower()
-        if proceed == 'q':
+        proceed = (
+            input("\nPress Enter to begin review, or 'q' to quit: ").strip().lower()
+        )
+        if proceed == "q":
             print("Review session cancelled.")
             return {}
     except (KeyboardInterrupt, EOFError):
@@ -40,16 +38,14 @@ def conduct_batch_review(
         confirmations = sorted(confirmations, key=lambda c: c.bill_id)
     for i, confirmation in enumerate(confirmations, 1):
         try:
-            result = review_single_confirmation(
-                confirmation, i, total, config
-            )
+            result = review_single_confirmation(confirmation, i, total, config)
             results[confirmation.confirmation_id] = result
             if result:
                 cache.set_parser(
                     confirmation.bill_id,
                     confirmation.parser_type,
                     confirmation.parser_module,
-                    confirmed=True
+                    confirmed=True,
                 )
         except (KeyboardInterrupt, EOFError):
             print(
@@ -66,8 +62,7 @@ def display_confirmation_summary(session: DeferredReviewSession) -> None:
     votes_count = session.get_votes_count()
     bill_count = len(session.get_bill_ids())
     print(
-        f"Found {len(session.confirmations)} parser confirmations "
-        "requiring review:"
+        f"Found {len(session.confirmations)} parser confirmations " "requiring review:"
     )
     if summary_count > 0:
         print(f"  - {summary_count} summaries ({bill_count} bills)")
@@ -84,10 +79,7 @@ def display_confirmation_summary(session: DeferredReviewSession) -> None:
 
 
 def review_single_confirmation(
-    confirmation: DeferredConfirmation,
-    index: int,
-    total: int,
-    config: Config
+    confirmation: DeferredConfirmation, index: int, total: int, config: Config
 ) -> bool:
     """
     Review one confirmation with context.
@@ -100,15 +92,12 @@ def review_single_confirmation(
     )
     print(f"{'='*64}")
     print(f"Parser: {confirmation.parser_module}")
-    if (
-        config.deferred_review.show_confidence
-        and confirmation.confidence is not None
-    ):
+    if config.deferred_review.show_confidence and confirmation.confidence is not None:
         confidence_pct = int(confirmation.confidence * 100)
         confidence_label: str = (
-            "High" if confirmation.confidence >= 0.8
-            else "Medium" if confirmation.confidence >= 0.5
-            else "Low"
+            "High"
+            if confirmation.confidence >= 0.8
+            else "Medium" if confirmation.confidence >= 0.5 else "Low"
         )
         print(f"Confidence: {confidence_label} ({confidence_pct}%)")
     source_url = confirmation.candidate.source_url
@@ -118,11 +107,11 @@ def review_single_confirmation(
         print("\nPreview:")
         print("-" * 64)
         wrapped_lines = []
-        for line in confirmation.preview_text.split('\n'):
+        for line in confirmation.preview_text.split("\n"):
             if line.strip():
                 wrapped_lines.extend(textwrap.wrap(line, width=80))
             else:
-                wrapped_lines.append('')
+                wrapped_lines.append("")
         display_lines = wrapped_lines[:15]
         for line in display_lines:
             print(line)
@@ -139,20 +128,20 @@ def review_single_confirmation(
     print()
     while True:
         choice = input("Choice (y/n/s/a/q): ").strip().lower()
-        if choice in ['y', 'yes']:
+        if choice in ["y", "yes"]:
             return True
-        elif choice in ['n', 'no']:
+        elif choice in ["n", "no"]:
             return False
-        elif choice in ['s', 'skip']:
+        elif choice in ["s", "skip"]:
             print("Skipped - will remain unconfirmed.")
             return False
-        elif choice in ['a', 'all']:
+        elif choice in ["a", "all"]:
             print(
                 f"Accepting all remaining confirmations for bill "
                 f"{confirmation.bill_id}"
             )
             return True
-        elif choice in ['q', 'quit']:
+        elif choice in ["q", "quit"]:
             raise KeyboardInterrupt()
         else:
             print(
@@ -162,9 +151,7 @@ def review_single_confirmation(
 
 
 def apply_review_results(
-    results: dict[str, bool],
-    session: DeferredReviewSession,
-    cache: Cache
+    results: dict[str, bool], session: DeferredReviewSession, cache: Cache
 ) -> None:
     """Apply the review results to the cache system."""
     accepted_count = 0
@@ -178,7 +165,7 @@ def apply_review_results(
                     confirmation.bill_id,
                     confirmation.parser_type,
                     confirmation.parser_module,
-                    confirmed=True
+                    confirmed=True,
                 )
                 accepted_count += 1
             else:

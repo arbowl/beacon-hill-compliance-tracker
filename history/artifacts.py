@@ -94,11 +94,7 @@ class TimelineAction:
 
     @staticmethod
     def new(
-        action_date: date,
-        branch: str,
-        action_type: str,
-        category: str,
-        raw_text: str
+        action_date: date, branch: str, action_type: str, category: str, raw_text: str
     ) -> TimelineAction:
         """Create a new timeline action."""
         return TimelineAction(
@@ -141,7 +137,7 @@ class DocumentArtifact:
     @staticmethod
     def hash_content(content: str) -> str:
         """Hash the content of the document."""
-        return hashlib.sha256(content.encode('utf-8')).hexdigest()
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
 @dataclass
@@ -177,9 +173,7 @@ class ArtifactSnapshot:
 
     @staticmethod
     def new(
-        ruleset_version: str,
-        computed_state: str,
-        computed_reason: str
+        ruleset_version: str, computed_state: str, computed_reason: str
     ) -> ArtifactSnapshot:
         """Create a new artifact snapshot."""
         return ArtifactSnapshot(

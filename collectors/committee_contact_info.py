@@ -32,7 +32,7 @@ def _get_legislator_email(url: str) -> str:
         soup = ParserInterface.soup(url)
         email_links = soup.find_all("a", href=re.compile(r"mailto:", re.I))
         for link in email_links:
-            if hasattr(link, 'get'):
+            if hasattr(link, "get"):
                 href = link.get("href", "")
                 if isinstance(href, str) and href.startswith("mailto:"):
                     email = href.replace("mailto:", "").strip()
@@ -71,9 +71,7 @@ def get_committee_contact(
             committee.id
         )
         if cached_contact:
-            logging.info(
-                "Using cached contact info for committee %s", committee.id
-            )
+            logging.info("Using cached contact info for committee %s", committee.id)
             return CommitteeContact(
                 committee_id=cached_contact["committee_id"],
                 name=cached_contact["name"],
@@ -85,30 +83,16 @@ def get_committee_contact(
                 senate_room=cached_contact.get("senate_room"),
                 senate_address=cached_contact.get("senate_address"),
                 senate_phone=cached_contact.get("senate_phone"),
-                senate_chair_name=cached_contact.get(
-                    "senate_chair_name", ""
-                ),
-                senate_chair_email=cached_contact.get(
-                    "senate_chair_email", ""
-                ),
-                senate_vice_chair_name=cached_contact.get(
-                    "senate_vice_chair_name", ""
-                ),
+                senate_chair_name=cached_contact.get("senate_chair_name", ""),
+                senate_chair_email=cached_contact.get("senate_chair_email", ""),
+                senate_vice_chair_name=cached_contact.get("senate_vice_chair_name", ""),
                 senate_vice_chair_email=cached_contact.get(
                     "senate_vice_chair_email", ""
                 ),
-                house_chair_name=cached_contact.get(
-                    "house_chair_name", ""
-                ),
-                house_chair_email=cached_contact.get(
-                    "house_chair_email", ""
-                ),
-                house_vice_chair_name=cached_contact.get(
-                    "house_vice_chair_name", ""
-                ),
-                house_vice_chair_email=cached_contact.get(
-                    "house_vice_chair_email", ""
-                ),
+                house_chair_name=cached_contact.get("house_chair_name", ""),
+                house_chair_email=cached_contact.get("house_chair_email", ""),
+                house_vice_chair_name=cached_contact.get("house_vice_chair_name", ""),
+                house_vice_chair_email=cached_contact.get("house_vice_chair_email", ""),
             )
 
     logging.info("Fetching contact info for committee %s", committee.id)
@@ -116,7 +100,7 @@ def get_committee_contact(
     soup = ParserInterface.soup(url)
 
     def extract_contact_info(
-        section_text: str
+        section_text: str,
     ) -> tuple[Optional[str], Optional[str], Optional[str]]:
         room_match = ROOM_RX.search(section_text)
         room = room_match.group(0) if room_match else None
@@ -126,9 +110,7 @@ def get_committee_contact(
         # Address line is usually "24 Beacon St. Room XXX Boston, MA 02133"
         address = None
         if "Boston" in section_text:
-            m = re.search(
-                r"24 Beacon St\..+Boston,\s*MA\s*\d{5}", section_text
-            )
+            m = re.search(r"24 Beacon St\..+Boston,\s*MA\s*\d{5}", section_text)
             if m:
                 address = m.group(0)
             elif room:
@@ -142,11 +124,9 @@ def get_committee_contact(
         if "Senate Contact" in h.get_text():
             parent = h.find_parent()
             if parent:
-                senate_text = " ".join(
-                    parent.get_text(" ", strip=True).split()
-                )
-                senate_room, senate_address, senate_phone = (
-                    extract_contact_info(senate_text)
+                senate_text = " ".join(parent.get_text(" ", strip=True).split())
+                senate_room, senate_address, senate_phone = extract_contact_info(
+                    senate_text
                 )
             break
 
@@ -156,11 +136,9 @@ def get_committee_contact(
         if "House Contact" in h.get_text():
             parent = h.find_parent()
             if parent:
-                house_text = " ".join(
-                    parent.get_text(" ", strip=True).split()
-                )
-                house_room, house_address, house_phone = (
-                    extract_contact_info(house_text)
+                house_text = " ".join(parent.get_text(" ", strip=True).split())
+                house_room, house_address, house_phone = extract_contact_info(
+                    house_text
                 )
             break
 
@@ -178,17 +156,13 @@ def get_committee_contact(
     senate_section = soup.find("h2", string="Senate Members")
     if senate_section:
         # Find the committee member list (ul.committeeMemberList)
-        senate_container = senate_section.find_next(
-            "ul", class_="committeeMemberList"
-        )
+        senate_container = senate_section.find_next("ul", class_="committeeMemberList")
         if not senate_container:
             # Fallback: find any div container
             senate_container = senate_section.find_next("div")
-        if senate_container and hasattr(senate_container, 'find_all'):
+        if senate_container and hasattr(senate_container, "find_all"):
             # Look for Chair and Vice Chair patterns
-            for elem in senate_container.find_all(
-                ["div", "p", "span", "li"]
-            ):
+            for elem in senate_container.find_all(["div", "p", "span", "li"]):
                 text = elem.get_text(strip=True)
                 if "Chair" in text and "Vice" not in text:
                     # Look for a link in this element or nearby
@@ -199,9 +173,7 @@ def get_committee_contact(
                         link = elem.find_next("a")
                     if link:
                         senate_chair_name = link.get_text(strip=True)
-                        senate_chair_url = urljoin(
-                            base_url, link.get("href", "")
-                        )
+                        senate_chair_url = urljoin(base_url, link.get("href", ""))
                 elif "Vice" in text and "Chair" in text:
                     # For Vice Chair, link is typically in parent container
                     link = None
@@ -217,9 +189,7 @@ def get_committee_contact(
                         link = elem.find_next("a")
                     if link:
                         senate_vice_chair_name = link.get_text(strip=True)
-                        senate_vice_chair_url = urljoin(
-                            base_url, link.get("href", "")
-                        )
+                        senate_vice_chair_url = urljoin(base_url, link.get("href", ""))
 
         # Look for House Members section
         house_section = soup.find("h2", string="House Members")
@@ -231,11 +201,9 @@ def get_committee_contact(
             if not house_container:
                 # Fallback: find any div container
                 house_container = house_section.find_next("div")
-            if house_container and hasattr(house_container, 'find_all'):
+            if house_container and hasattr(house_container, "find_all"):
                 # Look for Chair and Vice Chair patterns
-                for elem in house_container.find_all(
-                    ["div", "p", "span", "li"]
-                ):
+                for elem in house_container.find_all(["div", "p", "span", "li"]):
                     text = elem.get_text(strip=True)
                     if "Chair" in text and "Vice" not in text:
                         # Look for a link in this element or nearby
@@ -246,9 +214,7 @@ def get_committee_contact(
                             link = elem.find_next("a")
                         if link:
                             house_chair_name = link.get_text(strip=True)
-                            house_chair_url = urljoin(
-                                base_url, link.get("href", "")
-                            )
+                            house_chair_url = urljoin(base_url, link.get("href", ""))
                     elif "Vice" in text and "Chair" in text:
                         # For Vice Chair, link is typically in parent container
                         link = None
@@ -274,33 +240,17 @@ def get_committee_contact(
     house_chair_email = ""
     house_vice_chair_email = ""
     if senate_chair_url:
-        logging.info(
-            "Fetching email for Senate Chair: %s",
-            senate_chair_name
-        )
+        logging.info("Fetching email for Senate Chair: %s", senate_chair_name)
         senate_chair_email = _get_legislator_email(senate_chair_url)
     if senate_vice_chair_url:
-        logging.info(
-            "Fetching email for Senate Vice Chair: %s",
-            senate_vice_chair_name
-        )
-        senate_vice_chair_email = _get_legislator_email(
-            senate_vice_chair_url
-        )
+        logging.info("Fetching email for Senate Vice Chair: %s", senate_vice_chair_name)
+        senate_vice_chair_email = _get_legislator_email(senate_vice_chair_url)
     if house_chair_url:
-        logging.info(
-            "Fetching email for House Chair: %s",
-            house_chair_name
-        )
+        logging.info("Fetching email for House Chair: %s", house_chair_name)
         house_chair_email = _get_legislator_email(house_chair_url)
     if house_vice_chair_url:
-        logging.info(
-            "Fetching email for House Vice Chair: %s",
-            house_vice_chair_name
-        )
-        house_vice_chair_email = _get_legislator_email(
-            house_vice_chair_url
-        )
+        logging.info("Fetching email for House Vice Chair: %s", house_vice_chair_name)
+        house_vice_chair_email = _get_legislator_email(house_vice_chair_url)
     contact = CommitteeContact(
         committee_id=committee.id,
         name=committee.name,

@@ -93,7 +93,8 @@ class TestNonCompliance:
         )
         result = classify("H100", Committee.JOINT.value, status, summary, votes)
         assert result.state in {
-            ComplianceState.INCOMPLETE, ComplianceState.NON_COMPLIANT
+            ComplianceState.INCOMPLETE,
+            ComplianceState.NON_COMPLIANT,
         }
         assert "no votes" in result.reason.lower()
 
@@ -112,11 +113,7 @@ class TestNonCompliance:
     def test_missing_all_requirements(self, bill_factory: BillFactory):
         """Missing all requirements should be NON_COMPLIANT."""
         status, summary, votes = bill_factory.create_noncompliant_bill(
-            missing=[
-                Requirement.REPORTED,
-                Requirement.SUMMARY,
-                Requirement.VOTES
-            ],
+            missing=[Requirement.REPORTED, Requirement.SUMMARY, Requirement.VOTES],
         )
         result = classify("H100", Committee.JOINT.value, status, summary, votes)
         assert result.state == ComplianceState.NON_COMPLIANT
@@ -185,11 +182,14 @@ class TestEdgeCases:
 class TestCommitteeVariations:
     """Test different committee types."""
 
-    @pytest.mark.parametrize("committee_id", [
-        Committee.JOINT,
-        Committee.HOUSE,
-        Committee.SENATE,
-    ])
+    @pytest.mark.parametrize(
+        "committee_id",
+        [
+            Committee.JOINT,
+            Committee.HOUSE,
+            Committee.SENATE,
+        ],
+    )
     def test_compliant_across_committee_types(
         self, bill_factory: BillFactory, committee_id: Committee
     ):

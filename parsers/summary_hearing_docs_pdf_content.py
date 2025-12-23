@@ -45,17 +45,10 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
             return ""
 
     @staticmethod
-    def _extract_pdf_text(
-        pdf_url: str,
-        cache=None,
-        config=None
-    ) -> Optional[str]:
+    def _extract_pdf_text(pdf_url: str, cache=None, config=None) -> Optional[str]:
         """Extract text content from a PDF URL using extraction service."""
         return DocumentExtractionService.extract_text(
-            url=pdf_url,
-            cache=cache,
-            config=config,
-            timeout=30
+            url=pdf_url, cache=cache, config=config, timeout=30
         )
 
     @classmethod
@@ -66,7 +59,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
         if not pdf_text:
             return None
         # Look for "Summary" keyword in the PDF content (case insensitive)
-        if not re.search(r'\bsummary\b', pdf_text, re.I):
+        if not re.search(r"\bsummary\b", pdf_text, re.I):
             return None
         # Normalize bill ID for comparison
         normalized_bill_id = cls._norm_bill_id(bill_id)
@@ -86,7 +79,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
         if not bill_found:
             return None
         # Extract a relevant snippet containing both the bill ID and "summary"
-        lines = pdf_text.split('\n')
+        lines = pdf_text.split("\n")
         for i, line in enumerate(lines):
             line = line.strip()
             if not line:
@@ -95,7 +88,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
             line_has_bill = any(
                 re.search(pattern, line, re.I) for pattern in bill_patterns
             )
-            line_has_summary = re.search(r'\bsummary\b', line, re.I)
+            line_has_summary = re.search(r"\bsummary\b", line, re.I)
             if line_has_bill and line_has_summary:
                 # Return this line as the summary snippet
                 return line
@@ -109,7 +102,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
                     if not context_line:
                         continue
                     context_lines.append(context_line)
-                    if not re.search(r'\bsummary\b', context_line, re.I):
+                    if not re.search(r"\bsummary\b", context_line, re.I):
                         continue
                     # Found summary in context, return combined snippet
                     return " ".join(context_lines)
@@ -120,18 +113,14 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
 
     @classmethod
     def _download_hearing_pdfs(
-        cls,
-        hearing_docs_url: str,
-        base_url: str,
-        cache=None,
-        config=None
+        cls, hearing_docs_url: str, base_url: str, cache=None, config=None
     ) -> list[dict]:
         """Download all PDFs from a hearing and return their content."""
         soup = cls.soup(hearing_docs_url)
         # Find all PDF download links
         pdf_links = []
         for a in soup.find_all("a", href=True):
-            if not hasattr(a, 'get'):
+            if not hasattr(a, "get"):
                 continue
             href = a.get("href", "")
             if not isinstance(href, str):
@@ -143,12 +132,9 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
             text = " ".join(a.get_text(strip=True).split())
             title_param = cls._title_from_href(href)
             pdf_url = urljoin(base_url, href)
-            pdf_links.append({
-                "url": pdf_url,
-                "text": text,
-                "title": title_param,
-                "href": href
-            })
+            pdf_links.append(
+                {"url": pdf_url, "text": text, "title": title_param, "href": href}
+            )
         # Download and extract text from all PDFs
         cached_pdfs = []
         for pdf_info in pdf_links:
@@ -160,12 +146,14 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
             pdf_text = cls._extract_pdf_text(pdf_url, cache, config)
             if not pdf_text:
                 continue
-            cached_pdfs.append({
-                "url": pdf_url,
-                "text": pdf_text,
-                "title": title_param,
-                "link_text": text
-            })
+            cached_pdfs.append(
+                {
+                    "url": pdf_url,
+                    "text": pdf_text,
+                    "title": title_param,
+                    "link_text": text,
+                }
+            )
         return cached_pdfs
 
     @classmethod
@@ -180,8 +168,9 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
             title = pdf_info["title"]
             link_text = pdf_info["link_text"]
             # Higher priority (lower number) for PDFs that mention bill ID
-            if (normalized_bill_id in cls._norm_bill_id(title) or
-                    normalized_bill_id in cls._norm_bill_id(link_text)):
+            if normalized_bill_id in cls._norm_bill_id(
+                title
+            ) or normalized_bill_id in cls._norm_bill_id(link_text):
                 return 0
             return 1
 
@@ -194,14 +183,11 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
             link_text = pdf_info["link_text"]
 
             logger.debug(
-                "Searching cached PDF for %s: %s",
-                bill_id, title_param or link_text
+                "Searching cached PDF for %s: %s", bill_id, title_param or link_text
             )
 
             # Check if this PDF contains summary content for our bill
-            summary_snippet = cls._pdf_contains_summary_for_bill(
-                pdf_text, bill_id
-            )
+            summary_snippet = cls._pdf_contains_summary_for_bill(pdf_text, bill_id)
             if summary_snippet:
                 preview = (
                     f"Found summary content in PDF "
@@ -209,8 +195,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
                     f"'{summary_snippet[:150]}...' for {bill_id}"
                 )
                 full_text = (
-                    pdf_text[:2000] + "..." if len(pdf_text) > 2000
-                    else pdf_text
+                    pdf_text[:2000] + "..." if len(pdf_text) > 2000 else pdf_text
                 )
                 return ParserInterface.DiscoveryResult(
                     preview,
@@ -223,11 +208,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
 
     @classmethod
     def discover(
-        cls,
-        base_url: str,
-        bill: BillAtHearing,
-        cache=None,
-        config=None
+        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Download and check PDF content from hearing Documents tab for
         summaries. Uses caching to avoid re-downloading PDFs for bills
@@ -240,7 +221,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
         if hearing_docs_url not in _HEARING_PDF_CACHE:
             logger.debug(
                 "First time processing hearing %s - downloading all PDFs",
-                hearing_docs_url
+                hearing_docs_url,
             )
             _HEARING_PDF_CACHE[hearing_docs_url] = cls._download_hearing_pdfs(
                 hearing_docs_url, base_url, cache, config  # type: ignore
@@ -255,9 +236,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
         )
 
     @staticmethod
-    def parse(
-        _base_url: str, candidate: ParserInterface.DiscoveryResult
-    ) -> dict:
+    def parse(_base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """Parse the summary."""
         # Nothing heavy yet; just return the stable link for the report/cache
         return {"source_url": candidate.source_url}

@@ -33,21 +33,23 @@ class Constants194:
 
 class BillType(str, Enum):
     """Type of bill (House or Senate)."""
+
     HOUSE = "House"
     SENATE = "Senate"
 
     @staticmethod
     def from_bill_id(bill_id: str) -> BillType:
         """Get the chamber of a bill."""
-        if bill_id.upper().startswith('H'):
+        if bill_id.upper().startswith("H"):
             return BillType.HOUSE
-        if bill_id.upper().startswith('S'):
+        if bill_id.upper().startswith("S"):
             return BillType.SENATE
         raise ValueError(f"Invalid bill ID: {bill_id}")
 
 
 class CommitteeType(str, Enum):
     """Type of committee (House, Joint, or Senate)."""
+
     HOUSE = "House"
     JOINT = "Joint"
     SENATE = "Senate"
@@ -55,11 +57,11 @@ class CommitteeType(str, Enum):
     @staticmethod
     def from_committee_id(committee_id: str) -> CommitteeType:
         """Get the chamber of a committee."""
-        if committee_id.upper().startswith('H'):
+        if committee_id.upper().startswith("H"):
             return CommitteeType.HOUSE
-        if committee_id.upper().startswith('S'):
+        if committee_id.upper().startswith("S"):
             return CommitteeType.SENATE
-        if committee_id.upper().startswith('J'):
+        if committee_id.upper().startswith("J"):
             return CommitteeType.JOINT
         raise ValueError(f"Invalid committee ID: {committee_id}")
 
@@ -81,6 +83,7 @@ class BillContext:
     This encapsulates the characteristics that determine which rules
     apply and how they should be evaluated.
     """
+
     bill_id: str
     committee_id: str
     bill_type: BillType
@@ -99,6 +102,7 @@ class Status(Enum):
 @dataclass(frozen=True)
 class RuleResult:
     """Result of evaluating a single compliance rule."""
+
     passed: Status
     reason: str
     # Metadata exposed by rules for aggregation
@@ -156,9 +160,7 @@ class ComplianceRule(ABC):
         return False  # Override in rules that need special handling
 
     def get_special_state(
-        self,
-        result: RuleResult,
-        all_results: list[tuple[ComplianceRule, RuleResult]]
+        self, result: RuleResult, all_results: list[tuple[ComplianceRule, RuleResult]]
     ) -> Optional[tuple[ComplianceState, str]]:
         """Return (state, reason) if this rule determines final state, else
         None.
@@ -177,8 +179,7 @@ class ComplianceRule(ABC):
 
 
 class NoticeRequirementRule(ComplianceRule):
-    """Rule checking advance notice requirements for hearings.
-    """
+    """Rule checking advance notice requirements for hearings."""
 
     @property
     def priority(self) -> int:
@@ -247,31 +248,21 @@ class NoticeRequirementRule(ComplianceRule):
         return result.is_missing_notice
 
     def get_special_state(
-        self,
-        result: RuleResult,
-        all_results: list[tuple[ComplianceRule, RuleResult]]
+        self, result: RuleResult, all_results: list[tuple[ComplianceRule, RuleResult]]
     ) -> Optional[tuple[ComplianceState, str]]:
         if not result.is_missing_notice:
             return None
 
         # Count evidence from core requirements
-        core_results = [
-            r for rule, r in all_results
-            if rule.is_core_requirement()
-        ]
-        compliant_count = sum(
-            1 for r in core_results if r.passed == Status.COMPLIANT
-        )
+        core_results = [r for rule, r in all_results if rule.is_core_requirement()]
+        compliant_count = sum(1 for r in core_results if r.passed == Status.COMPLIANT)
 
         if compliant_count == 0:
             return (
                 ComplianceState.UNKNOWN,
-                "No hearing announcement found and no other evidence"
+                "No hearing announcement found and no other evidence",
             )
-        return (
-            ComplianceState.NON_COMPLIANT,
-            "No hearing announcement found"
-        )
+        return (ComplianceState.NON_COMPLIANT, "No hearing announcement found")
 
     def contributes_to_reason(self, result: RuleResult) -> Optional[str]:
         return result.notice_description
@@ -316,37 +307,12 @@ class ReportedOutRequirementRule(ComplianceRule):
                 reason="No hearing scheduled - cannot evaluate deadline",
                 is_core_requirement=True,
             )
-        if context.bill_type == BillType.HOUSE:
-            if status.hearing_date < c.third_wednesday_december:
-                deadline_60 = status.hearing_date + timedelta(days=60)
-                deadline_90 = status.hearing_date + timedelta(days=90)
-            elif status.hearing_date < c.third_wednesday_march - timedelta(days=60):
-                deadline_60 = status.hearing_date + timedelta(days=60)
-                deadline_90 = c.third_wednesday_march
-            else:  # After Jan 18, 2026
-                deadline_60 = status.hearing_date + timedelta(days=60)
-                deadline_90 = deadline_60
-        else:
-            if context.committee_type == CommitteeType.JOINT and status.referred_date:
-                if status.referred_date >= c.senate_october_deadline:
-                    deadline_60 = status.referred_date + timedelta(days=60)
-                    deadline_90 = deadline_60
-                else:
-                    if today < c.first_wednesday_december:
-                        deadline_60 = c.first_wednesday_december
-                        deadline_90 = deadline_60 + timedelta(days=30)
-                    else:
-                        deadline_60 = c.end_of_session
-                        deadline_90 = deadline_60
-            else:
-                if today < c.first_wednesday_december:
-                    deadline_60 = c.first_wednesday_december
-                    deadline_90 = deadline_60 + timedelta(days=30)
-                else:
-                    deadline_60 = c.end_of_session
-                    deadline_90 = deadline_60
+        hearing_date = status.hearing_date
+        referred_date = status.referred_date or hearing_date
+        deadline_60: date
+        deadline_90: date
         if context.committee_id == "J24":
-            if status.referred_date and status.referred_date < c.hcf_december_deadline:
+            if status.referred_date and status.referred_date <= c.hcf_december_deadline:
                 deadline_60 = c.last_wednesday_january
                 deadline_90 = deadline_60
             elif status.referred_date:
@@ -354,6 +320,27 @@ class ReportedOutRequirementRule(ComplianceRule):
                 deadline_90 = deadline_60
             else:
                 deadline_60 = c.last_wednesday_january
+                deadline_90 = deadline_60
+        elif context.bill_type == BillType.HOUSE:
+            if hearing_date < c.third_wednesday_december:
+                deadline_60 = hearing_date + timedelta(days=60)
+                deadline_90 = hearing_date + timedelta(days=90)
+                deadline_90 = min(deadline_90, c.third_wednesday_march)
+                deadline_60 = min(deadline_60, c.third_wednesday_march)
+            else:
+                base = hearing_date + timedelta(days=60)
+                deadline_60 = max(base, c.third_wednesday_march)
+                deadline_90 = deadline_60
+        else:
+            if context.committee_type == CommitteeType.JOINT:
+                if referred_date < c.senate_october_deadline:
+                    deadline_60 = c.first_wednesday_december
+                    deadline_90 = deadline_60
+                else:
+                    deadline_60 = referred_date + timedelta(days=60)
+                    deadline_90 = deadline_60
+            else:
+                deadline_60 = c.end_of_session
                 deadline_90 = deadline_60
         if not status.extension_until:
             effective_deadline = deadline_60
@@ -393,19 +380,16 @@ class ReportedOutRequirementRule(ComplianceRule):
         if status.reported_date and status.reported_date > effective_deadline:
             return RuleResult(
                 passed=Status.NON_COMPLIANT,
-                reason=f"Action on {status.reported_date} after deadline {effective_deadline}",
+                reason=(
+                    f"Action on {status.reported_date} after deadline {effective_deadline}"
+                ),
                 is_core_requirement=True,
-                missing_description="reported out late"
+                missing_description="reported out late",
             )
-        missing_description = "not reported out"
-        if today > effective_deadline:
-            missing_description += f" by deadline {effective_deadline}"
+        missing_description = f"not reported out by deadline {effective_deadline}"
         return RuleResult(
             passed=Status.NON_COMPLIANT,
-            reason=(
-                f"Deadline passed ({effective_deadline}) "
-                f"with no evidence of action"
-            ),
+            reason=f"Deadline passed ({effective_deadline}) with no evidence of action",
             is_core_requirement=True,
             missing_description=missing_description,
         )
@@ -414,19 +398,15 @@ class ReportedOutRequirementRule(ComplianceRule):
         return result.is_before_deadline
 
     def get_special_state(
-        self,
-        result: RuleResult,
-        all_results: list[tuple[ComplianceRule, RuleResult]]
+        self, result: RuleResult, all_results: list[tuple[ComplianceRule, RuleResult]]
     ) -> Optional[tuple[ComplianceState, str]]:
         if not result.is_before_deadline:
             return None
-
         notice_desc = None
         for rule, r in all_results:
             if isinstance(rule, NoticeRequirementRule):
                 notice_desc = rule.contributes_to_reason(r)
                 break
-
         reason_parts = ["Before deadline"]
         if notice_desc:
             reason_parts.append(notice_desc)
@@ -602,9 +582,7 @@ class RuleFactory:
 
     @staticmethod
     def create_context(
-        bill_id: str,
-        committee_id: str,
-        session: Optional[str] = None
+        bill_id: str, committee_id: str, session: Optional[str] = None
     ) -> BillContext:
         """Create a BillContext from bill and committee IDs.
 
@@ -671,10 +649,7 @@ def aggregate_to_compliance(
             votes=votes,
             status=status,
             state=ComplianceState.UNKNOWN,
-            reason=(
-                "No hearing scheduled - "
-                "cannot evaluate deadline compliance"
-            ),
+            reason=("No hearing scheduled - " "cannot evaluate deadline compliance"),
         )
     deal_breaker_result = None
     for rule, result in rule_results:
@@ -683,18 +658,11 @@ def aggregate_to_compliance(
             break
     if deal_breaker_result:
         rule, result = deal_breaker_result
-        non_dealbreaker_results = [
-            (r, res) for r, res in rule_results
-            if r != rule
-        ]
+        non_dealbreaker_results = [(r, res) for r, res in rule_results if r != rule]
         core_results = [
-            res for r, res in non_dealbreaker_results
-            if r.is_core_requirement()
+            res for r, res in non_dealbreaker_results if r.is_core_requirement()
         ]
-        is_before_deadline = any(
-            res.is_before_deadline
-            for res in core_results
-        )
+        is_before_deadline = any(res.is_before_deadline for res in core_results)
         if not is_before_deadline:
             notice_part = result.reason.replace(
                 "Insufficient notice: ", "insufficient hearing notice ("
@@ -734,19 +702,13 @@ def aggregate_to_compliance(
                     reason=reason,
                 )
     core_results = [
-        (rule, result) for rule, result in rule_results
-        if rule.is_core_requirement()
+        (rule, result) for rule, result in rule_results if rule.is_core_requirement()
     ]
-    compliant_count = sum(
-        1
-        for _, r in core_results
-        if r.passed == Status.COMPLIANT
-    )
+    compliant_count = sum(1 for _, r in core_results if r.passed == Status.COMPLIANT)
     reason_parts = []
     if compliant_count == 3:
         reason_parts.append(
-            "All requirements met: "
-            "reported out, votes posted, summaries posted"
+            "All requirements met: " "reported out, votes posted, summaries posted"
         )
     else:
         missing_parts = []
@@ -805,6 +767,4 @@ def classify(
     context = RuleFactory.create_context(bill_id, committee_id)
     rule_set = RuleFactory.create_rule_set(context)
     rule_results = rule_set.evaluate(context, status, summary, votes)
-    return aggregate_to_compliance(
-        rule_results, context, status, summary, votes
-    )
+    return aggregate_to_compliance(rule_results, context, status, summary, votes)

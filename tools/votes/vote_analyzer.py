@@ -35,8 +35,7 @@ def build_committee_lookup(committees: list[Committee]) -> dict[str, Committee]:
 
 
 def find_latest_folder(path: Path) -> Path:
-    """Locate the latest folder in YYYY/MM/DD format under the base path.
-    """
+    """Locate the latest folder in YYYY/MM/DD format under the base path."""
     base = Path(path)
     years = [
         p
@@ -87,7 +86,11 @@ def extract_non_compliant_bills(loaded: list[tuple[str, dict]]) -> Json:
     for committee_id, obj in loaded:
         bills = obj.get("bills", [])
         for bill in bills:
-            if bill.get("votes_present") is False and bill.get("state") == "Non-Compliant" and "Insufficient" not in bill.get("reason"):
+            if (
+                bill.get("votes_present") is False
+                and bill.get("state") == "Non-Compliant"
+                and "Insufficient" not in bill.get("reason")
+            ):
                 bill_id = bill.get("bill_id")
                 if bill_id in dedup:
                     continue
@@ -113,16 +116,18 @@ def save_to_csv(bills: Json, outfile="non_compliant_bills.csv") -> None:
         writer = csv.writer(f)
         writer.writerow(header)
         for b in bills:
-            writer.writerow([
-                b.get("bill_title"),
-                b.get("bill_url"),
-                b.get("hearing_date"),
-                b.get("deadline_60"),
-                b.get("state"),
-                b.get("reason"),
-                b.get("summary_url", ""),
-                b.get("votes_url", ""),
-            ])
+            writer.writerow(
+                [
+                    b.get("bill_title"),
+                    b.get("bill_url"),
+                    b.get("hearing_date"),
+                    b.get("deadline_60"),
+                    b.get("state"),
+                    b.get("reason"),
+                    b.get("summary_url", ""),
+                    b.get("votes_url", ""),
+                ]
+            )
     print(f"[>] CSV created: {outfile}")
 
 
@@ -136,48 +141,103 @@ def categorize_bills(bills: Json) -> dict:
         }
     """
     categories = {
-        'Agriculture': [
-            'agriculture', 'farm', 'farmer', 'fish', 'fishing', 'seafood', 'pesticide', 'food', 'crop'
+        "Agriculture": [
+            "agriculture",
+            "farm",
+            "farmer",
+            "fish",
+            "fishing",
+            "seafood",
+            "pesticide",
+            "food",
+            "crop",
         ],
-        'Privacy/Tech': [
-            'privacy','data','cyber','technology','internet','digital','ai','artificial'
+        "Privacy/Tech": [
+            "privacy",
+            "data",
+            "cyber",
+            "technology",
+            "internet",
+            "digital",
+            "ai",
+            "artificial",
         ],
-        'Consumer Protection': [
-            'consumer','protection','scam','fraud'
+        "Consumer Protection": ["consumer", "protection", "scam", "fraud"],
+        "Health": [
+            "health",
+            "medical",
+            "hospital",
+            "mental",
+            "public health",
+            "pharmacy",
         ],
-        'Health': [
-            'health','medical','hospital','mental','public health','pharmacy'
+        "Education": [
+            "school",
+            "education",
+            "student",
+            "teacher",
+            "curriculum",
+            "university",
+            "college",
         ],
-        'Education': [
-            'school','education','student','teacher','curriculum','university','college'
+        "Transportation": [
+            "transport",
+            "traffic",
+            "road",
+            "vehicle",
+            "transit",
+            "mbta",
+            "highway",
         ],
-        'Transportation': [
-            'transport','traffic','road','vehicle','transit','mbta','highway'
+        "Environment": [
+            "environment",
+            "climate",
+            "energy",
+            "waste",
+            "water",
+            "emissions",
+            "pollution",
         ],
-        'Environment': [
-            'environment','climate','energy','waste','water','emissions','pollution'
+        "Housing": ["housing", "zoning", "landlord", "tenant", "development"],
+        "Criminal Justice": [
+            "crime",
+            "criminal",
+            "police",
+            "justice",
+            "safety",
+            "court",
+            "correction",
         ],
-        'Housing': [
-            'housing','zoning','landlord','tenant','development'
+        "Public Safety": [
+            "fire",
+            "ems",
+            "emergency",
+            "disaster",
+            "preparedness",
+            "responder",
+            "safety",
         ],
-        'Criminal Justice': [
-            'crime','criminal','police','justice','safety','court','correction'
+        "Tax/Finance": ["tax", "revenue", "finance", "budget", "appropriat"],
+        "Elections/Government": [
+            "election",
+            "voting",
+            "government",
+            "ethics",
+            "public",
+            "transparency",
         ],
-        'Public Safety': [
-            'fire', 'ems', 'emergency', 'disaster', 'preparedness', 'responder', 'safety'
+        "Labor/Workforce": ["labor", "employment", "worker", "wage", "union"],
+        "Utilities/Telecommunication": [
+            "utility",
+            "utilities",
+            "electric",
+            "gas",
+            "broadband",
+            "grid",
+            "telecom",
+            "rate",
+            "storm",
         ],
-        'Tax/Finance': [
-            'tax','revenue','finance','budget','appropriat'
-        ],
-        'Elections/Government': [
-            'election','voting','government','ethics','public','transparency'
-        ],
-        'Labor/Workforce': [
-            'labor','employment','worker','wage','union'
-        ],
-        'Utilities/Telecommunication': [
-            'utility', 'utilities', 'electric', 'gas', 'broadband', 'grid', 'telecom', 'rate', 'storm'
-        ]
     }
 
     def classify(title: str) -> str:
@@ -188,6 +248,7 @@ def categorize_bills(bills: Json) -> dict:
             if any(k in lower for k in keys):
                 return category
         return "Other"
+
     # Apply classification
     for b in bills:
         b["category"] = classify(b.get("bill_title", ""))
@@ -196,16 +257,10 @@ def categorize_bills(bills: Json) -> dict:
     for b in bills:
         cat = b["category"]
         counts[cat] = counts.get(cat, 0) + 1
-    return {
-        "categorized_bills": bills,
-        "category_counts": counts
-    }
+    return {"categorized_bills": bills, "category_counts": counts}
 
 
-def analyze_keyword_frequencies(
-    bills: Json,
-    top_n: int = 50
-) -> dict:
+def analyze_keyword_frequencies(bills: Json, top_n: int = 50) -> dict:
     """
     Analyze keyword frequencies in bill titles.
     Removes boilerplate like 'An Act', 'relative to', etc.
@@ -229,7 +284,8 @@ def analyze_keyword_frequencies(
         r"\ban act providing for\b",
     ]
     # Standard English stopwords + some MA-specific fillers
-    stopwords = set("""
+    stopwords = set(
+        """
         a about above after again against all am an and any are as at be because been
         before being below between both but by could did do does doing down during each
         few for from further had has have having he her here hers herself him himself his
@@ -240,9 +296,12 @@ def analyze_keyword_frequencies(
         with you your yours yourself yourselves
         act bill relative provide providing establish establishing
         massachusetts commonwealth
-    """.split())
+    """.split()
+    )
     # Normalize boilerplate patterns into compiled regex
-    boilerplate_regexes = [re.compile(p, flags=re.IGNORECASE) for p in boilerplate_phrases]
+    boilerplate_regexes = [
+        re.compile(p, flags=re.IGNORECASE) for p in boilerplate_phrases
+    ]
     words = []
     for bill in bills:
         title = bill.get("bill_title", "") or ""
@@ -255,10 +314,7 @@ def analyze_keyword_frequencies(
         # Split into words
         tokens = t.split()
         # Remove stopwords and tiny words
-        tokens = [
-            tok for tok in tokens
-            if tok not in stopwords and len(tok) > 2
-        ]
+        tokens = [tok for tok in tokens if tok not in stopwords and len(tok) > 2]
         # Singularize simple plurals (e.g., bills → bill)
         cleaned = []
         for tok in tokens:
@@ -268,16 +324,11 @@ def analyze_keyword_frequencies(
                 cleaned.append(tok)
         words.extend(cleaned)
     freqs = Counter(words)
-    return {
-        "freqs": freqs,
-        "top": freqs.most_common(top_n)
-    }
+    return {"freqs": freqs, "top": freqs.most_common(top_n)}
 
 
 def cluster_bill_topics(
-    bills: Json,
-    n_clusters: int = 12,
-    use_embeddings: bool = True
+    bills: Json, n_clusters: int = 12, use_embeddings: bool = True
 ) -> dict:
     """Perform ML-based topic clustering on bill titles.
     If sentence-transformers is installed, uses embeddings.
@@ -330,9 +381,7 @@ def cluster_bill_topics(
     # -----------------------------------------------------
     if not use_embeddings:
         vec = TfidfVectorizer(
-            stop_words="english",
-            max_features=3000,
-            ngram_range=(1,2)
+            stop_words="english", max_features=3000, ngram_range=(1, 2)
         )
         vectors = vec.fit_transform(clean_titles)
         model_used = "tfidf"
@@ -340,11 +389,7 @@ def cluster_bill_topics(
     # -----------------------------------------------------
     # KMeans clustering
     # -----------------------------------------------------
-    km = KMeans(
-        n_clusters=n_clusters,
-        random_state=42,
-        n_init=10
-    )
+    km = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     labels = km.fit_predict(vectors)
 
     # -----------------------------------------------------
@@ -363,7 +408,7 @@ def cluster_bill_topics(
         label_matrix = label_vec.fit_transform(clean_titles)
         feature_names = label_vec.get_feature_names_out()
         for cid in range(n_clusters):
-            idxs = [i for i,l in enumerate(labels) if l == cid]
+            idxs = [i for i, l in enumerate(labels) if l == cid]
             if not idxs:
                 cluster_keywords[cid] = []
                 continue
@@ -398,13 +443,13 @@ def cluster_bill_topics(
         reducer = SpectralEmbedding(n_components=2, random_state=42)
         projection_2d = reducer.fit_transform(matrix)
     except Exception:
-        projection_2d = None   # safe fallback
+        projection_2d = None  # safe fallback
 
     return {
         "clusters": clusters,
         "labels": human_labels,
         "model_used": model_used,
-        "vectors": vectors,              # NEW
+        "vectors": vectors,  # NEW
         "projection_2d": projection_2d,  # NEW
         "cluster_ids": labels.tolist(),  # optional helper
     }
@@ -413,8 +458,7 @@ def cluster_bill_topics(
 def print_missing_votes_by_committee(bills: Json) -> None:
     """Print sorted counts of missing-vote bills grouped by committee name."""
     committees = get_committees(
-        "https://malegislature.gov",
-        ("Joint", "House", "Senate")
+        "https://malegislature.gov", ("Joint", "House", "Senate")
     )
     lookup = build_committee_lookup(committees)
     # Count by committee_id
@@ -542,7 +586,6 @@ def export_clusters_to_html(topics: dict, outfile: str = "cluster_cards.html") -
         f.write(html)
 
     print(f"[>] HTML cluster card file created: {outfile}")
-
 
 
 if __name__ == "__main__":

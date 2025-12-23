@@ -1,5 +1,4 @@
-""" Fetches committee data from the Massachusetts Legislature website.
-"""
+"""Fetches committee data from the Massachusetts Legislature website."""
 
 import re
 from functools import lru_cache
@@ -53,10 +52,7 @@ def _extract_from_listing(
 
 
 @lru_cache(maxsize=None)
-def get_committees(
-    base_url: str,
-    include_chambers: tuple[str, ...]
-) -> list[Committee]:
+def get_committees(base_url: str, include_chambers: tuple[str, ...]) -> list[Committee]:
     """
     Return all committees for the specified chambers (Joint/House/Senate).
     Cached to avoid redundant network calls (use tuple for hashability).
@@ -68,9 +64,7 @@ def get_committees(
             if not path:
                 continue
             soup: BeautifulSoup = _fetch(s, urljoin(base_url, path))
-            committees.extend(
-                list(_extract_from_listing(soup, base_url, chamber))
-            )
+            committees.extend(list(_extract_from_listing(soup, base_url, chamber)))
     # Stable sort: Joint then House, by name, then id.
     committees.sort(key=lambda c: (c.chamber, c.name, c.id))
     return committees

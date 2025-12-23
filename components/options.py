@@ -18,17 +18,12 @@ from components.utils import Cache, Config, get_latest_output_dir
 from version import __version__
 
 
-def get_committee_selection(
-    base_url: str, include_chambers: tuple[str]
-) -> list[str]:
+def get_committee_selection(base_url: str, include_chambers: tuple[str]) -> list[str]:
     """Interactive committee selection with various input options."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("COMMITTEE SELECTION")
-    print("="*60)
-    all_committees = get_committees(
-        base_url,
-        include_chambers
-    )
+    print("=" * 60)
+    all_committees = get_committees(base_url, include_chambers)
     print(f"\nAvailable committees ({len(all_committees)} total):")
     for i, committee in enumerate(all_committees, 1):
         print(f"  {i:2d}. {committee.id} - {committee.name}")
@@ -43,19 +38,18 @@ def get_committee_selection(
         if not selection:
             print("Please enter a selection.")
             continue
-        if selection.lower() == 'all':
+        if selection.lower() == "all":
             return [c.id for c in all_committees]
-        if ',' in selection or '-' in selection or selection.isalnum():
+        if "," in selection or "-" in selection or selection.isalnum():
             if any(
-                part.strip()
-                in [c.id for c in all_committees]
-                for part in selection.replace('-', ',').split(',')
+                part.strip() in [c.id for c in all_committees]
+                for part in selection.replace("-", ",").split(",")
             ):
                 committee_ids = []
-                for part in selection.split(','):
+                for part in selection.split(","):
                     part = part.strip()
-                    if '-' in part:
-                        start, end = part.split('-', 1)
+                    if "-" in part:
+                        start, end = part.split("-", 1)
                         start = start.strip()
                         end = end.strip()
                         start_idx = None
@@ -77,29 +71,24 @@ def get_committee_selection(
                 continue
         try:
             committee_ids = []
-            for part in selection.split(','):
+            for part in selection.split(","):
                 part = part.strip()
-                if '-' in part:
-                    start, end = part.split('-', 1)
+                if "-" in part:
+                    start, end = part.split("-", 1)
                     start_idx = int(start.strip()) - 1
                     end_idx = int(end.strip()) - 1
                     if 0 <= start_idx <= end_idx < len(all_committees):
                         for i in range(start_idx, end_idx + 1):
                             committee_ids.append(all_committees[i].id)
                     else:
-                        print(
-                            f"Range {part} is out of bounds. Please try again."
-                        )
+                        print(f"Range {part} is out of bounds. Please try again.")
                         break
                 else:
                     idx = int(part) - 1
                     if 0 <= idx < len(all_committees):
                         committee_ids.append(all_committees[idx].id)
                     else:
-                        print(
-                            f"Number {part} is out of bounds. Please "
-                            "try again."
-                        )
+                        print(f"Number {part} is out of bounds. Please " "try again.")
                         break
             else:
                 if committee_ids:
@@ -111,16 +100,14 @@ def get_committee_selection(
 
 def get_hearing_limit() -> int:
     """Interactive hearing limit selection."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("HEARING LIMIT")
-    print("="*60)
+    print("=" * 60)
     print("Enter the number of hearings to process (useful for quick tests):")
     print("  - Enter a number (e.g., 5)")
     print("  - Leave blank to process all hearings")
     while True:
-        limit_input = input(
-            "\nNumber of hearings (or blank for all): "
-        ).strip()
+        limit_input = input("\nNumber of hearings (or blank for all): ").strip()
         if not limit_input:
             return 999
         try:
@@ -135,10 +122,10 @@ def get_hearing_limit() -> int:
 
 def get_extension_check_preference(cache: Cache) -> bool:
     """Interactive extension check preference with cache status."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("EXTENSION CHECKING")
-    print("="*60)
-    if cache.search_for_keyword('extensions'):
+    print("=" * 60)
+    if cache.search_for_keyword("extensions"):
         print("✓ Cache contains extension data.")
         print(
             "You can skip this unless you want to use the latest data "
@@ -153,23 +140,21 @@ def get_extension_check_preference(cache: Cache) -> bool:
     print("  - Leave blank to skip")
     while True:
         choice = input("\nCheck for bill extensions? (y/n): ").strip().lower()
-        if not choice or choice in ['n', 'no']:
+        if not choice or choice in ["n", "no"]:
             return False
-        elif choice in ['y', 'yes']:
+        elif choice in ["y", "yes"]:
             return True
         else:
             print("Please enter 'y' for yes or 'n' for no.")
 
 
 def print_options_summary(
-    committee_ids: list[str],
-    limit_hearings: int,
-    check_extensions: bool
+    committee_ids: list[str], limit_hearings: int, check_extensions: bool
 ) -> None:
     """Print the options summary."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("CONFIGURATION SUMMARY")
-    print("="*60)
+    print("=" * 60)
     print(f"Committees: {', '.join(committee_ids)}")
     print(f"Hearing limit: {limit_hearings}")
     print(f"Check extensions: {check_extensions}")
@@ -187,9 +172,10 @@ def submit_data(
             automatically
     """
     if not auto_confirm:
-        if input(
-            "Send data to remote server? (y/n)"
-        ).strip().lower() not in ['y', 'yes']:
+        if input("Send data to remote server? (y/n)").strip().lower() not in [
+            "y",
+            "yes",
+        ]:
             return
     print("Sending data...")
     client = IngestClient(
@@ -201,10 +187,7 @@ def submit_data(
     # Find the latest output directory
     latest_dir = get_latest_output_dir()
     if latest_dir is None:
-        print(
-            "No output directories found. "
-            "Skipping committee data upload."
-        )
+        print("No output directories found. " "Skipping committee data upload.")
         return
 
     print(f"Using latest output directory: {latest_dir}")
@@ -233,9 +216,10 @@ def submit_changelog(auto_confirm: bool = False) -> None:
         SIGNING_SECRET: API signing key secret
     """
     if not auto_confirm:
-        if input(
-            "Send changelog to remote server? (y/n): "
-        ).strip().lower() not in ['y', 'yes']:
+        if input("Send changelog to remote server? (y/n): ").strip().lower() not in [
+            "y",
+            "yes",
+        ]:
             print("Changelog submission skipped.")
             return
     print("Sending changelog...")
@@ -260,10 +244,13 @@ def runner_loop(config: Config, cache: Cache) -> None:
         print(f"Beacon Hill Compliance Tracker v{__version__}")
         print()
         submit_data(
-            [committee.id for committee in get_committees(
-                config.base_url, tuple(config.include_chambers)
-            )],
-            cache
+            [
+                committee.id
+                for committee in get_committees(
+                    config.base_url, tuple(config.include_chambers)
+                )
+            ],
+            cache,
         )
         submit_changelog()
         check_extensions = config.runner.check_extensions
@@ -273,21 +260,17 @@ def runner_loop(config: Config, cache: Cache) -> None:
             )
             limit_hearings: int = get_hearing_limit()
             check_extensions = get_extension_check_preference(cache)
-            print_options_summary(
-                committee_ids,
-                limit_hearings,
-                check_extensions
-            )
+            print_options_summary(committee_ids, limit_hearings, check_extensions)
             prompt = "\nProceed with these settings? (y/n): "
             confirm = input(prompt).strip().lower()
-            if confirm not in ['y', 'yes']:
+            if confirm not in ["y", "yes"]:
                 print("Aborted.")
                 return
         else:
             print_options_summary(
                 config.runner.committee_ids,
                 config.runner.limit_hearings,
-                config.runner.check_extensions
+                config.runner.check_extensions,
             )
         extension_lookup: dict[str, list] = {}
         if check_extensions:
@@ -310,15 +293,13 @@ def runner_loop(config: Config, cache: Cache) -> None:
             print(f"{'='*60}")
             run_basic_compliance(
                 base_url=config.base_url,
-                include_chambers=tuple(
-                    config.include_chambers   # type: ignore
-                ),
+                include_chambers=tuple(config.include_chambers),  # type: ignore
                 committee_id=committee_id,
                 limit_hearings=limit_hearings,
                 cfg=config,
                 cache=cache,
                 extension_lookup=extension_lookup,
-                write_json=True
+                write_json=True,
             )
             cache.force_save()
             print(f"Cache saved after processing committee {committee_id}")
@@ -338,14 +319,12 @@ def one_run_mode(config: Config, cache: Cache, check_extensions: bool) -> None:
     print()
     print(f"Beacon Hill Compliance Tracker v{__version__}")
     print()
-    print("="*60)
+    print("=" * 60)
     print("ONE-RUN MODE")
-    print("="*60)
+    print("=" * 60)
 
     # Get all committees
-    all_committees = get_committees(
-        config.base_url, tuple(config.include_chambers)
-    )
+    all_committees = get_committees(config.base_url, tuple(config.include_chambers))
     committee_ids = [committee.id for committee in all_committees]
     limit_hearings = 999  # Process all hearings
 
@@ -355,9 +334,7 @@ def one_run_mode(config: Config, cache: Cache, check_extensions: bool) -> None:
     extension_lookup: dict[str, list] = {}
     if check_extensions:
         print("Collecting all extension orders...")
-        all_extension_orders = collect_all_extension_orders(
-            config.base_url, cache
-        )
+        all_extension_orders = collect_all_extension_orders(config.base_url, cache)
         print(f"Found {len(all_extension_orders)} total extension orders")
         for eo in all_extension_orders:
             if eo.bill_id not in extension_lookup:
@@ -381,7 +358,7 @@ def one_run_mode(config: Config, cache: Cache, check_extensions: bool) -> None:
             cfg=config,
             cache=cache,
             extension_lookup=extension_lookup,
-            write_json=True
+            write_json=True,
         )
         cache.force_save()
         print(f"Cache saved after processing committee {committee_id}")
@@ -390,14 +367,14 @@ def one_run_mode(config: Config, cache: Cache, check_extensions: bool) -> None:
     print("Final cache save completed")
 
     # Automatically submit data and changelog at the end
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("SUBMITTING DATA")
-    print("="*60)
+    print("=" * 60)
     submit_data(committee_ids, cache, auto_confirm=True)
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("SUBMITTING CHANGELOG")
-    print("="*60)
+    print("=" * 60)
     submit_changelog(auto_confirm=True)
 
     print("\nOne-run mode complete!")
@@ -443,27 +420,27 @@ def scheduled_mode(
     # Define the job function
     def run_scheduled_task() -> None:
         """Run one_run_mode as a scheduled task."""
-        print("\n" + "="*60)
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        print("\n" + "=" * 60)
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"SCHEDULED RUN STARTED at {timestamp}")
-        print("="*60)
+        print("=" * 60)
         try:
             one_run_mode(config, cache, check_extensions)
         except Exception as e:  # pylint: disable=broad-exception-caught
             print(f"\n[ERROR] Scheduled run failed: {e}")
             print("Will continue with next scheduled run.")
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("SCHEDULED RUN COMPLETED")
-        print("="*60)
+        print("=" * 60)
 
     # Schedule the job
     schedule.every().day.at(normalized_time).do(run_scheduled_task)
 
     # Show startup info
     print()
-    print("="*60)
+    print("=" * 60)
     print("SCHEDULED MODE")
-    print("="*60)
+    print("=" * 60)
     print(f"Scheduled: daily at {normalized_time}")
     print(f"Check extensions: {check_extensions}")
     next_run = schedule.next_run()
@@ -471,7 +448,7 @@ def scheduled_mode(
         next_run_str = next_run.strftime("%Y-%m-%d %H:%M:%S")
         print(f"Next run: {next_run_str}")
     print("Press Ctrl+C to stop")
-    print("="*60)
+    print("=" * 60)
     print()
 
     # Main scheduling loop

@@ -38,6 +38,7 @@ class NoticeStatus(str, Enum):
 @dataclass(frozen=True)
 class BillCompliance:
     """A bill compliance in the Massachusetts Legislature."""
+
     bill_id: str
     committee_id: str
     hearing_date: Optional[date]
@@ -53,9 +54,7 @@ class BillCompliance:
             object.__setattr__(self, "state", self.state.value)
 
 
-def compute_notice_status(
-    status: BillStatus
-) -> tuple[NoticeStatus, Optional[int]]:
+def compute_notice_status(status: BillStatus) -> tuple[NoticeStatus, Optional[int]]:
     """Compute notice status and gap days for a bill.
 
     Args:
@@ -64,19 +63,12 @@ def compute_notice_status(
     Returns:
         Tuple of (NoticeStatus, gap_days) where gap_days is None if missing
     """
-    if (
-        status.announcement_date is None
-        or status.scheduled_hearing_date is None
-    ):
+    if status.announcement_date is None or status.scheduled_hearing_date is None:
         return NoticeStatus.MISSING, None
-    gap_days = (
-        status.scheduled_hearing_date - status.announcement_date
-    ).days
+    gap_days = (status.scheduled_hearing_date - status.announcement_date).days
     if status.announcement_date < NOTICE_REQUIREMENT_START_DATE:
         return NoticeStatus.IN_RANGE, gap_days
-    committee_prefix = (
-        status.committee_id[0].upper() if status.committee_id else "J"
-    )
+    committee_prefix = status.committee_id[0].upper() if status.committee_id else "J"
     min_notice_days = ADVANCE_NOTICE_REQ.get(committee_prefix, 10)
     if gap_days >= min_notice_days:
         return NoticeStatus.IN_RANGE, gap_days

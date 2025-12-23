@@ -13,10 +13,7 @@ class TestDeadlineCalculation:
         """House bill should get 60-day deadline."""
         hearing_date = date(2025, 2, 1)
         d60, d90, effective = compute_deadlines(
-            hearing_date,
-            extension_until=None,
-            bill_id="H100",
-            session="194"
+            hearing_date, extension_until=None, bill_id="H100", session="194"
         )
         assert d60 == hearing_date + timedelta(days=60)
         assert d90 == hearing_date + timedelta(days=90)
@@ -27,10 +24,7 @@ class TestDeadlineCalculation:
         hearing_date = date(2025, 2, 1)
         extension_date = date(2025, 5, 1)
         _, __, effective = compute_deadlines(
-            hearing_date,
-            extension_until=extension_date,
-            bill_id="H100",
-            session="194"
+            hearing_date, extension_until=extension_date, bill_id="H100", session="194"
         )
         assert effective == extension_date
 
@@ -40,10 +34,7 @@ class TestDeadlineCalculation:
         # Hearing less than 60 days before March deadline
         hearing_date = c.third_wednesday_march - timedelta(days=40)
         _, d90, __ = compute_deadlines(
-            hearing_date,
-            extension_until=None,
-            bill_id="H100",
-            session="194"
+            hearing_date, extension_until=None, bill_id="H100", session="194"
         )
         # 90-day deadline should be capped at March deadline
         assert d90 == c.third_wednesday_march
@@ -52,10 +43,7 @@ class TestDeadlineCalculation:
         """Senate bill before December should use December deadline."""
         hearing_date = date(2025, 9, 1)
         d60, d90, _ = compute_deadlines(
-            hearing_date,
-            extension_until=None,
-            bill_id="S100",
-            session="194"
+            hearing_date, extension_until=None, bill_id="S100", session="194"
         )
         c = Constants194()
         assert d60 == c.first_wednesday_december
@@ -73,7 +61,7 @@ class TestDeadlineCalculation:
             bill_id="S100",
             session="194",
             referred_date=referred_date,
-            committee_id="J33"  # Joint committee
+            committee_id="J33",  # Joint committee
         )
         assert d60 == c.first_wednesday_december
         assert d90 == c.first_wednesday_december + timedelta(days=30)
@@ -90,7 +78,7 @@ class TestDeadlineCalculation:
             bill_id="S100",
             session="194",
             referred_date=referred_date,
-            committee_id="J33"  # Joint committee
+            committee_id="J33",  # Joint committee
         )
         # Should use 60 days from referral (Oct 1 + 60 = Nov 30)
         expected_deadline = referred_date + timedelta(days=60)
@@ -108,7 +96,7 @@ class TestDeadlineCalculation:
             bill_id="S100",
             session="194",
             referred_date=referred_date,
-            committee_id="J33"  # Joint committee
+            committee_id="J33",  # Joint committee
         )
         # Should use 60 days from referral (Oct 15 + 60 = Dec 14)
         expected_deadline = referred_date + timedelta(days=60)
@@ -126,7 +114,7 @@ class TestDeadlineCalculation:
             bill_id="S100",
             session="194",
             referred_date=referred_date,
-            committee_id="S33"  # Senate committee (not joint)
+            committee_id="S33",  # Senate committee (not joint)
         )
         # Should still use December deadline (joint committee rule
         # doesn't apply)
@@ -143,10 +131,7 @@ class TestDeadlineEdgeCases:
         # Try to extend beyond 90 days
         far_extension = hearing_date + timedelta(days=120)
         _, d90, effective = compute_deadlines(
-            hearing_date,
-            extension_until=far_extension,
-            bill_id="H100",
-            session="194"
+            hearing_date, extension_until=far_extension, bill_id="H100", session="194"
         )
         # Should be capped at 90-day limit for House bills
         assert effective == d90
@@ -158,10 +143,7 @@ class TestDeadlineEdgeCases:
         # Extension date before 60 days
         early_extension = hearing_date + timedelta(days=30)
         d60, _, effective = compute_deadlines(
-            hearing_date,
-            extension_until=early_extension,
-            bill_id="H100",
-            session="194"
+            hearing_date, extension_until=early_extension, bill_id="H100", session="194"
         )
         # Should use 60-day deadline as minimum
         assert effective >= d60
@@ -176,10 +158,7 @@ class TestSenateExtensions:
         hearing_date = date(2025, 9, 1)
         extension_date = c.first_wednesday_december + timedelta(days=60)
         _, __, effective = compute_deadlines(
-            hearing_date,
-            extension_until=extension_date,
-            bill_id="S100",
-            session="194"
+            hearing_date, extension_until=extension_date, bill_id="S100", session="194"
         )
         assert effective == extension_date
 
@@ -189,10 +168,7 @@ class TestSenateExtensions:
         hearing_date = date(2025, 9, 1)
         extension_date = c.first_wednesday_december + timedelta(days=180)
         _, __, effective = compute_deadlines(
-            hearing_date,
-            extension_until=extension_date,
-            bill_id="S100",
-            session="194"
+            hearing_date, extension_until=extension_date, bill_id="S100", session="194"
         )
         assert effective == extension_date
 
@@ -202,10 +178,7 @@ class TestSenateExtensions:
         hearing_date = date(2025, 9, 1)
         early_extension = c.first_wednesday_december - timedelta(days=10)
         d60, _, effective = compute_deadlines(
-            hearing_date,
-            extension_until=early_extension,
-            bill_id="S100",
-            session="194"
+            hearing_date, extension_until=early_extension, bill_id="S100", session="194"
         )
         assert effective == d60
         assert effective > early_extension
@@ -221,15 +194,13 @@ class TestSenateExtensions:
             extension_until=far_extension,
             bill_id="S100",
             session="194",
-            committee_id="J24"
+            committee_id="J24",
         )
         assert d60 == c.last_wednesday_january
         assert d90 == c.last_wednesday_january
         assert effective == d60
 
-    def test_senate_bill_joint_committee_after_oct_no_extension_cap(
-        self
-    ):
+    def test_senate_bill_joint_committee_after_oct_no_extension_cap(self):
         """Senate bill referred after Oct 1 with extension - no cap."""
         referred_date = date(2025, 10, 15)
         hearing_date = date(2025, 10, 20)
@@ -241,7 +212,7 @@ class TestSenateExtensions:
             bill_id="S100",
             session="194",
             referred_date=referred_date,
-            committee_id="J33"
+            committee_id="J33",
         )
         assert effective == extension_date
         assert d60 == d90

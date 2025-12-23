@@ -19,6 +19,7 @@ from unit.fixtures.timeline_factory import TimelineFactory
 
 class MockBillURL:
     """Mock bill URLs for testing."""
+
     H100 = "https://malegislature.gov/Bills/194/H100"
     H200 = "https://malegislature.gov/Bills/194/H200"
     H300 = "https://malegislature.gov/Bills/194/H300"
@@ -33,15 +34,16 @@ def committee_id():
 @pytest.fixture
 def mock_extract_timeline():
     """Fixture to mock timeline extraction.
-    
+
     Returns a function that can be used to set up the mock with a specific timeline.
     """
+
     def _mock_with_timeline(timeline: BillActionTimeline):
         """Set up mock to return the given timeline."""
         return patch(
-            'collectors.bill_status_basic.extract_timeline',
-            return_value=timeline
+            "collectors.bill_status_basic.extract_timeline", return_value=timeline
         )
+
     return _mock_with_timeline
 
 
@@ -516,7 +518,7 @@ class TestEdgeCases:
         # No hearing should be recorded (location change was ignored)
         assert len(tenure.all_hearings) == 0
         assert tenure.hearing_date is None
-    
+
     def test_changes_outside_committee_tenure(
         self, committee_id: str, mock_extract_timeline: BillActionTimeline
     ):
@@ -692,7 +694,7 @@ class TestRetroactiveClericalUpdates:
                 ActionType.HEARING_RESCHEDULED,
                 committee_id=committee_id,
                 hearing_date=hearing_date.isoformat(),  # Same date
-                raw_text="Hearing updated to New End Time"
+                raw_text="Hearing updated to New End Time",
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="S1249")
@@ -728,7 +730,7 @@ class TestRetroactiveClericalUpdates:
                 ActionType.HEARING_RESCHEDULED,
                 committee_id=committee_id,
                 hearing_date=hearing_date.isoformat(),  # Same date
-                raw_text="Hearing updated to New End Time"
+                raw_text="Hearing updated to New End Time",
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="S1249")
@@ -800,7 +802,7 @@ class TestRetroactiveClericalUpdates:
                 ActionType.HEARING_RESCHEDULED,
                 committee_id=committee_id,
                 hearing_date=hearing_date.isoformat(),
-                raw_text="Hearing rescheduled (but was never announced?)"
+                raw_text="Hearing rescheduled (but was never announced?)",
             ),
         ]
         timeline = BillActionTimeline(actions, bill_id="H100")

@@ -22,17 +22,10 @@ class VotesDocxParser(ParserInterface):
     cost = 4
 
     @staticmethod
-    def _extract_docx_text(
-        docx_url: str,
-        cache=None,
-        config=None
-    ) -> Optional[str]:
+    def _extract_docx_text(docx_url: str, cache=None, config=None) -> Optional[str]:
         """Extract text content from a DOCX URL using extraction service."""
         return DocumentExtractionService.extract_text(
-            url=docx_url,
-            cache=cache,
-            config=config,
-            timeout=30
+            url=docx_url, cache=cache, config=config, timeout=30
         )
 
     @staticmethod
@@ -40,7 +33,7 @@ class VotesDocxParser(ParserInterface):
         """Find all DOCX files on the page."""
         docx_urls = []
         for a in soup.find_all("a", href=True):
-            if not hasattr(a, 'get'):
+            if not hasattr(a, "get"):
                 continue
             try:
                 href = a.get("href", "")
@@ -60,30 +53,38 @@ class VotesDocxParser(ParserInterface):
             return False
         text_lower = docx_text.lower()
         vote_keywords = [
-            'vote', 'voting', 'yea', 'nay', 'yes', 'no', 'abstain', 'present',
-            'roll call', 'recorded vote', 'committee vote', 'member vote',
-            'favorable', 'unfavorable', 'passed', 'failed', 'reported out'
+            "vote",
+            "voting",
+            "yea",
+            "nay",
+            "yes",
+            "no",
+            "abstain",
+            "present",
+            "roll call",
+            "recorded vote",
+            "committee vote",
+            "member vote",
+            "favorable",
+            "unfavorable",
+            "passed",
+            "failed",
+            "reported out",
         ]
-        has_vote_keywords = any(
-            keyword in text_lower for keyword in vote_keywords
-        )
+        has_vote_keywords = any(keyword in text_lower for keyword in vote_keywords)
         has_bill_id = bill_id.lower() in text_lower
         return has_vote_keywords and has_bill_id
 
     @classmethod
     def discover(
-        cls,
-        base_url: str,
-        bill: BillAtHearing,
-        cache=None,
-        config=None
+        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover vote DOCX files."""
         logger.debug("Trying %s...", cls.__name__)
         locations_to_check = [
             f"{base_url}/Committees/Detail/{bill.committee_id}/194/Documents",
             bill.bill_url,
-            bill.hearing_url
+            bill.hearing_url,
         ]
         for location in locations_to_check:
             if location is None:
@@ -93,14 +94,11 @@ class VotesDocxParser(ParserInterface):
                 docx_urls = cls._find_docx_files(soup, base_url)
                 for docx_url in docx_urls:
                     docx_text = cls._extract_docx_text(docx_url, cache, config)
-                    if docx_text and cls._looks_like_vote_docx(
-                        docx_text, bill.bill_id
-                    ):
+                    if docx_text and cls._looks_like_vote_docx(docx_text, bill.bill_id):
                         preview = f"Found vote DOCX for {bill.bill_id}"
                         if len(docx_text) > 200:
                             preview += (
-                                f"\n\nDOCX Content Preview:\n"
-                                f"{docx_text[:500]}..."
+                                f"\n\nDOCX Content Preview:\n" f"{docx_text[:500]}..."
                             )
                         else:
                             preview += f"\n\nDOCX Content:\n{docx_text}"
@@ -115,11 +113,6 @@ class VotesDocxParser(ParserInterface):
         return None
 
     @classmethod
-    def parse(
-        cls, _base_url: str, candidate: ParserInterface.DiscoveryResult
-    ) -> dict:
+    def parse(cls, _base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """Parse the vote DOCX."""
-        return {
-            "location": cls.location,
-            "source_url": candidate.source_url
-        }
+        return {"location": cls.location, "source_url": candidate.source_url}
