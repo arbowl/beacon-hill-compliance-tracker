@@ -301,18 +301,27 @@ class ReportedOutRequirementRule(ComplianceRule):
     ) -> RuleResult:
         c = Constants194()
         today = date.today()
-        if status.hearing_date is None:
+        hearing_date = status.hearing_date
+        referred_date = status.referred_date
+        if hearing_date is None and not (
+            context.bill_type != BillType.HOUSE
+            and context.committee_type == CommitteeType.JOINT
+            and referred_date is not None
+        ):
             return RuleResult(
                 passed=Status.UNKNOWN,
                 reason="No hearing scheduled - cannot evaluate deadline",
                 is_core_requirement=True,
             )
-        hearing_date = status.hearing_date
-        referred_date = status.referred_date or hearing_date
+        if referred_date is None:
+            referred_date = hearing_date
         deadline_60: date
         deadline_90: date
         if context.committee_id == "J24":
-            if status.referred_date and status.referred_date <= c.hcf_december_deadline:
+            if status.referred_date and status.referred_date > c.third_wednesday_march:
+                deadline_60 = c.last_wednesday_may
+                deadline_90 = deadline_60
+            elif status.referred_date and status.referred_date <= c.hcf_december_deadline:
                 deadline_60 = c.last_wednesday_january
                 deadline_90 = deadline_60
             elif status.referred_date:
