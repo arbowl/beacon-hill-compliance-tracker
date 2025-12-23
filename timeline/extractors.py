@@ -40,9 +40,7 @@ def extract_date(match: re.Match, data: dict[str, Any]) -> Optional[str]:
     return None
 
 
-def extract_committee_name(
-    match: re.Match, data: dict[str, Any]
-) -> Optional[str]:
+def extract_committee_name(match: re.Match, data: dict[str, Any]) -> Optional[str]:
     """Extract committee name from match.
     Args:
         match: Regex match object
@@ -57,9 +55,7 @@ def extract_committee_name(
     return None
 
 
-def extract_bill_id(
-    match: re.Match, data: dict[str, Any]
-) -> Optional[str]:
+def extract_bill_id(match: re.Match, data: dict[str, Any]) -> Optional[str]:
     """Extract and normalize a bill ID.
 
     Args:
@@ -79,9 +75,7 @@ def extract_bill_id(
     return normalized
 
 
-def extract_sections(
-    match: re.Match, data: dict[str, Any]
-) -> Optional[str]:
+def extract_sections(match: re.Match, data: dict[str, Any]) -> Optional[str]:
     """Extract section references from action text.
 
     Args:
@@ -98,7 +92,7 @@ def extract_sections(
     full_text = match.group(0)
     section_pattern = re.compile(
         r"sections? (\d+(?:\s+to\s+\d+)?(?:,\s*(?:inclusive,?\s*)?(?:and\s+)?\d+(?:\s+to\s+\d+)?)*)",
-        re.I
+        re.I,
     )
     m = section_pattern.search(full_text)
     if m:
@@ -106,9 +100,7 @@ def extract_sections(
     return None
 
 
-def extract_time_range(
-    match: re.Match, data: dict[str, Any]
-) -> Optional[str]:
+def extract_time_range(match: re.Match, data: dict[str, Any]) -> Optional[str]:
     """Extract time range from hearing actions.
 
     Args:
@@ -127,9 +119,7 @@ def extract_time_range(
     return None
 
 
-def extract_location(
-    match: re.Match, data: dict[str, Any]
-) -> Optional[str]:
+def extract_location(match: re.Match, data: dict[str, Any]) -> Optional[str]:
     """Extract hearing location.
 
     Args:
@@ -145,9 +135,7 @@ def extract_location(
     return None
 
 
-def extract_legislator_name(
-    match: re.Match, data: dict[str, Any]
-) -> Optional[str]:
+def extract_legislator_name(match: re.Match, data: dict[str, Any]) -> Optional[str]:
     """Extract legislator name from actions (e.g., amendments).
 
     Args:

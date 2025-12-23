@@ -13,6 +13,7 @@ from components.committees import get_committees
 from components.interfaces import _fetch_html
 from components.models import ExtensionOrder, Committee
 from components.interfaces import Config, get_user_agent
+
 if TYPE_CHECKING:
     from components.utils import Cache
 
@@ -22,21 +23,15 @@ def _extract_extension_date(text: str) -> Optional[date]:
     # Common date patterns in extension orders
     date_patterns = [
         # "Wednesday, December 3, 2025"
-        (
-            r'\b([A-Za-z]+day,?\s+[A-Za-z]+\s+\d{1,2},?\s+\d{4})\b',
-            '%A, %B %d, %Y'
-        ),
-        (
-            r'\b([A-Za-z]+day,?\s+[A-Za-z]+\s+\d{1,2}\s+\d{4})\b',
-            '%A, %B %d %Y'
-        ),
+        (r"\b([A-Za-z]+day,?\s+[A-Za-z]+\s+\d{1,2},?\s+\d{4})\b", "%A, %B %d, %Y"),
+        (r"\b([A-Za-z]+day,?\s+[A-Za-z]+\s+\d{1,2}\s+\d{4})\b", "%A, %B %d %Y"),
         # "December 3, 2025"
-        (r'\b([A-Za-z]+\s+\d{1,2},?\s+\d{4})\b', '%B %d, %Y'),
-        (r'\b([A-Za-z]+\s+\d{1,2}\s+\d{4})\b', '%B %d %Y'),
+        (r"\b([A-Za-z]+\s+\d{1,2},?\s+\d{4})\b", "%B %d, %Y"),
+        (r"\b([A-Za-z]+\s+\d{1,2}\s+\d{4})\b", "%B %d %Y"),
         # "12/3/2025" or "12/03/2025"
-        (r'\b(\d{1,2}/\d{1,2}/\d{4})\b', '%m/%d/%Y'),
+        (r"\b(\d{1,2}/\d{1,2}/\d{4})\b", "%m/%d/%Y"),
         # "2025-12-03"
-        (r'\b(\d{4}-\d{1,2}-\d{1,2})\b', '%Y-%m-%d'),
+        (r"\b(\d{4}-\d{1,2}-\d{1,2})\b", "%Y-%m-%d"),
     ]
     for pattern, fmt in date_patterns:
         matches = re.findall(pattern, text, re.I)
@@ -55,17 +50,12 @@ def _extract_committee_from_text(
     """Extract committee ID from extension order text."""
     # Look for committee patterns in the text
     committee_patterns = [
-        r'committee on ([^,\n]+)',
-        r'Joint Committee on ([^,\n]+)',
-        r'Committee on ([^,\n]+)',
+        r"committee on ([^,\n]+)",
+        r"Joint Committee on ([^,\n]+)",
+        r"Committee on ([^,\n]+)",
     ]
-    committees: list[Committee] = get_committees(
-        base_url,
-        ("House", "Joint", "Senate")
-    )
-    committee_mapping = {
-        committee.name: committee.id for committee in committees
-    }
+    committees: list[Committee] = get_committees(base_url, ("House", "Joint", "Senate"))
+    committee_mapping = {committee.name: committee.id for committee in committees}
     for pattern in committee_patterns:
         match = re.search(pattern, text, re.I)
         if not match:
@@ -106,8 +96,7 @@ def _extract_bill_numbers_from_text(text: str) -> list[str]:
         r"current\s+(House|Senate|Joint)\s+document\s+numbered\s+(\d+)",
         r"current\s+(House|Senate|Joint)\s+document\s+No\.?\s*(\d+)",
         # Multiple documents: "current House documents numbered 2065, 2080,..."
-        r"current\s+(House|Senate|Joint)\s+documents\s+"
-        r"numbered\s+([\d,\s\sand]+)",
+        r"current\s+(House|Senate|Joint)\s+documents\s+" r"numbered\s+([\d,\s\sand]+)",
     ]
     for pattern in patterns:
         matches = re.finditer(pattern, text, re.IGNORECASE)
@@ -127,9 +116,7 @@ def _extract_bill_numbers_from_text(text: str) -> list[str]:
             if "," in doc_numbers_str or " and " in doc_numbers_str:
                 # Split by comma and "and", then clean up each number
                 parts = re.split(r",\s*|\s+and\s+", doc_numbers_str)
-                doc_numbers = [
-                    num.strip() for num in parts if num.strip().isdigit()
-                ]
+                doc_numbers = [num.strip() for num in parts if num.strip().isdigit()]
             else:
                 # Single document number
                 doc_numbers = [doc_numbers_str.strip()]
@@ -143,8 +130,11 @@ def _extract_bill_numbers_from_text(text: str) -> list[str]:
 
 
 def _parse_extension_order_page(
-    _base_url: str, order_url: str, html_text: Optional[str] = None,
-    cache: Optional["Cache"] = None, config: Optional["Config"] = None
+    _base_url: str,
+    order_url: str,
+    html_text: Optional[str] = None,
+    cache: Optional["Cache"] = None,
+    config: Optional["Config"] = None,
 ) -> list[ExtensionOrder]:
     """Parse a single extension order page to extract details for all bills
     mentioned.
@@ -161,10 +151,7 @@ def _parse_extension_order_page(
         if html_text is None:
             if cache and config:
                 html_text = _fetch_html(
-                    order_url,
-                    timeout=10,
-                    cache=cache,
-                    config=config
+                    order_url, timeout=10, cache=cache, config=config
                 )
             else:
                 # Fallback to non-cached fetch if no cache provided
@@ -193,15 +180,11 @@ def _parse_extension_order_page(
         # Extract all bill numbers mentioned in the text
         bill_numbers = _extract_bill_numbers_from_text(text)
         if not bill_numbers:
-            print(
-                f"No bill numbers found in extension order text: {order_url}"
-            )
+            print(f"No bill numbers found in extension order text: {order_url}")
             # Fallback: extract bill ID from the order URL itself
             bill_id_from_url = _extract_bill_id_from_order_url(order_url)
             if bill_id_from_url:
-                print(
-                    f"  Fallback: Using bill ID from URL: {bill_id_from_url}"
-                )
+                print(f"  Fallback: Using bill ID from URL: {bill_id_from_url}")
                 bill_numbers = [bill_id_from_url]
                 # Mark this as a fallback case
                 is_fallback = True
@@ -213,16 +196,18 @@ def _parse_extension_order_page(
         # Create ExtensionOrder objects for each bill mentioned
         extension_orders = []
         for bill_id in bill_numbers:
-            extension_orders.append(ExtensionOrder(
-                bill_id=bill_id,
-                committee_id=committee_id,
-                extension_date=extension_date,
-                extension_order_url=order_url,
-                order_type=order_type,
-                discovered_at=datetime.now(),
-                is_fallback=is_fallback,
-                is_date_fallback=is_date_fallback
-            ))
+            extension_orders.append(
+                ExtensionOrder(
+                    bill_id=bill_id,
+                    committee_id=committee_id,
+                    extension_date=extension_date,
+                    extension_order_url=order_url,
+                    order_type=order_type,
+                    discovered_at=datetime.now(),
+                    is_fallback=is_fallback,
+                    is_date_fallback=is_date_fallback,
+                )
+            )
         return extension_orders
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(f"Error parsing extension order {order_url}: {e}")
@@ -230,9 +215,7 @@ def _parse_extension_order_page(
 
 
 def collect_all_extension_orders(
-    base_url: str,
-    cache: Optional[Cache] = None,
-    config: Optional[Config] = None
+    base_url: str, cache: Optional[Cache] = None, config: Optional[Config] = None
 ) -> list[ExtensionOrder]:
     """Collect all extension orders from the Massachusetts Legislature website.
 
@@ -260,20 +243,15 @@ def collect_all_extension_orders(
                     cache=cache,
                     config=config,
                     params=params,
-                    headers={"User-Agent": get_user_agent()}
+                    headers={"User-Agent": get_user_agent()},
                 )
                 soup = BeautifulSoup(html_text, "html.parser")
                 # Find all bill links on this page that might have
                 # extension orders
                 # We'll check each bill for extension orders
-                bill_links = soup.find_all(
-                    "a", href=re.compile(r"/Bills/\d+/(H|S)\d+")
-                )
+                bill_links = soup.find_all("a", href=re.compile(r"/Bills/\d+/(H|S)\d+"))
                 if not bill_links:
-                    print(
-                        f"No more bill links found on {search_type} page "
-                        f"{page}"
-                    )
+                    print(f"No more bill links found on {search_type} page " f"{page}")
                     break
                 print(
                     f"Found {len(bill_links)} total bill links on "
@@ -285,10 +263,7 @@ def collect_all_extension_orders(
                 ]
                 # Check if we're getting duplicate content (first 10 links
                 # are the same)
-                if (
-                    current_first_10_links == previous_first_10_links
-                    and page > 1
-                ):
+                if current_first_10_links == previous_first_10_links and page > 1:
                     duplicate_page_count += 1
                     if duplicate_page_count >= 1:
                         print(
@@ -301,7 +276,7 @@ def collect_all_extension_orders(
                     duplicate_page_count = 0
                 previous_first_10_links = current_first_10_links
                 for link in bill_links:
-                    if hasattr(link, 'get'):
+                    if hasattr(link, "get"):
                         href = link.get("href", "")
                     else:
                         href = ""
@@ -313,9 +288,7 @@ def collect_all_extension_orders(
                     if not bill_match:
                         continue
                     bill_id = bill_match.group(1)
-                    chamber = (
-                        "House" if bill_id.startswith("H") else "Senate"
-                    )
+                    chamber = "House" if bill_id.startswith("H") else "Senate"
                     # Construct the Order/Text URL
                     order_url = f"{bill_url}/{chamber}/Order/Text"
                     # Check if this extension order exists by trying to
@@ -323,10 +296,7 @@ def collect_all_extension_orders(
                     try:
                         # Fetch the HTML once - it will be cached and reused
                         html_text = _fetch_html(
-                            order_url,
-                            timeout=10,
-                            cache=cache,
-                            config=config
+                            order_url, timeout=10, cache=cache, config=config
                         )
                     # pylint: disable=broad-exception-caught
                     except Exception:
@@ -336,8 +306,11 @@ def collect_all_extension_orders(
                     # This avoids double-fetching and ensures persistent
                     # caching
                     order_results = _parse_extension_order_page(
-                        base_url, order_url, html_text=html_text,
-                        cache=cache, config=config
+                        base_url,
+                        order_url,
+                        html_text=html_text,
+                        cache=cache,
+                        config=config,
                     )
                     for extension_order in order_results:
                         extension_orders.append(extension_order)
@@ -359,18 +332,15 @@ def collect_all_extension_orders(
                             cache.set_extension(
                                 extension_order.bill_id,
                                 extension_order.extension_date.isoformat(),
-                                extension_order.extension_order_url
+                                extension_order.extension_order_url,
                             )
                             print(
-                                f"  Cached extension for "
-                                f"{extension_order.bill_id}"
+                                f"  Cached extension for " f"{extension_order.bill_id}"
                             )
                             # For fallback cases, also add the bill to
                             # cache with extensions field
                             if extension_order.is_fallback:
-                                cache.add_bill_with_extensions(
-                                    extension_order.bill_id
-                                )
+                                cache.add_bill_with_extensions(extension_order.bill_id)
                 page += 1
             # pylint: disable=broad-exception-caught
             except Exception as e:

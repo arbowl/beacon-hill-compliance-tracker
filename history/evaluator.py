@@ -16,11 +16,7 @@ class BillArtifactEvaluator:
     @staticmethod
     def reconstitute_to_status(artifact: BillArtifact) -> BillStatus:
         """Reconstitute the status of a bill from an artifact."""
-        hearing = (
-            artifact.hearing_records[0]
-            if artifact.hearing_records
-            else None
-        )
+        hearing = artifact.hearing_records[0] if artifact.hearing_records else None
         reported_date: Optional[date] = None
         for action in artifact.timeline_actions:
             if action.action_type == ActionType.REPORTED:
@@ -47,16 +43,16 @@ class BillArtifactEvaluator:
         )
 
     @staticmethod
-    def reconstitute_documents(
-        artifact: BillArtifact
-    ) -> tuple[SummaryInfo, VoteInfo]:
+    def reconstitute_documents(artifact: BillArtifact) -> tuple[SummaryInfo, VoteInfo]:
         """Reconstitute the documents of a bill from an artifact."""
         summary_docs = [
-            d for d in artifact.document_artifacts
+            d
+            for d in artifact.document_artifacts
             if d.document_type == DocumentType.SUMMARY
         ]
         vote_docs = [
-            d for d in artifact.document_artifacts
+            d
+            for d in artifact.document_artifacts
             if d.document_type == DocumentType.VOTES
         ]
         if summary_docs:
@@ -70,10 +66,7 @@ class BillArtifactEvaluator:
             )
         else:
             summary = SummaryInfo(
-                present=False,
-                location="",
-                source_url=None,
-                parser_module=None
+                present=False, location="", source_url=None, parser_module=None
             )
         if vote_docs:
             v = vote_docs[0]
@@ -95,17 +88,13 @@ class BillArtifactEvaluator:
             )
         else:
             votes = VoteInfo(
-                present=False,
-                location="",
-                source_url=None,
-                parser_module=None
+                present=False, location="", source_url=None, parser_module=None
             )
         return summary, votes
 
     @staticmethod
     def recompute_compliance(
-        artifact: BillArtifact,
-        _ruleset_version: str = "194.v1"
+        artifact: BillArtifact, _ruleset_version: str = "194.v1"
     ) -> BillCompliance:
         """Recompute the compliance of a bill from an artifact."""
         status = BillArtifactEvaluator.reconstitute_to_status(artifact)

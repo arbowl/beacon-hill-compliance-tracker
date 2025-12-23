@@ -42,11 +42,12 @@ def real_bills():
 @pytest.fixture
 def mock_today():
     """Allow tests to control the 'current date'."""
+
     def _mock_today(target_date: date):
         """Mock date.today() to return target_date."""
-        with patch('components.ruleset.date') as mock_date:
+        with patch("components.ruleset.date") as mock_date:
             mock_date.today.return_value = target_date
             mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
             return mock_date
-    return _mock_today
 
+    return _mock_today

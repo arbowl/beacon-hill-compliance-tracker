@@ -48,6 +48,7 @@ def extract_session_from_bill_url(bill_url: str) -> Optional[str]:
 
 class TimeInterval(IntEnum):
     """Time intervals for compliance delta calculations."""
+
     DAILY = 1
     WEEKLY = 7
     MONTHLY = 30
@@ -59,9 +60,7 @@ class TimeInterval(IntEnum):
 class Cache:
     """Cache for the parser results."""
 
-    def __init__(
-        self, path: Path = _DEFAULT_PATH, auto_save: bool = True
-    ) -> None:
+    def __init__(self, path: Path = _DEFAULT_PATH, auto_save: bool = True) -> None:
         self.path: Path = path
         self.data: dict[str, Any] = {}
         self.auto_save: bool = auto_save
@@ -101,7 +100,7 @@ class Cache:
         # Use compact JSON (no indent) for faster writes with large cache
         # File size: ~2.3MB vs ~4.7MB, Write speed: 2x faster
         self.path.write_text(
-            json.dumps(self.data, separators=(',', ':')), encoding="utf-8"
+            json.dumps(self.data, separators=(",", ":")), encoding="utf-8"
         )
 
     def get_session(self) -> Optional[str]:
@@ -124,11 +123,9 @@ class Cache:
 
         # Write current cache data to archive
         archive_path.write_text(
-            json.dumps(self.data, separators=(',', ':')), encoding="utf-8"
+            json.dumps(self.data, separators=(",", ":")), encoding="utf-8"
         )
-        logger.info(
-            "Archived cache from session %s to %s", session, archive_path
-        )
+        logger.info("Archived cache from session %s to %s", session, archive_path)
 
     def ensure_session(self, current_session: str) -> None:
         """Ensure cache is set to the current session, archiving if needed.
@@ -153,7 +150,8 @@ class Cache:
                 logger.info(
                     "Session mismatch detected: cache has %s, current is %s. "
                     "Archiving old cache.",
-                    stored_session, current_session
+                    stored_session,
+                    current_session,
                 )
                 self._archive_cache(stored_session)
 
@@ -161,9 +159,7 @@ class Cache:
                 self.data = {"session": current_session}
                 self._committee_bills_cache = {}
                 self.save()
-                logger.info(
-                    "Started fresh cache for session %s", current_session
-                )
+                logger.info("Started fresh cache for session %s", current_session)
             # If sessions match, do nothing
 
     def get_parser(self, bill_id: str, kind: str) -> Optional[str]:
@@ -195,9 +191,7 @@ class Cache:
             slot[kind] = {
                 "module": module_name,
                 "confirmed": bool(confirmed),
-                "updated_at": datetime.utcnow().isoformat(
-                    timespec="seconds"
-                ) + "Z",
+                "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             }
             self.save()
 
@@ -215,7 +209,7 @@ class Cache:
         module_name: str,
         result_data: dict,
         *,
-        confirmed: bool
+        confirmed: bool,
     ) -> None:
         """Set result data + module + confirmation flag in the new schema."""
         with self._lock:
@@ -224,16 +218,12 @@ class Cache:
                 "module": module_name,
                 "confirmed": bool(confirmed),
                 "result": result_data,
-                "updated_at": datetime.utcnow().isoformat(
-                    timespec="seconds"
-                ) + "Z",
+                "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             }
             self.save()
 
     def _slot(self, bill_id: str) -> dict[str, Any]:
-        return self.data.setdefault(
-            "bill_parsers", {}
-        ).setdefault(bill_id, {})
+        return self.data.setdefault("bill_parsers", {}).setdefault(bill_id, {})
 
     def get_extension(self, bill_id: str) -> Optional[dict]:
         """Return cached extension data for a bill (or None)."""
@@ -251,9 +241,8 @@ class Cache:
             slot["extensions"] = {
                 "extension_date": extension_date,
                 "extension_url": extension_url,
-                "updated_at": datetime.now(timezone.utc).isoformat(
-                    timespec="seconds"
-                ) + "Z",
+                "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds")
+                + "Z",
             }
             self.save()
 
@@ -269,7 +258,7 @@ class Cache:
         bill_id: str,
         announcement_date: Optional[str],
         scheduled_hearing_date: Optional[str],
-        bill_url: Optional[str] = None
+        bill_url: Optional[str] = None,
     ) -> None:
         """Set hearing announcement data for a bill."""
         with self._lock:
@@ -279,9 +268,8 @@ class Cache:
             slot["hearing_announcement"] = {
                 "announcement_date": announcement_date,
                 "scheduled_hearing_date": scheduled_hearing_date,
-                "updated_at": datetime.now(timezone.utc).isoformat(
-                    timespec="seconds"
-                ) + "Z",
+                "updated_at": datetime.now(timezone.utc).isoformat(timespec="seconds")
+                + "Z",
             }
             self.save()
 
@@ -310,9 +298,7 @@ class Cache:
             slot = self._slot(bill_id)
             slot["extensions"] = {
                 "is_fallback": True,
-                "updated_at": datetime.utcnow().isoformat(
-                    timespec="seconds"
-                ) + "Z",
+                "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             }
             self.save()
 
@@ -320,18 +306,14 @@ class Cache:
         """Return cached committee contact info (or None)."""
         return self.data.get("committee_contacts", {}).get(committee_id)
 
-    def set_committee_contact(
-        self, committee_id: str, contact_data: dict
-    ) -> None:
+    def set_committee_contact(self, committee_id: str, contact_data: dict) -> None:
         """Set committee contact data in cache."""
         with self._lock:
             if "committee_contacts" not in self.data:
                 self.data["committee_contacts"] = {}
             self.data["committee_contacts"][committee_id] = {
                 **contact_data,
-                "updated_at": datetime.utcnow().isoformat(
-                    timespec="seconds"
-                ) + "Z",
+                "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             }
             self.save()
 
@@ -350,9 +332,7 @@ class Cache:
             slot = self._slot(bill_id)
             slot["title"] = {
                 "value": title,
-                "updated_at": (
-                    datetime.utcnow().isoformat(timespec="seconds") + "Z"
-                ),
+                "updated_at": (datetime.utcnow().isoformat(timespec="seconds") + "Z"),
             }
             self.save()
 
@@ -361,9 +341,7 @@ class Cache:
         return {
             "module": module_name,
             "confirmed": False,
-            "updated_at": datetime.utcnow().isoformat(
-                timespec="seconds"
-            ) + "Z",
+            "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         }
 
     def search_for_keyword(self, keyword: str) -> bool:
@@ -373,9 +351,7 @@ class Cache:
         content = self.path.read_text(encoding="utf-8")
         return keyword.lower() in content.lower()
 
-    def add_bill_to_committee(
-        self, committee_id: str, bill_id: str
-    ) -> None:
+    def add_bill_to_committee(self, committee_id: str, bill_id: str) -> None:
         """Track which bills belong to each committee.
 
         Args:
@@ -391,10 +367,9 @@ class Cache:
             if bill_id not in self._committee_bills_cache[committee_id]:
                 self._committee_bills_cache[committee_id].add(bill_id)
                 committee_bills = self.data.setdefault("committee_bills", {})
-                committee_data = committee_bills.setdefault(committee_id, {
-                    "bills": [],
-                    "bill_count": 0
-                })
+                committee_data = committee_bills.setdefault(
+                    committee_id, {"bills": [], "bill_count": 0}
+                )
                 # Ensure bills is a list (handle old dict format)
                 if not isinstance(committee_data.get("bills"), list):
                     committee_data["bills"] = []
@@ -425,9 +400,7 @@ class Cache:
             bills = []
         return bills
 
-    def get_committee_parsers(
-        self, committee_id: str, parser_type: str
-    ) -> list[str]:
+    def get_committee_parsers(self, committee_id: str, parser_type: str) -> list[str]:
         """Return list of parser modules that have worked for this committee.
 
         Returns them ordered by:
@@ -437,9 +410,9 @@ class Cache:
         This allows the system to detect when a committee shifts their
         document practices to a new parser.
         """
-        committee_data = self.data.setdefault(
-            "committee_parsers", {}
-        ).get(committee_id, {})
+        committee_data = self.data.setdefault("committee_parsers", {}).get(
+            committee_id, {}
+        )
         parser_stats = committee_data.get(parser_type, {})
         if not parser_stats:
             return []
@@ -451,11 +424,7 @@ class Cache:
             has_active_streak = 1 if streak >= 2 else 0
             return (has_active_streak, count)
 
-        sorted_parsers = sorted(
-            parser_stats.items(),
-            key=_sort_key,
-            reverse=True
-        )
+        sorted_parsers = sorted(parser_stats.items(), key=_sort_key, reverse=True)
         return [module_name for module_name, _ in sorted_parsers]
 
     def record_committee_parser(
@@ -467,9 +436,7 @@ class Cache:
         a committee shifts to consistently using a different parser.
         """
         with self._lock:
-            committee_parsers = self.data.setdefault(
-                "committee_parsers", {}
-            )
+            committee_parsers = self.data.setdefault("committee_parsers", {})
             committee_data = committee_parsers.setdefault(committee_id, {})
             parser_type_data = committee_data.setdefault(parser_type, {})
             last_parser = committee_data.get(f"{parser_type}_last_parser")
@@ -477,9 +444,7 @@ class Cache:
                 parser_type_data[module_name] = {
                     "count": 0,
                     "current_streak": 0,
-                    "first_seen": datetime.utcnow().isoformat(
-                        timespec="seconds"
-                    ) + "Z",
+                    "first_seen": datetime.utcnow().isoformat(timespec="seconds") + "Z",
                 }
             parser_type_data[module_name]["count"] += 1
             parser_type_data[module_name]["last_used"] = (
@@ -504,25 +469,20 @@ class Cache:
                 "metadata": {
                     "total_documents": 0,
                     "total_size_bytes": 0,
-                    "last_cleanup": datetime.utcnow().isoformat(
-                        timespec="seconds"
-                    ) + "Z"
-                }
+                    "last_cleanup": datetime.utcnow().isoformat(timespec="seconds")
+                    + "Z",
+                },
             }
         # Ensure by_url and by_content_hash are dicts (fix corrupted data)
         if not isinstance(self.data["document_cache"].get("by_url"), dict):
             self.data["document_cache"]["by_url"] = {}
-        if not isinstance(
-            self.data["document_cache"].get("by_content_hash"), dict
-        ):
+        if not isinstance(self.data["document_cache"].get("by_content_hash"), dict):
             self.data["document_cache"]["by_content_hash"] = {}
         if "metadata" not in self.data["document_cache"]:
             self.data["document_cache"]["metadata"] = {
                 "total_documents": 0,
                 "total_size_bytes": 0,
-                "last_cleanup": datetime.utcnow().isoformat(
-                    timespec="seconds"
-                ) + "Z"
+                "last_cleanup": datetime.utcnow().isoformat(timespec="seconds") + "Z",
             }
 
     @staticmethod
@@ -535,10 +495,7 @@ class Cache:
         """Determine file extension from content type or URL."""
         if "pdf" in content_type.lower():
             return "pdf"
-        elif (
-            "wordprocessing" in content_type.lower()
-            or "docx" in content_type.lower()
-        ):
+        elif "wordprocessing" in content_type.lower() or "docx" in content_type.lower():
             return "docx"
         elif "msword" in content_type.lower() or "doc" in content_type.lower():
             return "doc"
@@ -567,7 +524,7 @@ class Cache:
             logger.warning(
                 "Invalid cache entry type for URL %s: %s, removing",
                 url,
-                type(cache_entry).__name__
+                type(cache_entry).__name__,
             )
             del self.data["document_cache"]["by_url"][url]
             self.save()
@@ -581,9 +538,7 @@ class Cache:
                 last_validated_dt = datetime.fromisoformat(
                     last_validated.replace("Z", "+00:00")
                 )
-                age_days = (
-                    datetime.now(timezone.utc) - last_validated_dt
-                ).days
+                age_days = (datetime.now(timezone.utc) - last_validated_dt).days
                 if age_days > config.document_cache.validate_after_days:
                     return None
             except (ValueError, AttributeError):
@@ -599,7 +554,7 @@ class Cache:
         etag: Optional[str] = None,
         last_modified: Optional[str] = None,
         bill_id: Optional[str] = None,
-        document_purpose: Optional[str] = None
+        document_purpose: Optional[str] = None,
     ) -> dict:
         """Cache a document with content-addressed storage."""
         with self._lock:
@@ -620,29 +575,29 @@ class Cache:
                 "file_size_bytes": len(content),
                 "first_downloaded": (
                     existing_entry.get("first_downloaded", now)
-                    if existing_entry else now
+                    if existing_entry
+                    else now
                 ),
                 "last_accessed": now,
                 "last_validated": now,
                 "access_count": (
-                    existing_entry.get("access_count", 0) + 1
-                    if existing_entry else 1
+                    existing_entry.get("access_count", 0) + 1 if existing_entry else 1
                 ),
                 "cached_file_path": str(cached_file_path),
                 "etag": etag,
                 "last_modified": last_modified,
                 "bill_ids": (
                     list(existing_entry.get("bill_ids", []))
-                    if existing_entry and isinstance(
-                        existing_entry.get("bill_ids"), list
-                    ) else (
+                    if existing_entry
+                    and isinstance(existing_entry.get("bill_ids"), list)
+                    else (
                         list(existing_entry.get("bill_ids", {}).keys())
-                        if existing_entry and isinstance(
-                            existing_entry.get("bill_ids"), dict
-                        ) else []
+                        if existing_entry
+                        and isinstance(existing_entry.get("bill_ids"), dict)
+                        else []
                     )
                 ),
-                "document_purpose": document_purpose
+                "document_purpose": document_purpose,
             }
             # Ensure bill_ids is a list (handle old dict format)
             bill_ids = cache_entry.get("bill_ids", [])
@@ -654,18 +609,10 @@ class Cache:
             if bill_id and bill_id not in cache_entry["bill_ids"]:  # type: ignore  # noqa: E501
                 cache_entry["bill_ids"].append(bill_id)  # type: ignore
             self.data["document_cache"]["by_url"][url] = cache_entry
-            if content_hash not in self.data[
-                "document_cache"
-            ]["by_content_hash"]:
-                self.data[
-                    "document_cache"
-                ]["by_content_hash"][content_hash] = []
-            if url not in self.data["document_cache"][
-                "by_content_hash"
-            ][content_hash]:
-                self.data["document_cache"][
-                    "by_content_hash"
-                ][content_hash].append(url)
+            if content_hash not in self.data["document_cache"]["by_content_hash"]:
+                self.data["document_cache"]["by_content_hash"][content_hash] = []
+            if url not in self.data["document_cache"]["by_content_hash"][content_hash]:
+                self.data["document_cache"]["by_content_hash"][content_hash].append(url)
             self.data["document_cache"]["metadata"]["total_documents"] = len(
                 self.data["document_cache"]["by_url"]
             )
@@ -676,9 +623,7 @@ class Cache:
                 if ch and ch not in seen_hashes:
                     seen_hashes.add(ch)
                     total_size += entry.get("file_size_bytes", 0)
-            self.data["document_cache"]["metadata"]["total_size_bytes"] = (
-                total_size
-            )
+            self.data["document_cache"]["metadata"]["total_size_bytes"] = total_size
             self.save()
             return cache_entry
 
@@ -696,18 +641,12 @@ class Cache:
             cache_entry["last_accessed"] = (
                 datetime.utcnow().isoformat(timespec="seconds") + "Z"
             )
-            cache_entry["access_count"] = (
-                cache_entry.get("access_count", 0)
-                + 1
-            )
+            cache_entry["access_count"] = cache_entry.get("access_count", 0) + 1
             self.save()
         return cached_file_path.read_bytes()
 
     def cache_extracted_text(
-        self,
-        content_hash: str,
-        extracted_text: str,
-        config: Config
+        self, content_hash: str, extracted_text: str, config: Config
     ) -> None:
         """Cache extracted text from a document."""
         if not config.document_cache.store_extracted_text:
@@ -718,9 +657,7 @@ class Cache:
         extracted_file_path.write_text(extracted_text, encoding="utf-8")
 
     def get_cached_extracted_text(
-        self,
-        content_hash: str,
-        config: Optional[Config] = None
+        self, content_hash: str, config: Optional[Config] = None
     ) -> Optional[str]:
         """Get cached extracted text if available."""
         if not config or not config.document_cache.store_extracted_text:
@@ -740,14 +677,8 @@ class Cache:
         """Clean up old or oversized cache entries."""
         with self._lock:
             self._ensure_document_cache_structure()
-            stats = {
-                "documents_removed": 0,
-                "bytes_freed": 0,
-                "files_deleted": 0
-            }
-            last_cleanup = (
-                self.data["document_cache"]["metadata"].get("last_cleanup")
-            )
+            stats = {"documents_removed": 0, "bytes_freed": 0, "files_deleted": 0}
+            last_cleanup = self.data["document_cache"]["metadata"].get("last_cleanup")
             if not force and last_cleanup:
                 try:
                     last_cleanup_dt = datetime.fromisoformat(
@@ -782,19 +713,14 @@ class Cache:
                 if cached_file_path:
                     files_to_delete.add(cached_file_path)
                 content_hash = entry.get("content_hash")
-                if content_hash in (
-                    self.data["document_cache"]["by_content_hash"]
-                ):
-                    hash_urls = (
-                        self.data["document_cache"]["by_content_hash"]
-                        [content_hash]
-                    )
+                if content_hash in (self.data["document_cache"]["by_content_hash"]):
+                    hash_urls = self.data["document_cache"]["by_content_hash"][
+                        content_hash
+                    ]
                     if url in hash_urls:
                         hash_urls.remove(url)
                     if not hash_urls:
-                        del self.data["document_cache"]["by_content_hash"][
-                            content_hash
-                        ]
+                        del self.data["document_cache"]["by_content_hash"][content_hash]
             for file_path_str in files_to_delete:
                 file_path = Path(file_path_str)
                 content_hash_from_path = file_path.stem
@@ -820,7 +746,9 @@ def compute_deadlines(
     hearing_date: Optional[date],
     extension_until: Optional[date] = None,
     bill_id: Optional[str] = None,
-    session: Optional[str] = None
+    session: Optional[str] = None,
+    referred_date: Optional[date] = None,
+    committee_id: Optional[str] = None,
 ) -> tuple[Optional[date], Optional[date], Optional[date]]:
     """Return (deadline_60, deadline_90, effective_deadline).
 
@@ -831,6 +759,10 @@ def compute_deadlines(
                  if Senate bill rules apply
         session: Optional session number (e.g., "194") - used to look up
                  session-specific Wednesday deadlines
+        referred_date: Date bill was referred to committee (for Senate bill
+                       referral-based deadlines per Joint Rule 10)
+        committee_id: Committee identifier (e.g., "J33") - used to determine
+                      if joint committee rules apply
 
     Returns:
         Tuple of (deadline_60, deadline_90, effective_deadline)
@@ -838,24 +770,60 @@ def compute_deadlines(
 
     Rules:
         - House bills: 60 days from hearing + optional 30-day extension
-          (90 max)
-        - Senate bills: First Wednesday in December + optional 30-day
-          extension
+          (90 max, capped at March deadline for late-session hearings)
+        - Senate bills in joint committees (Joint Rule 10):
+          * Referred before Oct 1: First Wednesday in December deadline
+          * Referred on/after Oct 1: 60 days from referral date
+        - Senate bills in other committees: Session-specific Wednesday deadline
     """
     if hearing_date is None:
         return None, None, None
-    is_house_bill = bill_id and bill_id.upper().startswith('H')
+    is_house_bill = bill_id and bill_id.upper().startswith("H")
     if is_house_bill:
+        from components.ruleset import Constants194
+
+        c = Constants194()
         d60 = hearing_date + timedelta(days=60)
         d90 = hearing_date + timedelta(days=90)
+        if hearing_date >= c.third_wednesday_december:
+            if d90 > c.third_wednesday_march:
+                d90 = c.third_wednesday_march
     else:
-        # Senate bills use session-specific Wednesday deadline
-        d60 = SESSION_WEDNESDAY_DEADLINES[session]
-        d90 = d60 + timedelta(days=30)
+        from components.ruleset import Constants194
+
+        c = Constants194()
+        if committee_id == "J24":
+            if referred_date and referred_date < c.hcf_december_deadline:
+                d60 = c.last_wednesday_january
+                d90 = d60
+            elif referred_date:
+                d60 = referred_date + timedelta(days=60)
+                d90 = d60
+            else:
+                d60 = c.last_wednesday_january
+                d90 = d60
+        else:
+            is_joint_committee = committee_id and committee_id.upper().startswith("J")
+            if is_joint_committee and referred_date:
+                if referred_date >= c.senate_october_deadline:
+                    d60 = referred_date + timedelta(days=60)
+                    d90 = d60
+                else:
+                    d60 = SESSION_WEDNESDAY_DEADLINES[session]
+                    d90 = d60 + timedelta(days=30)
+            else:
+                d60 = SESSION_WEDNESDAY_DEADLINES[session]
+                d90 = d60 + timedelta(days=30)
     if not extension_until:
         return d60, d90, d60
-    effective = min(extension_until, d90)
-    effective = max(effective, d60)
+    is_hcf_committee = committee_id == "J24"
+    if is_hcf_committee:
+        return d60, d90, d60
+    if is_house_bill:
+        effective = min(extension_until, d90)
+        effective = max(effective, d60)
+    else:
+        effective = max(extension_until, d60)
     return d60, d90, effective
 
 
@@ -863,7 +831,7 @@ def ask_yes_no(
     prompt: str,
     url: Optional[str] = None,
     doc_type: str = "document",
-    bill_id: Optional[str] = None
+    bill_id: Optional[str] = None,
 ) -> bool:
     """
     Pop a minimal Tkinter yes/no dialog.
@@ -890,7 +858,7 @@ def ask_yes_no_console(
     prompt: str,
     url: Optional[str] = None,
     doc_type: str = "document",
-    bill_id: Optional[str] = None
+    bill_id: Optional[str] = None,
 ) -> bool:
     """
     Console-based yes/no confirmation dialog.
@@ -913,9 +881,9 @@ def ask_yes_no_console(
     while True:
         try:
             choice = input("Use this? (y/n): ").strip().lower()
-            if choice in ['y', 'yes']:
+            if choice in ["y", "yes"]:
                 return True
-            elif choice in ['n', 'no']:
+            elif choice in ["n", "no"]:
                 return False
             else:
                 print("Please enter 'y' for yes or 'n' for no.")
@@ -930,7 +898,7 @@ def ask_yes_no_with_preview_console(
     preview_text: str,
     url: Optional[str] = None,
     doc_type: str = "document",
-    bill_id: Optional[str] = None
+    bill_id: Optional[str] = None,
 ) -> bool:
     """
     Console-based yes/no confirmation with text preview.
@@ -951,11 +919,11 @@ def ask_yes_no_with_preview_console(
     print("\nPreview:")
     print("-" * 64)
     wrapped_lines = []
-    for line in preview_text.split('\n'):
+    for line in preview_text.split("\n"):
         if line.strip():
             wrapped_lines.extend(textwrap.wrap(line, width=80))
         else:
-            wrapped_lines.append('')
+            wrapped_lines.append("")
     display_lines = wrapped_lines[:20]
     for line in display_lines:
         print(line)
@@ -966,9 +934,9 @@ def ask_yes_no_with_preview_console(
     while True:
         try:
             choice = input("Use this? (y/n): ").strip().lower()
-            if choice in ['y', 'yes']:
+            if choice in ["y", "yes"]:
                 return True
-            elif choice in ['n', 'no']:
+            elif choice in ["n", "no"]:
                 return False
             else:
                 print("Please enter 'y' for yes or 'n' for no.")
@@ -978,10 +946,7 @@ def ask_yes_no_with_preview_console(
 
 
 def ask_llm_decision(
-    content: str,
-    doc_type: str,
-    bill_id: str,
-    config: Config
+    content: str, doc_type: str, bill_id: str, config: Config
 ) -> Optional[Literal["yes", "no", "unsure"]]:
     """
     Ask LLM to make a decision about document matching.
@@ -1009,7 +974,7 @@ def ask_yes_no_with_llm_fallback(
     url: Optional[str] = None,
     doc_type: str = "document",
     bill_id: Optional[str] = None,
-    config: Optional[Config] = None
+    config: Optional[Config] = None,
 ) -> bool:
     """
     Ask for yes/no confirmation with LLM fallback.
@@ -1030,9 +995,7 @@ def ask_yes_no_with_llm_fallback(
     """
     if config and bill_id:
         content = prompt if not url else f"{prompt}\n\n{url}"
-        llm_decision = ask_llm_decision(
-            content, doc_type, bill_id, config
-        )
+        llm_decision = ask_llm_decision(content, doc_type, bill_id, config)
         if llm_decision == "yes":
             return True
         if llm_decision == "no":
@@ -1063,7 +1026,7 @@ def ask_yes_no_with_preview_and_llm_fallback(
     url: str | None = None,
     doc_type: str = "document",
     bill_id: Optional[str] = None,
-    config: Optional[Config] = None
+    config: Optional[Config] = None,
 ) -> bool:
     """
     Ask for yes/no confirmation with preview and LLM fallback.
@@ -1086,9 +1049,7 @@ def ask_yes_no_with_preview_and_llm_fallback(
     """
     if config and bill_id:
         content = preview_text
-        llm_decision = ask_llm_decision(
-            content, doc_type, bill_id, config
-        )
+        llm_decision = ask_llm_decision(content, doc_type, bill_id, config)
         if llm_decision == "yes":
             return True
         if llm_decision == "no":
@@ -1127,7 +1088,7 @@ def ask_yes_no_with_preview(
     preview_text: str,
     url: str | None = None,
     doc_type: str = "document",
-    bill_id: Optional[str] = None
+    bill_id: Optional[str] = None,
 ) -> bool:
     """
     Ask for yes/no confirmation with preview.
@@ -1148,16 +1109,11 @@ def ask_yes_no_with_preview(
         frm = tk.Frame(root, padx=10, pady=10)
         frm.pack(fill="both", expand=True)
         if bill_id:
-            context_text = (
-                f"Looking for: {doc_type.title()} -- For bill: {bill_id}"
-            )
+            context_text = f"Looking for: {doc_type.title()} -- For bill: {bill_id}"
         else:
             context_text = f"Looking for: {doc_type.title()}"
         context_label = tk.Label(
-            frm,
-            text=context_text,
-            fg="blue",
-            font=("Arial", 9, "bold")
+            frm, text=context_text, fg="blue", font=("Arial", 9, "bold")
         )
         context_label.pack(anchor="w", pady=(0, 5))
         lbl = tk.Label(frm, text=heading, anchor="w", justify="left")
@@ -1182,15 +1138,13 @@ def ask_yes_no_with_preview(
             btns,
             text="No",
             width=10,
-            command=lambda: (res.update(ok=False),
-                             root.destroy())  # type: ignore
+            command=lambda: (res.update(ok=False), root.destroy()),  # type: ignore
         ).pack(side="right", padx=6)
         tk.Button(
             btns,
             text="Yes",
             width=10,
-            command=lambda: (res.update(ok=True),
-                             root.destroy())  # type: ignore
+            command=lambda: (res.update(ok=True), root.destroy()),  # type: ignore
         ).pack(side="right")
         root.mainloop()
         return res["ok"]
@@ -1209,30 +1163,32 @@ def get_extension_orders_for_bill(
     if cache:
         cached_extension = cache.get_extension(bill_id)
         if cached_extension:
-            return [{
-                "bill_id": bill_id,
-                "extension_date": cached_extension["extension_date"],
-                "extension_order_url": cached_extension["extension_url"],
-                "cached": True
-            }]
+            return [
+                {
+                    "bill_id": bill_id,
+                    "extension_date": cached_extension["extension_date"],
+                    "extension_order_url": cached_extension["extension_url"],
+                    "cached": True,
+                }
+            ]
 
     # Scrape all extension orders and find ones for this bill
-    extension_orders = collect_all_extension_orders(
-        "https://malegislature.gov", cache
-    )
+    extension_orders = collect_all_extension_orders("https://malegislature.gov", cache)
 
     # Filter for this specific bill
     bill_extensions = []
     for eo in extension_orders:
         if eo.bill_id == bill_id:
-            bill_extensions.append({
-                "bill_id": eo.bill_id,
-                "committee_id": eo.committee_id,
-                "extension_date": eo.extension_date.isoformat(),
-                "extension_order_url": eo.extension_order_url,
-                "order_type": eo.order_type,
-                "discovered_at": eo.discovered_at.isoformat()
-            })
+            bill_extensions.append(
+                {
+                    "bill_id": eo.bill_id,
+                    "committee_id": eo.committee_id,
+                    "extension_date": eo.extension_date.isoformat(),
+                    "extension_order_url": eo.extension_order_url,
+                    "order_type": eo.order_type,
+                    "discovered_at": eo.discovered_at.isoformat(),
+                }
+            )
 
     # Extensions are now cached immediately during collection,
     # so no need to cache here
@@ -1330,16 +1286,11 @@ def parse_changelog(changelog_path: str = "CHANGELOG.md") -> dict[str, Any]:
             # Parse the changes by category
             changes = parse_changelog_section(changes_text)
 
-            versions.append({
-                "version": version,
-                "date": release_date,
-                "changes": changes
-            })
+            versions.append(
+                {"version": version, "date": release_date, "changes": changes}
+            )
 
-    return {
-        "current_version": current_version or __version__,
-        "changelog": versions
-    }
+    return {"current_version": current_version or __version__, "changelog": versions}
 
 
 def parse_changelog_section(section_text: str) -> dict[str, list[str]]:
@@ -1370,9 +1321,9 @@ def parse_changelog_section(section_text: str) -> dict[str, list[str]]:
 
             # Extract bullet points (lines starting with -)
             items = []
-            for line in content.split('\n'):
+            for line in content.split("\n"):
                 line = line.strip()
-                if line.startswith('-'):
+                if line.startswith("-"):
                     # Remove the leading dash and whitespace
                     item = line[1:].strip()
                     if item:
@@ -1402,8 +1353,7 @@ def get_date_output_dir(base_dir: str = "out") -> Path:
 
     # Create path: out/YYYY/MM/DD
     outdir = (
-        Path(base_dir) / str(today.year) /
-        f"{today.month:02d}" / f"{today.day:02d}"
+        Path(base_dir) / str(today.year) / f"{today.month:02d}" / f"{today.day:02d}"
     )
     outdir.mkdir(parents=True, exist_ok=True)
     return outdir
@@ -1470,8 +1420,7 @@ def get_latest_output_dir(base_dir: str = "out") -> Optional[Path]:
 
 
 def get_previous_output_dir(
-    base_dir: str = "out",
-    target_days_ago: int = 1
+    base_dir: str = "out", target_days_ago: int = 1
 ) -> Optional[Path]:
     """Find a date-based output directory closest to the target days ago.
 
@@ -1548,9 +1497,7 @@ def get_date_from_output_dir(output_dir: Path) -> Optional[date]:
 
 
 def load_previous_committee_json(
-    committee_id: str,
-    base_dir: str = "out",
-    days_ago: int = 1
+    committee_id: str, base_dir: str = "out", days_ago: int = 1
 ) -> tuple[Optional[list[dict]], Optional[date]]:
     """Load previous JSON data for a committee from a specific time interval.
 
@@ -1588,15 +1535,11 @@ def load_previous_committee_json(
                 logger.warning(
                     "Invalid JSON format in %s: expected list or "
                     "dict with 'bills' key",
-                    json_path
+                    json_path,
                 )
                 return None, previous_date
     except (json.JSONDecodeError, IOError, KeyError) as e:
-        logger.warning(
-            "Error loading previous JSON from %s: %s",
-            json_path,
-            e
-        )
+        logger.warning("Error loading previous JSON from %s: %s", json_path, e)
         return None, previous_date
 
 
@@ -1604,7 +1547,7 @@ def generate_diff_report(
     current_bills: list[dict],
     previous_bills: Optional[list[dict]],
     current_date: date,
-    previous_date: Optional[date]
+    previous_date: Optional[date],
 ) -> Optional[dict]:
     """Generate a diff report comparing current and previous scans.
 
@@ -1626,7 +1569,8 @@ def generate_diff_report(
     def count_compliant(bills_dict: dict[str, dict]) -> int:
         """Count compliant bills from deduplicated dictionary."""
         return sum(
-            1 for b in bills_dict.values()
+            1
+            for b in bills_dict.values()
             if b.get("state", "").lower() in ("compliant", "unknown")
         )
 
@@ -1645,8 +1589,7 @@ def generate_diff_report(
     # Calculate delta from rounded rates, round to 1 decimal (matching server)
     compliance_delta = round(curr_compliant_pct - prev_compliant_pct, 1)
     new_bill_ids = [
-        bill_id for bill_id in current_by_id
-        if bill_id not in previous_by_id
+        bill_id for bill_id in current_by_id if bill_id not in previous_by_id
     ]
     bills_with_new_hearings = []
     for bill_id, curr_bill in current_by_id.items():

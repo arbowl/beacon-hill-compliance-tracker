@@ -8,7 +8,7 @@ from components.ruleset import (
     VoteRequirementRule,
     SummaryRequirementRule,
     RuleFactory,
-    Status
+    Status,
 )
 from unit.fixtures.bill_factory import BillFactory
 
@@ -28,9 +28,7 @@ class TestNoticeRequirementRule:
         )
         context = RuleFactory.create_context("H100", "J33")
         result = rule.check(
-            context, status,
-            bill_factory.create_summary(),
-            bill_factory.create_votes()
+            context, status, bill_factory.create_summary(), bill_factory.create_votes()
         )
         assert result.passed == Status.COMPLIANT
         assert "14" in result.reason
@@ -47,9 +45,7 @@ class TestNoticeRequirementRule:
         )
         context = RuleFactory.create_context("H100", "J33")
         result = rule.check(
-            context, status,
-            bill_factory.create_summary(),
-            bill_factory.create_votes()
+            context, status, bill_factory.create_summary(), bill_factory.create_votes()
         )
         assert result.passed == Status.NON_COMPLIANT
         assert "5 days" in result.reason
@@ -67,9 +63,7 @@ class TestNoticeRequirementRule:
         )
         context = RuleFactory.create_context("H100", "J33")
         result = rule.check(
-            context, status,
-            bill_factory.create_summary(),
-            bill_factory.create_votes()
+            context, status, bill_factory.create_summary(), bill_factory.create_votes()
         )
         assert result.passed == Status.COMPLIANT
         assert result.notice_description
@@ -85,9 +79,7 @@ class TestNoticeRequirementRule:
         )
         context = RuleFactory.create_context("H100", "J33")
         result = rule.check(
-            context, status,
-            bill_factory.create_summary(),
-            bill_factory.create_votes()
+            context, status, bill_factory.create_summary(), bill_factory.create_votes()
         )
         assert result.passed == Status.UNKNOWN
         assert result.is_missing_notice
@@ -109,9 +101,7 @@ class TestReportedOutRequirementRule:
         )
         context = RuleFactory.create_context("H100", "J33")
         result = rule.check(
-            context, status,
-            bill_factory.create_summary(),
-            bill_factory.create_votes()
+            context, status, bill_factory.create_summary(), bill_factory.create_votes()
         )
         assert result.passed == Status.COMPLIANT
         assert result.is_core_requirement
@@ -129,9 +119,10 @@ class TestReportedOutRequirementRule:
         )
         context = RuleFactory.create_context("H100", "J33")
         result = rule.check(
-            context, status,
+            context,
+            status,
             bill_factory.create_summary(),
-            bill_factory.create_votes(False)
+            bill_factory.create_votes(False),
         )
         assert result.passed == Status.UNKNOWN
         assert result.is_before_deadline
@@ -150,11 +141,7 @@ class TestReportedOutRequirementRule:
         )
         votes = bill_factory.create_votes(present=True)
         context = RuleFactory.create_context("H100", "J33")
-        result = rule.check(
-            context, status,
-            bill_factory.create_summary(),
-            votes
-        )
+        result = rule.check(context, status, bill_factory.create_summary(), votes)
         assert result.passed == Status.COMPLIANT
         assert "vote record" in result.reason.lower()
 
@@ -172,9 +159,7 @@ class TestReportedOutRequirementRule:
         )
         context = RuleFactory.create_context("H100", "J33")
         result = rule.check(
-            context, status,
-            bill_factory.create_summary(),
-            bill_factory.create_votes()
+            context, status, bill_factory.create_summary(), bill_factory.create_votes()
         )
         assert result.passed == Status.NON_COMPLIANT
         assert "after deadline" in result.reason.lower()
@@ -189,9 +174,7 @@ class TestReportedOutRequirementRule:
         context = RuleFactory.create_context("H100", "J33")
 
         result = rule.check(
-            context, status,
-            bill_factory.create_summary(),
-            bill_factory.create_votes()
+            context, status, bill_factory.create_summary(), bill_factory.create_votes()
         )
 
         assert result.passed == Status.UNKNOWN
@@ -208,11 +191,7 @@ class TestVoteAndSummaryRules:
         context = RuleFactory.create_context("H100", "J33")
         status = bill_factory.create_status()
 
-        result = rule.check(
-            context, status,
-            bill_factory.create_summary(),
-            votes
-        )
+        result = rule.check(context, status, bill_factory.create_summary(), votes)
 
         assert result.passed == Status.COMPLIANT
         assert rule.is_core_requirement()
@@ -223,11 +202,7 @@ class TestVoteAndSummaryRules:
         votes = bill_factory.create_votes(present=False)
         context = RuleFactory.create_context("H100", "J33")
         status = bill_factory.create_status()
-        result = rule.check(
-            context, status,
-            bill_factory.create_summary(),
-            votes
-        )
+        result = rule.check(context, status, bill_factory.create_summary(), votes)
         assert result.passed == Status.NON_COMPLIANT
         assert "no votes" in result.reason.lower()
         assert result.missing_description == "no votes posted"
@@ -238,11 +213,7 @@ class TestVoteAndSummaryRules:
         summary = bill_factory.create_summary(present=True)
         context = RuleFactory.create_context("H100", "J33")
         status = bill_factory.create_status()
-        result = rule.check(
-            context, status,
-            summary,
-            bill_factory.create_votes()
-        )
+        result = rule.check(context, status, summary, bill_factory.create_votes())
         assert result.passed == Status.COMPLIANT
 
     def test_summary_missing(self, bill_factory: BillFactory):
@@ -251,11 +222,7 @@ class TestVoteAndSummaryRules:
         summary = bill_factory.create_summary(present=False)
         context = RuleFactory.create_context("H100", "J33")
         status = bill_factory.create_status()
-        result = rule.check(
-            context, status,
-            summary,
-            bill_factory.create_votes()
-        )
+        result = rule.check(context, status, summary, bill_factory.create_votes())
         assert result.passed == Status.NON_COMPLIANT
         assert "no summaries" in result.reason.lower()
         assert result.missing_description == "no summaries posted"

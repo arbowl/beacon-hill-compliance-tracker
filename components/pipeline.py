@@ -1,4 +1,4 @@
-""" Pipeline for resolving the summary for a bill. """
+"""Pipeline for resolving the summary for a bill."""
 
 from enum import IntEnum
 import logging
@@ -10,30 +10,26 @@ from components.models import (
     SummaryInfo,
     VoteInfo,
     DeferredConfirmation,
-    DeferredReviewSession
+    DeferredReviewSession,
 )
 from components.utils import (
     Cache,
     ask_yes_no_with_llm_fallback,
     ask_yes_no_with_preview_and_llm_fallback,
-    ask_llm_decision
+    ask_llm_decision,
 )
 from parsers.summary_bill_tab_text import SummaryBillTabTextParser
 from parsers.summary_committee_pdf import SummaryCommitteePdfParser
 from parsers.summary_hearing_docs_pdf import SummaryHearingDocsPdfParser
 from parsers.summary_hearing_pdf import SummaryHearingPdfParser
 from parsers.summary_committee_docx import SummaryCommitteeDocxParser
-from parsers.summary_hearing_docs_pdf_content import (
-    SummaryHearingDocsPdfContentParser
-)
+from parsers.summary_hearing_docs_pdf_content import SummaryHearingDocsPdfContentParser
 from parsers.summary_hearing_docs_docx import SummaryHearingDocsDocxParser
 from parsers.votes_bill_embedded import VotesBillEmbeddedParser
 from parsers.votes_bill_pdf import VotesBillPdfParser
 from parsers.votes_committee_documents import VotesCommitteeDocumentsParser
 from parsers.votes_docx import VotesDocxParser
-from parsers.votes_hearing_committee import (
-    VotesHearingCommitteeDocumentsParser
-)
+from parsers.votes_hearing_committee import VotesHearingCommitteeDocumentsParser
 from parsers.votes_journal import VotesJournalPdfParser
 
 logger = logging.getLogger(__name__)
@@ -42,14 +38,15 @@ logger = logging.getLogger(__name__)
 class ParserTier(IntEnum):
     """Parser priority tiers for intelligent selection."""
 
-    BILL_CACHED = 0      # This specific bill used this parser before
+    BILL_CACHED = 0  # This specific bill used this parser before
     COMMITTEE_PROVEN = 1  # Parser has proven track record for committee
-    COST_FALLBACK = 2    # Trying parsers by cost (no committee history)
+    COST_FALLBACK = 2  # Trying parsers by cost (no committee history)
 
 
 # Maps the cache module name to the actual module object
 SUMMARY_REGISTRY: dict[str, type[ParserInterface]] = {
-    module.__module__: module for module in [  # type: ignore
+    module.__module__: module
+    for module in [  # type: ignore
         SummaryBillTabTextParser,
         SummaryCommitteePdfParser,
         SummaryHearingDocsPdfParser,
@@ -60,7 +57,8 @@ SUMMARY_REGISTRY: dict[str, type[ParserInterface]] = {
     ]
 }
 VOTES_REGISTRY: dict[str, type[ParserInterface]] = {
-    module.__module__: module for module in [  # type: ignore
+    module.__module__: module
+    for module in [  # type: ignore
         VotesBillEmbeddedParser,
         VotesBillPdfParser,
         VotesCommitteeDocumentsParser,
@@ -77,7 +75,7 @@ def should_use_llm_for_parser(
     parser_type: str,
     cache: Cache,
     tier: ParserTier,
-    candidate: ParserInterface.DiscoveryResult
+    candidate: ParserInterface.DiscoveryResult,
 ) -> bool:
     """
     Decide if we should consult the LLM for this parser.
@@ -117,19 +115,15 @@ def should_use_llm_for_parser(
 
     # Tier 1: Committee-proven - phase-based with confidence gate
     if tier == ParserTier.COMMITTEE_PROVEN:
-        committee_data = cache.data.get("committee_parsers", {}).get(
-            committee_id, {}
-        )
-        parser_stats = committee_data.get(parser_type, {}).get(
-            parser_module, {}
-        )
+        committee_data = cache.data.get("committee_parsers", {}).get(committee_id, {})
+        parser_stats = committee_data.get(parser_type, {}).get(parser_module, {})
         if not parser_stats:
             # No stats? Use LLM (shouldn't happen in tier 1, but be safe)
             return True
         streak = parser_stats.get("current_streak", 0)
         count = parser_stats.get("count", 0)
         # Check if pattern is established
-        pattern_established = (streak >= 3 and count >= 5)
+        pattern_established = streak >= 3 and count >= 5
         if pattern_established:
             # Established phase: Use parser confidence as gate
             # Skip LLM if parser isn't worried (≥ 0.5)
@@ -144,7 +138,7 @@ def try_llm_decision(
     candidate: ParserInterface.DiscoveryResult,
     bill_id: str,
     doc_type: str,
-    config: Config
+    config: Config,
 ) -> Optional[str]:
     """
     Try to get an LLM decision for a candidate.
@@ -152,10 +146,7 @@ def try_llm_decision(
     Returns:
         "yes", "no", "unsure", or None if LLM is disabled/unavailable
     """
-    preview_text = (
-        candidate.full_text if candidate.full_text
-        else candidate.preview
-    )
+    preview_text = candidate.full_text if candidate.full_text else candidate.preview
     return ask_llm_decision(preview_text, doc_type, bill_id, config)
 
 
@@ -164,7 +155,7 @@ def resolve_summary_for_bill(
     cfg: Config,
     cache: Cache,
     row: BillAtHearing,
-    deferred_session: Optional[DeferredReviewSession] = None
+    deferred_session: Optional[DeferredReviewSession] = None,
 ) -> SummaryInfo:
     """Resolve the summary for a bill."""
     cached_result = cache.get_result(
@@ -206,7 +197,7 @@ def resolve_summary_for_bill(
             cache.record_committee_parser(
                 row.committee_id,
                 ParserInterface.ParserType.SUMMARY.value,
-                summary_has_parser
+                summary_has_parser,
             )
             return result
         # If the source vanished, fall through to normal sequence.
@@ -225,14 +216,11 @@ def resolve_summary_for_bill(
     # Tier 0: Bill-specific cache
     if summary_has_parser and summary_has_parser in SUMMARY_REGISTRY:
         parser = SUMMARY_REGISTRY[summary_has_parser]
-        parser_sequence.append(
-            (parser, ParserTier.BILL_CACHED, summary_has_parser)
-        )
+        parser_sequence.append((parser, ParserTier.BILL_CACHED, summary_has_parser))
         added_parsers.add(parser)
     # Tier 1: Committee-proven parsers
     committee_parsers = cache.get_committee_parsers(
-        row.committee_id,
-        ParserInterface.ParserType.SUMMARY.value
+        row.committee_id, ParserInterface.ParserType.SUMMARY.value
     )
     for module_name in committee_parsers:
         if module_name in SUMMARY_REGISTRY:
@@ -246,9 +234,7 @@ def resolve_summary_for_bill(
     for parser in all_parsers:
         if parser not in added_parsers:
             module_name = parser.__module__
-            parser_sequence.append(
-                (parser, ParserTier.COST_FALLBACK, module_name)
-            )
+            parser_sequence.append((parser, ParserTier.COST_FALLBACK, module_name))
             added_parsers.add(parser)
     for p, tier, modname in parser_sequence:
         candidate = p.discover(base_url, row, cache, cfg)
@@ -265,7 +251,7 @@ def resolve_summary_for_bill(
                 ParserInterface.ParserType.SUMMARY.value,
                 cache,
                 tier,
-                candidate
+                candidate,
             )
             if should_use_llm:
                 # Pattern not established or parser is suspicious - use LLM
@@ -273,7 +259,7 @@ def resolve_summary_for_bill(
                     candidate,
                     row.bill_id,
                     ParserInterface.ParserType.SUMMARY.value,
-                    cfg
+                    cfg,
                 )
                 if llm_decision == "yes":
                     # LLM confidently accepts
@@ -286,12 +272,11 @@ def resolve_summary_for_bill(
                     # LLM returned "unsure" or is unavailable
                     # Fall back to confidence threshold logic
                     preview_text = (
-                        candidate.full_text if candidate.full_text
+                        candidate.full_text
+                        if candidate.full_text
                         else candidate.preview
                     )
-                    confidence = (
-                        candidate.confidence if candidate.confidence else 0.5
-                    )
+                    confidence = candidate.confidence if candidate.confidence else 0.5
                     auto_yes = cfg.deferred_review.auto_accept_high_confidence
                     if confidence >= auto_yes:
                         accepted = True
@@ -306,7 +291,7 @@ def resolve_summary_for_bill(
                             parser_module=modname,
                             candidate=candidate,
                             preview_text=preview_text,
-                            confidence=confidence
+                            confidence=confidence,
                         )
                         deferred_session.add_confirmation(confirmation)
                         accepted = True  # Tentatively accept for now
@@ -319,9 +304,7 @@ def resolve_summary_for_bill(
             # show dialog only when not previously confirmed
             # Use full_text if available, otherwise fall back to preview
             preview_text = (
-                candidate.full_text
-                if candidate.full_text
-                else candidate.preview
+                candidate.full_text if candidate.full_text else candidate.preview
             )
             if len(preview_text) > 140:
                 accepted = ask_yes_no_with_preview_and_llm_fallback(
@@ -331,7 +314,7 @@ def resolve_summary_for_bill(
                     url=candidate.source_url,
                     doc_type=ParserInterface.ParserType.SUMMARY.value,
                     bill_id=row.bill_id,
-                    config=cfg
+                    config=cfg,
                 )
             else:
                 accepted = ask_yes_no_with_llm_fallback(
@@ -339,7 +322,7 @@ def resolve_summary_for_bill(
                     candidate.source_url,
                     doc_type=ParserInterface.ParserType.SUMMARY.value,
                     bill_id=row.bill_id,
-                    config=cfg
+                    config=cfg,
                 )
         else:  # review_mode == "off"
             needs_review = True
@@ -358,13 +341,11 @@ def resolve_summary_for_bill(
                 ParserInterface.ParserType.SUMMARY.value,
                 modname,
                 result.to_dict(),
-                confirmed=cfg.review_mode == "on" and not needs_review
+                confirmed=cfg.review_mode == "on" and not needs_review,
             )
             # Record success for committee-level learning
             cache.record_committee_parser(
-                row.committee_id,
-                ParserInterface.ParserType.SUMMARY.value,
-                modname
+                row.committee_id, ParserInterface.ParserType.SUMMARY.value, modname
             )
             return result
     return SummaryInfo(
@@ -372,7 +353,7 @@ def resolve_summary_for_bill(
         location="unknown",
         source_url=None,
         parser_module=None,
-        needs_review=False
+        needs_review=False,
     )
 
 
@@ -381,7 +362,7 @@ def resolve_votes_for_bill(
     cfg: Config,
     cache: Cache,
     row: BillAtHearing,
-    deferred_session: Optional[DeferredReviewSession] = None
+    deferred_session: Optional[DeferredReviewSession] = None,
 ) -> VoteInfo:
     """
     Votes pipeline with confirmed-cache short-circuit:
@@ -432,7 +413,7 @@ def resolve_votes_for_bill(
             cache.record_committee_parser(
                 row.committee_id,
                 ParserInterface.ParserType.VOTES.value,
-                votes_has_parser
+                votes_has_parser,
             )
             return result
         # stale: fall through to normal flow
@@ -451,14 +432,11 @@ def resolve_votes_for_bill(
     # Tier 0: Bill-specific cache
     if votes_has_parser and votes_has_parser in VOTES_REGISTRY:
         parser = VOTES_REGISTRY[votes_has_parser]
-        votes_sequence.append(
-            (parser, ParserTier.BILL_CACHED, votes_has_parser)
-        )
+        votes_sequence.append((parser, ParserTier.BILL_CACHED, votes_has_parser))
         added_votes_parsers.add(parser)
     # Tier 1: Committee-proven parsers
     committee_votes_parsers = cache.get_committee_parsers(
-        row.committee_id,
-        ParserInterface.ParserType.VOTES.value
+        row.committee_id, ParserInterface.ParserType.VOTES.value
     )
     for module_name in committee_votes_parsers:
         if module_name in VOTES_REGISTRY:
@@ -472,9 +450,7 @@ def resolve_votes_for_bill(
     for parser in all_votes_parsers:
         if parser not in added_votes_parsers:
             module_name = parser.__module__
-            votes_sequence.append(
-                (parser, ParserTier.COST_FALLBACK, module_name)
-            )
+            votes_sequence.append((parser, ParserTier.COST_FALLBACK, module_name))
             added_votes_parsers.add(parser)
     # 3) Try parsers
     for p, tier, modname in votes_sequence:
@@ -492,15 +468,12 @@ def resolve_votes_for_bill(
                 ParserInterface.ParserType.VOTES.value,
                 cache,
                 tier,
-                candidate
+                candidate,
             )
             if should_use_llm:
                 # Pattern not established or parser is suspicious - use LLM
                 llm_decision = try_llm_decision(
-                    candidate,
-                    row.bill_id,
-                    ParserInterface.ParserType.VOTES.value,
-                    cfg
+                    candidate, row.bill_id, ParserInterface.ParserType.VOTES.value, cfg
                 )
                 if llm_decision == "yes":
                     # LLM confidently accepts
@@ -513,12 +486,11 @@ def resolve_votes_for_bill(
                     # LLM returned "unsure" or is unavailable
                     # Fall back to confidence threshold logic
                     preview_text = (
-                        candidate.full_text if candidate.full_text
+                        candidate.full_text
+                        if candidate.full_text
                         else candidate.preview
                     )
-                    confidence = (
-                        candidate.confidence if candidate.confidence else 0.5
-                    )
+                    confidence = candidate.confidence if candidate.confidence else 0.5
                     auto_yes = cfg.deferred_review.auto_accept_high_confidence
                     if confidence >= auto_yes:
                         accepted = True
@@ -532,7 +504,7 @@ def resolve_votes_for_bill(
                             parser_module=modname,
                             candidate=candidate,
                             preview_text=preview_text,
-                            confidence=confidence
+                            confidence=confidence,
                         )
                         deferred_session.add_confirmation(confirmation)
                         accepted = True  # Tentatively accept for now
@@ -544,9 +516,7 @@ def resolve_votes_for_bill(
         elif cfg.review_mode == "on":
             # Use full_text if available, otherwise fall back to preview
             preview_text = (
-                candidate.full_text
-                if candidate.full_text
-                else candidate.preview
+                candidate.full_text if candidate.full_text else candidate.preview
             )
             if len(preview_text) > 140:
                 accepted = ask_yes_no_with_preview_and_llm_fallback(
@@ -556,7 +526,7 @@ def resolve_votes_for_bill(
                     url=candidate.source_url,
                     doc_type=ParserInterface.ParserType.VOTES.value,
                     bill_id=row.bill_id,
-                    config=cfg
+                    config=cfg,
                 )
             else:
                 accepted = ask_yes_no_with_llm_fallback(
@@ -564,7 +534,7 @@ def resolve_votes_for_bill(
                     candidate.source_url,
                     doc_type=ParserInterface.ParserType.VOTES.value,
                     bill_id=row.bill_id,
-                    config=cfg
+                    config=cfg,
                 )
         else:  # review_mode == "off"
             # auto-accept in headless mode; not "confirmed"
@@ -589,13 +559,11 @@ def resolve_votes_for_bill(
             ParserInterface.ParserType.VOTES.value,
             modname,
             result.to_dict(),
-            confirmed=cfg.review_mode == "on" and not needs_review
+            confirmed=cfg.review_mode == "on" and not needs_review,
         )
         # Record success for committee-level learning
         cache.record_committee_parser(
-            row.committee_id,
-            ParserInterface.ParserType.VOTES.value,
-            modname
+            row.committee_id, ParserInterface.ParserType.VOTES.value, modname
         )
         return result
     # 4) Nothing landed

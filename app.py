@@ -1,5 +1,4 @@
-"""Fetches committee data from the Massachusetts Legislature website.
-"""
+"""Fetches committee data from the Massachusetts Legislature website."""
 
 from argparse import ArgumentParser
 from dataclasses import dataclass
@@ -54,9 +53,7 @@ if __name__ == "__main__":
         print("Warning: No keys loaded, uploads will fail.")
     config = Config("config.yaml")
     cache = Cache(auto_save=False)
-    parser = ArgumentParser(
-        description="Massachusetts Legislature compliance scraper"
-    )
+    parser = ArgumentParser(description="Massachusetts Legislature compliance scraper")
     mode_group = parser.add_mutually_exclusive_group(required=False)
     mode_group.add_argument(
         "-m", "--manual", action="store_true", help=Mode.manual.__doc__
@@ -65,14 +62,18 @@ if __name__ == "__main__":
         "-o", "--one-run", action="store_true", help=Mode.one_run.__doc__
     )
     parser.add_argument(
-        "-s", "--scheduled", type=str, metavar="TIME",
+        "-s",
+        "--scheduled",
+        type=str,
+        metavar="TIME",
         help="Time to run scheduled tasks (e.g., '02:00' for daily at 2 AM). "
-             "Required when using --scheduled."
+        "Required when using --scheduled.",
     )
     parser.add_argument(
-        "--check-extensions", action="store_true",
+        "--check-extensions",
+        action="store_true",
         help="Check for bill extensions (only applies to one-run and "
-             "scheduled modes)"
+        "scheduled modes)",
     )
     args = parser.parse_args()
     run_mode = Mode(**vars(args))

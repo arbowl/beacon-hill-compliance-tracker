@@ -51,8 +51,8 @@ from history.repository import BillArtifactRepository
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s [%(threadName)-12s] %(levelname)-8s %(message)s',
-    datefmt='%H:%M:%S'
+    format="%(asctime)s [%(threadName)-12s] %(levelname)-8s %(message)s",
+    datefmt="%H:%M:%S",
 )
 logger = logging.getLogger(__name__)
 
@@ -69,9 +69,7 @@ def _format_time_remaining(seconds: int) -> str:
         return f"{hours}h {minutes}m"
 
 
-def _update_progress(
-    current: int, total: int, bill_id: str, start_time: int
-) -> None:
+def _update_progress(current: int, total: int, bill_id: str, start_time: int) -> None:
     """Update progress indicator."""
     if total == 0:
         return
@@ -84,9 +82,7 @@ def _update_progress(
         estimated_remaining_seconds = (
             remaining_bills / bills_per_second if bills_per_second > 0 else 0
         )
-        time_remaining_str = _format_time_remaining(
-            round(estimated_remaining_seconds)
-        )
+        time_remaining_str = _format_time_remaining(round(estimated_remaining_seconds))
         speed_str = f"{bills_per_minute:.1f} bills/min"
     else:
         time_remaining_str = "calculating..."
@@ -107,7 +103,7 @@ def _process_single_bill(
     cache: Cache,
     row: BillAtHearing,
     extension_lookup: dict[str, list[ExtensionOrder]],
-    deferred_session
+    deferred_session,
 ) -> dict:
     """Process a single bill (thread-safe).
 
@@ -133,8 +129,7 @@ def _process_single_bill(
                 if row.hearing_date:
                     extension_until = row.hearing_date + timedelta(days=90)
                     logger.debug(
-                        "  Using 30-day fallback extension: %s",
-                        extension_until
+                        "  Using 30-day fallback extension: %s", extension_until
                     )
             else:
                 extension_until = latest_extension.extension_date
@@ -147,26 +142,17 @@ def _process_single_bill(
                     ).date()
                     if cached_date == date(1900, 1, 1):
                         if row.hearing_date:
-                            extension_until = row.hearing_date + timedelta(
-                                days=90
-                            )
+                            extension_until = row.hearing_date + timedelta(days=90)
                             logger.debug(
-                                "  Using cached 30-day fallback: %s",
-                                extension_until
+                                "  Using cached 30-day fallback: %s", extension_until
                             )
                     else:
                         extension_until = cached_date
                 except (ValueError, KeyError):
                     extension_until = None
-        status: BillStatus = build_status_row(
-            base_url, row, extension_until
-        )
-        summary = resolve_summary_for_bill(
-            base_url, cfg, cache, row, deferred_session
-        )
-        votes = resolve_votes_for_bill(
-            base_url, cfg, cache, row, deferred_session
-        )
+        status: BillStatus = build_status_row(base_url, row, extension_until)
+        summary = resolve_summary_for_bill(base_url, cfg, cache, row, deferred_session)
+        votes = resolve_votes_for_bill(base_url, cfg, cache, row, deferred_session)
         comp = classify(row.bill_id, row.committee_id, status, summary, votes)
         bill_title: Optional[str] = cache.get_title(row.bill_id)
         if bill_title is None:
@@ -178,9 +164,7 @@ def _process_single_bill(
             except Exception:  # pylint: disable=broad-exception-caught
                 bill_title = None
         if cfg.artifacts.enabled:
-            timeline: BillActionTimeline = extract_timeline(
-                row.bill_url, row.bill_id
-            )
+            timeline: BillActionTimeline = extract_timeline(row.bill_url, row.bill_id)
             artifact = BillArtifactComposer.compose_from_scrape(
                 bill=row,
                 status=status,
@@ -194,15 +178,9 @@ def _process_single_bill(
             )
             repo = BillArtifactRepository(cfg.artifacts.db_path)
             repo.save_artifact(artifact)
-        hearing_str = str(
-            status.hearing_date
-        ) if status.hearing_date else "N/A"
-        d60_str = str(
-            status.deadline_60
-        ) if status.deadline_60 else "N/A"
-        eff_str = str(
-            status.effective_deadline
-        ) if status.effective_deadline else "N/A"
+        hearing_str = str(status.hearing_date) if status.hearing_date else "N/A"
+        d60_str = str(status.deadline_60) if status.deadline_60 else "N/A"
+        eff_str = str(status.effective_deadline) if status.effective_deadline else "N/A"
         bill_info = (
             f"{row.bill_id:<6} heard {hearing_str} "
             f"→ D60 {d60_str} / Eff {eff_str} | "
@@ -242,7 +220,9 @@ def _process_single_bill(
             "extension_order_url": extension_order_url,
             "extension_date": str(extension_date) if extension_date else None,
             "reported_out": status.reported_out or (status.reported_date is not None),
-            "reported_out_date": str(status.reported_date) if status.reported_date else None,
+            "reported_out_date": (
+                str(status.reported_date) if status.reported_date else None
+            ),
             "summary_present": summary.present,
             "summary_url": summary.source_url,
             "votes_present": votes.present,
@@ -252,21 +232,16 @@ def _process_single_bill(
             "notice_status": notice_status,
             "notice_gap_days": gap_days,
             "announcement_date": (
-                str(status.announcement_date)
-                if status.announcement_date else None
+                str(status.announcement_date) if status.announcement_date else None
             ),
             "scheduled_hearing_date": (
                 str(status.scheduled_hearing_date)
-                if status.scheduled_hearing_date else None
+                if status.scheduled_hearing_date
+                else None
             ),
         }
     except Exception as e:  # pylint: disable=broad-exception-caught
-        logger.error(
-            "Error processing bill %s: %s",
-            row.bill_id,
-            e,
-            exc_info=True
-        )
+        logger.error("Error processing bill %s: %s", row.bill_id, e, exc_info=True)
         return {}
 
 
@@ -278,7 +253,7 @@ def run_basic_compliance(
     cfg: Config,
     cache: Cache,
     extension_lookup: dict[str, list[ExtensionOrder]],
-    write_json=True
+    write_json=True,
 ):
     """Run basic compliance check for a committee.
 
@@ -295,16 +270,10 @@ def run_basic_compliance(
     committee = next((c for c in committees if c.id == committee_id), None)
     if not committee:
         logger.warning(
-            "Committee %s not found among %d committees",
-            committee_id,
-            len(committees)
+            "Committee %s not found among %d committees", committee_id, len(committees)
         )
         return
-    logger.info(
-        "Running basic compliance for %s [%s]...",
-        committee.name,
-        committee.id
-    )
+    logger.info("Running basic compliance for %s [%s]...", committee.name, committee.id)
     logger.info("Collecting committee contact information...")
     contact = get_committee_contact(base_url, committee, cache)
     logger.info("Phase 1: Collecting bills from Hearings tab...")
@@ -316,9 +285,7 @@ def run_basic_compliance(
     all_bills = get_all_committee_bills(base_url, committee.id)
     logger.info("Found %d total bills assigned to committee", len(all_bills))
     hearing_bill_ids = {b.bill_id for b in hearing_bills}
-    non_hearing_bills = [
-        b for b in all_bills if b.bill_id not in hearing_bill_ids
-    ]
+    non_hearing_bills = [b for b in all_bills if b.bill_id not in hearing_bill_ids]
     logger.info("Found %d bills without hearings", len(non_hearing_bills))
     rows = hearing_bills + non_hearing_bills
     if not rows:
@@ -343,8 +310,7 @@ def run_basic_compliance(
     deferred_session = None
     if cfg.review_mode == "deferred":
         deferred_session = DeferredReviewSession(
-            session_id="",
-            committee_id=committee_id
+            session_id="", committee_id=committee_id
         )
         logger.info(
             "Deferred review mode enabled - "
@@ -357,8 +323,7 @@ def run_basic_compliance(
     max_workers = cfg.threading.max_workers
     if cfg.review_mode == "on":
         logger.info(
-            "Interactive review mode enabled - forcing single-threaded "
-            "execution"
+            "Interactive review mode enabled - forcing single-threaded " "execution"
         )
         max_workers = 1
     if max_workers > 1:
@@ -383,8 +348,7 @@ def run_basic_compliance(
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_bill = {
-                executor.submit(process_and_track, row): row
-                for row in rows
+                executor.submit(process_and_track, row): row for row in rows
             }
             for future in as_completed(future_to_bill):
                 row = future_to_bill[future]
@@ -396,10 +360,7 @@ def run_basic_compliance(
                 # pylint: disable=broad-exception-caught
                 except Exception as e:
                     logger.error(
-                        "Exception processing %s: %s",
-                        row.bill_id,
-                        e,
-                        exc_info=True
+                        "Exception processing %s: %s", row.bill_id, e, exc_info=True
                     )
     else:
         logger.info("Using single-threaded sequential processing")
@@ -421,12 +382,13 @@ def run_basic_compliance(
             "Complete",
             int(start_time),
         )
-    if (cfg.review_mode == "deferred" and deferred_session and
-            deferred_session.confirmations):
+    if (
+        cfg.review_mode == "deferred"
+        and deferred_session
+        and deferred_session.confirmations
+    ):
         logger.info("Processing complete. Conducting batch review...")
-        review_results = conduct_batch_review(
-            deferred_session, cfg, cache
-        )
+        review_results = conduct_batch_review(deferred_session, cfg, cache)
         apply_review_results(review_results, deferred_session, cache)
         if cfg.deferred_review.reprocess_after_review:
             logger.info("Re-processing bills with confirmed parsers...")
@@ -436,8 +398,7 @@ def run_basic_compliance(
             )
     elif cfg.review_mode == "deferred":
         logger.info(
-            "No confirmations needed - all parsers were "
-            "auto-accepted or cached."
+            "No confirmations needed - all parsers were " "auto-accepted or cached."
         )
     if write_json:
         outdir = get_date_output_dir()
@@ -451,22 +412,13 @@ def run_basic_compliance(
             committee.id, days_ago=TimeInterval.DAILY
         )
         diff_report_daily = None
-        if (
-            previous_bills_daily is not None and
-            previous_date_daily is not None
-        ):
+        if previous_bills_daily is not None and previous_date_daily is not None:
             diff_report_daily = generate_diff_report(
-                results,
-                previous_bills_daily,
-                current_date,
-                previous_date_daily
+                results, previous_bills_daily, current_date, previous_date_daily
             )
             if diff_report_daily is not None:
                 analysis_daily = generate_deterministic_analysis(
-                    diff_report_daily,
-                    results,
-                    previous_bills_daily,
-                    committee.name
+                    diff_report_daily, results, previous_bills_daily, committee.name
                 )
                 diff_report_daily["analysis"] = analysis_daily
         # Weekly diff report
@@ -474,22 +426,13 @@ def run_basic_compliance(
             committee.id, days_ago=TimeInterval.WEEKLY
         )
         diff_report_weekly = None
-        if (
-            previous_bills_weekly is not None and
-            previous_date_weekly is not None
-        ):
+        if previous_bills_weekly is not None and previous_date_weekly is not None:
             diff_report_weekly = generate_diff_report(
-                results,
-                previous_bills_weekly,
-                current_date,
-                previous_date_weekly
+                results, previous_bills_weekly, current_date, previous_date_weekly
             )
             if diff_report_weekly is not None:
                 analysis_weekly = generate_deterministic_analysis(
-                    diff_report_weekly,
-                    results,
-                    previous_bills_weekly,
-                    committee.name
+                    diff_report_weekly, results, previous_bills_weekly, committee.name
                 )
                 diff_report_weekly["analysis"] = analysis_weekly
         # Monthly diff report
@@ -497,22 +440,13 @@ def run_basic_compliance(
             committee.id, days_ago=TimeInterval.MONTHLY
         )
         diff_report_monthly = None
-        if (
-            previous_bills_monthly is not None and
-            previous_date_monthly is not None
-        ):
+        if previous_bills_monthly is not None and previous_date_monthly is not None:
             diff_report_monthly = generate_diff_report(
-                results,
-                previous_bills_monthly,
-                current_date,
-                previous_date_monthly
+                results, previous_bills_monthly, current_date, previous_date_monthly
             )
             if diff_report_monthly is not None:
                 analysis_monthly = generate_deterministic_analysis(
-                    diff_report_monthly,
-                    results,
-                    previous_bills_monthly,
-                    committee.name
+                    diff_report_monthly, results, previous_bills_monthly, committee.name
                 )
                 diff_report_monthly["analysis"] = analysis_monthly
         # Create output structure with bills and diff_reports
@@ -525,12 +459,9 @@ def run_basic_compliance(
                 "monthly": diff_report_monthly,
             },
         }
-        json_path.write_text(
-            json.dumps(output_data, indent=2), encoding="utf-8"
-        )
+        json_path.write_text(json.dumps(output_data, indent=2), encoding="utf-8")
         write_basic_html(
-            committee.name, committee.id, committee.url, contact, results,
-            html_path
+            committee.name, committee.id, committee.url, contact, results, html_path
         )
         logger.info("Wrote %s", json_path)
         logger.info("Wrote %s", html_path)

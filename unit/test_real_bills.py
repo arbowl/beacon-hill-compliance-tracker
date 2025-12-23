@@ -13,7 +13,7 @@ from unit.fixtures.timeline_factory import TimelineFactory
 @pytest.mark.slow
 class TestRealBills:
     """Tests against live MA Legislature website.
-    
+
     These tests make actual HTTP requests and may be slow or fail if
     the website is down or data has changed.
     """
@@ -34,10 +34,13 @@ class TestRealBills:
             assert tenure.referred_date is not None
             assert tenure.referred_date <= date.today()
 
-    @pytest.mark.parametrize("bill_id,committee_id", [
-        ("H73", "J33"),
-        ("S197", "J10"),
-    ])
+    @pytest.mark.parametrize(
+        "bill_id,committee_id",
+        [
+            ("H73", "J33"),
+            ("S197", "J10"),
+        ],
+    )
     def test_multiple_real_bills(self, bill_id: str, committee_id: str):
         """Test multiple real bills parametrically."""
         bill_url = f"https://malegislature.gov/Bills/194/{bill_id}"
@@ -77,7 +80,11 @@ class TestMockBillScenarios:
         base_date = date(2025, 1, 1)
         transitions = [
             ("J33", base_date, base_date.replace(month=3, day=1)),
-            ("J10", base_date.replace(month=3, day=1), base_date.replace(month=5, day=1)),
+            (
+                "J10",
+                base_date.replace(month=3, day=1),
+                base_date.replace(month=5, day=1),
+            ),
         ]
         timeline = timeline_factory.create_complex_timeline(
             bill_id="H100",
@@ -90,9 +97,7 @@ class TestMockBillScenarios:
         tenure_j10 = timeline.get_reported_date("J10")
         assert tenure_j10 is not None
 
-    def test_bill_with_hearing_but_no_report(
-        self, timeline_factory: TimelineFactory
-    ):
+    def test_bill_with_hearing_but_no_report(self, timeline_factory: TimelineFactory):
         """Test bill that had hearing but wasn't reported."""
         timeline = timeline_factory.create_simple_timeline(
             committee_id="J33",

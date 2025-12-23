@@ -24,6 +24,7 @@ from yaml import safe_load  # type: ignore
 
 from components.models import BillAtHearing
 from version import __version__
+
 if TYPE_CHECKING:
     from components.utils import Cache
 
@@ -43,11 +44,12 @@ class DecayingUrlCache:
     # Configuration constants
     MAX_MEMORY_MB = 512
     EVICTION_THRESHOLD = 0.9  # Start evicting at 90% of max
-    EVICTION_TARGET = 0.7     # Evict down to 70% of max
+    EVICTION_TARGET = 0.7  # Evict down to 70% of max
 
     @dataclass
     class _CacheEntry:
         """Internal cache entry with tracking metadata."""
+
         value: str
         hit_count: int
         last_access_time: float
@@ -94,7 +96,7 @@ class DecayingUrlCache:
             (
                 key,
                 entry.hit_count / (current_time - entry.last_access_time + 1),
-                entry.size_bytes
+                entry.size_bytes,
             )
             for key, entry in self._cache.items()
         ]
@@ -125,10 +127,7 @@ class DecayingUrlCache:
                 old_entry = self._cache[key]
                 self._total_size_bytes -= old_entry.size_bytes
             self._cache[key] = DecayingUrlCache._CacheEntry(
-                value=value,
-                hit_count=1,
-                last_access_time=time.time(),
-                size_bytes=size
+                value=value, hit_count=1, last_access_time=time.time(), size_bytes=size
             )
             self._total_size_bytes += size
             if self._should_evict():
@@ -155,19 +154,17 @@ class _SessionManager:
                         total=3,
                         backoff_factor=1,
                         status_forcelist=[429, 502, 503, 504],
-                        allowed_methods=["GET", "POST"]
+                        allowed_methods=["GET", "POST"],
                     )
                     adapter = HTTPAdapter(
                         pool_connections=10,
                         pool_maxsize=24,
                         max_retries=retry_strategy,
-                        pool_block=False
+                        pool_block=False,
                     )
                     session.mount("http://", adapter)
                     session.mount("https://", adapter)
-                    session.headers.update({
-                        "User-Agent": get_user_agent()
-                    })
+                    session.headers.update({"User-Agent": get_user_agent()})
                     self._session = session
                     logger.debug("Created global HTTP session")
         return self._session
@@ -277,7 +274,7 @@ def _fetch_binary(
     url: str,
     timeout: int = 30,
     cache: Optional[Cache] = None,
-    config: Optional[Config] = None
+    config: Optional[Config] = None,
 ) -> bytes:
     """Fetch binary content (PDFs, images) via global session with caching."""
     if cache and config:
@@ -295,28 +292,18 @@ def _fetch_binary(
                 headers["If-Modified-Since"] = cached_entry["last_modified"]
             if headers:
                 try:
-                    response = session.get(
-                        url, timeout=timeout, headers=headers
-                    )
+                    response = session.get(url, timeout=timeout, headers=headers)
                     if response.status_code == 304:
                         logger.debug("Document not modified (304): %s", url)
-                        cache_entry = cache.data[
-                            "document_cache"
-                        ]["by_url"][url]
+                        cache_entry = cache.data["document_cache"]["by_url"][url]
                         cache_entry["last_validated"] = (
-                            datetime.utcnow().isoformat(
-                                timespec="seconds"
-                            ) + "Z"
+                            datetime.utcnow().isoformat(timespec="seconds") + "Z"
                         )
                         cache.save()
-                        cached_file_path = Path(
-                            cached_entry["cached_file_path"]
-                        )
+                        cached_file_path = Path(cached_entry["cached_file_path"])
                         return cached_file_path.read_bytes()
                     elif response.status_code == 200:
-                        logger.debug(
-                            "Document modified, updating cache: %s", url
-                        )
+                        logger.debug("Document modified, updating cache: %s", url)
                         content = response.content
                         cache.cache_document(
                             url=url,
@@ -326,14 +313,12 @@ def _fetch_binary(
                                 "Content-Type", "application/octet-stream"
                             ),
                             etag=response.headers.get("ETag"),
-                            last_modified=response.headers.get("Last-Modified")
+                            last_modified=response.headers.get("Last-Modified"),
                         )
                         return content
                 # pylint: disable=broad-exception-caught
                 except Exception as e:
-                    logger.debug(
-                        "Conditional request failed: %s, fetching normally", e
-                    )
+                    logger.debug("Conditional request failed: %s, fetching normally", e)
     session = _SESSION_MANAGER.get_session()
     logger.debug("Fetching document: %s", url)
     response = session.get(url, timeout=timeout)
@@ -349,7 +334,7 @@ def _fetch_binary(
                     "Content-Type", "application/octet-stream"
                 ),
                 etag=response.headers.get("ETag"),
-                last_modified=response.headers.get("Last-Modified")
+                last_modified=response.headers.get("Last-Modified"),
             )
             logger.debug("Cached document: %s", url)
         except Exception as e:  # pylint: disable=broad-exception-caught
@@ -363,7 +348,7 @@ def _fetch_html(
     cache: Optional[Cache] = None,
     config: Optional[Config] = None,
     params: Optional[dict] = None,
-    headers: Optional[dict] = None
+    headers: Optional[dict] = None,
 ) -> str:
     """Fetch HTML content with persistent caching and deduplication.
 
@@ -392,11 +377,10 @@ def _fetch_html(
         if cached_content:
             logger.debug("Using cached HTML: %s", full_url)
             try:
-                return cached_content.decode('utf-8')
+                return cached_content.decode("utf-8")
             except UnicodeDecodeError:
                 logger.warning(
-                    "Failed to decode cached HTML for %s, fetching fresh",
-                    full_url
+                    "Failed to decode cached HTML for %s, fetching fresh", full_url
                 )
     # Check for in-progress request (deduplication)
     pending_request = None
@@ -418,16 +402,12 @@ def _fetch_html(
         if pending_request.result is not None:
             return pending_request.result
         # If we get here, request timed out or failed
-        raise requests.RequestException(
-            f"Request for {full_url} timed out or failed"
-        )
+        raise requests.RequestException(f"Request for {full_url} timed out or failed")
     # Perform the fetch
     try:
         session = _SESSION_MANAGER.get_session()
         logger.debug("Fetching HTML: %s", full_url)
-        response = session.get(
-            url, params=params, headers=headers, timeout=timeout
-        )
+        response = session.get(url, params=params, headers=headers, timeout=timeout)
         response.raise_for_status()
         html_text = response.text
         # Cache the HTML content (store as bytes)
@@ -435,13 +415,11 @@ def _fetch_html(
             try:
                 cache.cache_document(
                     url=full_url,
-                    content=html_text.encode('utf-8'),
+                    content=html_text.encode("utf-8"),
                     config=config,
-                    content_type=response.headers.get(
-                        "Content-Type", "text/html"
-                    ),
+                    content_type=response.headers.get("Content-Type", "text/html"),
                     etag=response.headers.get("ETag"),
-                    last_modified=response.headers.get("Last-Modified")
+                    last_modified=response.headers.get("Last-Modified"),
                 )
                 logger.debug("Cached HTML: %s", full_url)
             except Exception as e:  # pylint: disable=broad-exception-caught
@@ -523,12 +501,8 @@ class ParserInterface(ABC):
         """Ensures each subclass sets required class attributes at startup"""
         super().__init_subclass__()
         if not hasattr(cls, "parser_type"):
-            raise TypeError(
-                f"{cls.__name__} must set class attribute 'parser_type'"
-            )
-        if not isinstance(
-            getattr(cls, "parser_type"), ParserInterface.ParserType
-        ):
+            raise TypeError(f"{cls.__name__} must set class attribute 'parser_type'")
+        if not isinstance(getattr(cls, "parser_type"), ParserInterface.ParserType):
             raise TypeError(
                 f"{cls.__name__}.parser_type must be a ParserType enum value"
             )
@@ -537,9 +511,7 @@ class ParserInterface(ABC):
         if not isinstance(getattr(cls, "cost"), int):
             raise TypeError(f"{cls.__name__}.cost must be an int")
         if not hasattr(cls, "location"):
-            raise TypeError(
-                f"{cls.__name__} must set class attribute 'location'"
-            )
+            raise TypeError(f"{cls.__name__} must set class attribute 'location'")
         if not isinstance(getattr(cls, "location"), str):
             raise TypeError(f"{cls.__name__}.location must be a str")
 
@@ -558,7 +530,7 @@ class ParserInterface(ABC):
         url: str,
         timeout: int = 30,
         cache: Optional[Any] = None,
-        config: Optional[Any] = None
+        config: Optional[Any] = None,
     ) -> bytes:
         """Fetch binary content (PDFs, images) via global session with
         caching.
@@ -572,7 +544,7 @@ class ParserInterface(ABC):
         base_url: str,
         bill: BillAtHearing,
         cache: Optional[Any] = None,
-        config: Optional[Any] = None
+        config: Optional[Any] = None,
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover potential documents for parsing."""
 
@@ -659,9 +631,7 @@ class Config:
         @property
         def reprocess_after_review(self) -> bool:
             """Whether to reprocess after review."""
-            return bool(
-                self.deferred_review.get("reprocess_after_review", True)
-            )
+            return bool(self.deferred_review.get("reprocess_after_review", True))
 
         @property
         def show_confidence(self) -> bool:
@@ -676,9 +646,7 @@ class Config:
         @property
         def auto_accept_high_confidence(self) -> bool:
             """Whether to auto-accept high confidence parsers."""
-            return bool(
-                self.deferred_review.get("auto_accept_high_confidence", False)
-                )
+            return bool(self.deferred_review.get("auto_accept_high_confidence", False))
 
     @property
     def deferred_review(self) -> Config.DeferredReview:
@@ -714,7 +682,10 @@ class Config:
         @property
         def prompt(self) -> str:
             """The prompt for the LLM."""
-            prompt = str(self.llm.get("prompt", """
+            prompt = str(
+                self.llm.get(
+                    "prompt",
+                    """
 bill_id: {bill_id}
     doc_type: {doc_type}
     content: \"\"\"{content}\"\"\"
@@ -732,7 +703,9 @@ bill_id: {bill_id}
     - vote record → look for ("vote"|"yea"|"nay"|"favorable"|
       "recommendation"|"committee")
     - Ignore boilerplate.
-    Output exactly: yes|no|unsure."""))
+    Output exactly: yes|no|unsure.""",
+                )
+            )
             return prompt.strip()
 
         @property
@@ -812,9 +785,7 @@ bill_id: {bill_id}
         def extracted_text_directory(self) -> str:
             """Directory for extracted text."""
             return str(
-                self.document_cache.get(
-                    "extracted_text_directory", "cache/extracted"
-                )
+                self.document_cache.get("extracted_text_directory", "cache/extracted")
             )
 
         @property

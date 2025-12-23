@@ -83,9 +83,7 @@ class ActionExtractor:
             if not action_date:
                 continue
             # Match against action nodes (can return multiple actions for compounds)
-            matched_actions = self._match_actions(
-                action_date, branch_text, action_text
-            )
+            matched_actions = self._match_actions(action_date, branch_text, action_text)
             actions.extend(matched_actions)
         # Sort by date
         return sorted(actions, key=lambda a: a.date)
@@ -95,7 +93,7 @@ class ActionExtractor:
     ) -> list[BillAction]:
         """Match action text against ALL node patterns.
 
-        A single action text can match multiple patterns (e.g., compound 
+        A single action text can match multiple patterns (e.g., compound
         "reported and referred" actions). All matches are returned.
 
         Args:
@@ -112,25 +110,29 @@ class ActionExtractor:
             if match:
                 extracted_data = node.extract_data(match)
                 confidence = node.calculate_confidence(match)
-                actions.append(BillAction(
+                actions.append(
+                    BillAction(
+                        date=action_date,
+                        branch=branch,
+                        action_type=node.action_type.value,
+                        category=node.category,
+                        raw_text=action_text,
+                        extracted_data=extracted_data,
+                        confidence=confidence,
+                    )
+                )
+        if not actions:
+            actions.append(
+                BillAction(
                     date=action_date,
                     branch=branch,
-                    action_type=node.action_type.value,
-                    category=node.category,
+                    action_type=ActionType.UNKNOWN,
+                    category="other",
                     raw_text=action_text,
-                    extracted_data=extracted_data,
-                    confidence=confidence,
-                ))
-        if not actions:
-            actions.append(BillAction(
-                date=action_date,
-                branch=branch,
-                action_type=ActionType.UNKNOWN,
-                category="other",
-                raw_text=action_text,
-                extracted_data={},
-                confidence=0.0,
-            ))
+                    extracted_data={},
+                    confidence=0.0,
+                )
+            )
         return actions
 
 
@@ -151,8 +153,8 @@ def extract_timeline(
     extractor = ActionExtractor()
     actions = extractor.extract_actions(bill_url, bill_id)
     timeline = BillActionTimeline(actions, bill_id)
-    
+
     # Infer committee IDs for hearings that don't explicitly mention them
     timeline.infer_missing_committee_ids()
-    
+
     return timeline

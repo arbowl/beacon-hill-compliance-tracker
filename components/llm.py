@@ -36,14 +36,11 @@ class LLMParser:
         for handler in self.audit_logger.handlers[:]:
             self.audit_logger.removeHandler(handler)
         # Create file handler
-        file_handler = logging.FileHandler(
-            log_file, mode='a', encoding='utf-8'
-        )
+        file_handler = logging.FileHandler(log_file, mode="a", encoding="utf-8")
         file_handler.setLevel(logging.INFO)
         # Create formatter
         formatter = logging.Formatter(
-            '%(asctime)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            "%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
         file_handler.setFormatter(formatter)
         self.audit_logger.addHandler(file_handler)
@@ -54,10 +51,7 @@ class LLMParser:
         if not self.config.llm.enabled:
             return False
         try:
-            response = requests.get(
-                f"{self.base_url}/api/tags",
-                timeout=5
-            )
+            response = requests.get(f"{self.base_url}/api/tags", timeout=5)
             return response.status_code == 200
         # pylint: disable=broad-exception-caught
         except Exception:
@@ -65,10 +59,7 @@ class LLMParser:
 
     # pylint: disable=too-many-locals, too-many-branches
     def make_decision(
-        self,
-        content: str,
-        doc_type: str,
-        bill_id: str
+        self, content: str, doc_type: str, bill_id: str
     ) -> Optional[Literal["yes", "no", "unsure"]]:
         """
         Ask the LLM to make a decision about document matching.
@@ -93,12 +84,7 @@ class LLMParser:
         if not self.is_available():
             limited_content = self._truncate_content(content)
             self._log_audit_entry(
-                content,
-                doc_type,
-                bill_id,
-                None,
-                "unavailable",
-                limited_content
+                content, doc_type, bill_id, None, "unavailable", limited_content
             )
             return None
 
@@ -109,9 +95,7 @@ class LLMParser:
 
         # Format the prompt with the provided variables
         formatted_prompt = self.config.llm.prompt.format(
-            content=limited_content,
-            doc_type=doc_type,
-            bill_id=bill_id
+            content=limited_content, doc_type=doc_type, bill_id=bill_id
         )
 
         try:
@@ -123,10 +107,10 @@ class LLMParser:
                     "stream": False,
                     "options": {
                         "temperature": 0.1,  # Low temperature for consistency
-                        "top_p": 0.9
-                    }
+                        "top_p": 0.9,
+                    },
                 },
-                timeout=self.config.llm.timeout
+                timeout=self.config.llm.timeout,
             )
 
             if response.status_code == 200:
@@ -139,7 +123,7 @@ class LLMParser:
                 # after any reasoning
                 response_lower = response_text.lower().strip()
                 # Split by lines and look for the final decision
-                lines = response_text.strip().split('\n')
+                lines = response_text.strip().split("\n")
                 final_line = lines[-1].strip().lower() if lines else ""
                 # Check the final line for a clear decision
                 if final_line == "yes":
@@ -169,12 +153,7 @@ class LLMParser:
 
                 # Log the audit entry
                 self._log_audit_entry(
-                    content,
-                    doc_type,
-                    bill_id,
-                    decision,
-                    raw_response,
-                    limited_content
+                    content, doc_type, bill_id, decision, raw_response, limited_content
                 )
                 return decision  # type: ignore
             else:
@@ -184,18 +163,13 @@ class LLMParser:
                     bill_id,
                     None,
                     f"http_error_{response.status_code}",
-                    limited_content
+                    limited_content,
                 )
                 return None
         # pylint: disable=broad-exception-caught
         except Exception as e:
             self._log_audit_entry(
-                content,
-                doc_type,
-                bill_id,
-                None,
-                f"exception_{str(e)}",
-                limited_content
+                content, doc_type, bill_id, None, f"exception_{str(e)}", limited_content
             )
             return None
 
@@ -219,7 +193,7 @@ class LLMParser:
             return content
 
         # Remove excessive whitespace
-        content = ' '.join(content.split())
+        content = " ".join(content.split())
 
         # Special handling for boilerplate content (detect common patterns)
         boilerplate_indicators = [
@@ -229,7 +203,7 @@ class LLMParser:
             "Register for MyLegislature",
             "Sign in to MyLegislature",
             "Copyright © 2025 The General Court of the Commonwealth of "
-            "Massachusetts"
+            "Massachusetts",
         ]
 
         # If content contains boilerplate, try to extract the meaningful part
@@ -242,15 +216,15 @@ class LLMParser:
                     break
 
         # Strategy 1: Try sentence-based truncation (first 1-2 sentences)
-        sentences = content.split('. ')
+        sentences = content.split(". ")
         if len(sentences) > 1:
             # Take first 1-2 sentences, but ensure we don't exceed length
             limited_sentences = sentences[:2]
-            sentence_content = '. '.join(limited_sentences)
+            sentence_content = ". ".join(limited_sentences)
 
             # If we cut off mid-sentence, add the period back
-            if not sentence_content.endswith('.'):
-                sentence_content += '.'
+            if not sentence_content.endswith("."):
+                sentence_content += "."
 
             # If sentence-based truncation is reasonable length, use it
             if len(sentence_content) <= 200:  # Much more aggressive: 200 max
@@ -259,7 +233,7 @@ class LLMParser:
         # Strategy 2: Fall back to word-based truncation (first 15 words)
         words = content.split()
         if len(words) > 15:  # Reduced from 20 to 15 words
-            word_content = ' '.join(words[:15])
+            word_content = " ".join(words[:15])
             if len(word_content) <= 200:  # Much more aggressive: 200 chars max
                 return word_content + "..."
 
@@ -277,7 +251,7 @@ class LLMParser:
         bill_id: str,
         decision: Optional[str],
         raw_response: str,
-        limited_content: Optional[str] = None
+        limited_content: Optional[str] = None,
     ) -> None:
         """Log an audit entry for the LLM interaction."""
         if not self.audit_enabled:
@@ -295,10 +269,12 @@ class LLMParser:
         }
         # Add model info if configured
         if self.config.audit_log.include_model_info:
-            audit_entry.update({
-                "model": self.config.llm.model,
-                "host": self.config.llm.host,
-                "port": str(self.config.llm.port)
-            })
+            audit_entry.update(
+                {
+                    "model": self.config.llm.model,
+                    "host": self.config.llm.host,
+                    "port": str(self.config.llm.port),
+                }
+            )
         # Log as JSON for easy parsing
         self.audit_logger.info(json.dumps(audit_entry, ensure_ascii=False))

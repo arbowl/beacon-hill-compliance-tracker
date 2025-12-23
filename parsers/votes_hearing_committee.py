@@ -17,7 +17,7 @@ VOTE_DOC_PATTERNS = [
     r"senate.*committee.*members.*votes",
     r"votes.*committee.*members",
     r"committee.*vote.*record",
-    r"roll.*call.*vote"
+    r"roll.*call.*vote",
 ]
 
 
@@ -29,17 +29,10 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
     cost = 2
 
     @staticmethod
-    def _extract_pdf_text(
-        pdf_url: str,
-        cache=None,
-        config=None
-    ) -> Optional[str]:
+    def _extract_pdf_text(pdf_url: str, cache=None, config=None) -> Optional[str]:
         """Extract text content from a PDF URL using extraction service."""
         return DocumentExtractionService.extract_text(
-            url=pdf_url,
-            cache=cache,
-            config=config,
-            timeout=30
+            url=pdf_url, cache=cache, config=config, timeout=30
         )
 
     @staticmethod
@@ -55,18 +48,14 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
 
     @classmethod
     def discover(
-        cls,
-        base_url: str,
-        bill: BillAtHearing,
-        cache=None,
-        config=None
+        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover committee vote documents on the hearing page."""
         logger.debug("Trying %s...", cls.__name__)
         soup = cls.soup(str(bill.hearing_url))
         document_links = soup.find_all("a", href=True)
         for link in document_links:
-            if not hasattr(link, 'get'):
+            if not hasattr(link, "get"):
                 continue
             href = link.get("href", "")
             if not isinstance(href, str):
@@ -92,8 +81,7 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
                         )
                         if len(pdf_text) > 200:
                             preview += (
-                                f"\n\nPDF Content Preview:\n"
-                                f"{pdf_text[:500]}..."
+                                f"\n\nPDF Content Preview:\n" f"{pdf_text[:500]}..."
                             )
                         else:
                             preview += f"\n\nPDF Content:\n{pdf_text}"
@@ -120,11 +108,6 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
         return None
 
     @classmethod
-    def parse(
-        cls, _base_url: str, candidate: ParserInterface.DiscoveryResult
-    ) -> dict:
+    def parse(cls, _base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """Parse the committee vote document."""
-        return {
-            "location": cls.location,
-            "source_url": candidate.source_url
-        }
+        return {"location": cls.location, "source_url": candidate.source_url}

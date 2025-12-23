@@ -38,10 +38,7 @@ h, l, s = colorsys.rgb_to_hls(*base_rgb)
 
 # Generate subtle tonal ramp (slightly lighter for lower-ranked items)
 num = len(values)
-colors = [
-    colorsys.hls_to_rgb(h, min(1, l + (i * 0.015)), s)
-    for i in range(num)
-]
+colors = [colorsys.hls_to_rgb(h, min(1, l + (i * 0.015)), s) for i in range(num)]
 
 plt.figure(figsize=(11, 6.8))
 

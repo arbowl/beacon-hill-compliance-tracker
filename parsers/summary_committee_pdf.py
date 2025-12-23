@@ -27,7 +27,7 @@ class SummaryCommitteePdfParser(ParserInterface):
     ) -> Optional[str]:
         """Find the Committee Summary PDF link."""
         for a in soup.find_all("a", href=True):
-            if not hasattr(a, 'get'):
+            if not hasattr(a, "get"):
                 continue
             try:
                 href = a.get("href", "")
@@ -38,44 +38,24 @@ class SummaryCommitteePdfParser(ParserInterface):
                 if re.search(r"/Download/DownloadDocument/", href, re.I):
                     return urljoin(base_url, href)
                 text = a.get_text(strip=True).lower()
-                if (
-                    re.search(
-                        r"committee.*summary|summary.*committee",
-                        text,
-                        re.I
-                    ) or
-                    re.search(
-                        r"committee.*summary|summary.*committee",
-                        href,
-                        re.I
-                    )
-                ):
+                if re.search(
+                    r"committee.*summary|summary.*committee", text, re.I
+                ) or re.search(r"committee.*summary|summary.*committee", href, re.I):
                     return urljoin(base_url, href)
             except (AttributeError, TypeError):
                 continue
         return None
 
     @staticmethod
-    def _extract_pdf_text(
-        pdf_url: str,
-        cache=None,
-        config=None
-    ) -> Optional[str]:
+    def _extract_pdf_text(pdf_url: str, cache=None, config=None) -> Optional[str]:
         """Extract text content from a PDF URL using extraction service."""
         return DocumentExtractionService.extract_text(
-            url=pdf_url,
-            cache=cache,
-            config=config,
-            timeout=30
+            url=pdf_url, cache=cache, config=config, timeout=30
         )
 
     @classmethod
     def discover(
-        cls,
-        base_url: str,
-        bill: BillAtHearing,
-        cache=None,
-        config=None
+        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the Committee Summary PDF."""
         logger.debug("Trying %s...", cls.__name__)
@@ -107,8 +87,6 @@ class SummaryCommitteePdfParser(ParserInterface):
             )
 
     @staticmethod
-    def parse(
-        _base_url: str, candidate: ParserInterface.DiscoveryResult
-    ) -> dict:
+    def parse(_base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """Parse the Committee Summary PDF."""
         return {"source_url": candidate.source_url}

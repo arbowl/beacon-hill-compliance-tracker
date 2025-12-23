@@ -186,10 +186,7 @@ class _Renderer:
         total = nb + hr + ro + sm + votes
         if total == 0:
             # Keep a concise negative statement for parity with prior behavior.
-            return (
-                "No new hearings, report-outs, summaries, or votes "
-                "were detected."
-            )
+            return "No new hearings, report-outs, summaries, or votes " "were detected."
         # If more than one bucket is non-zero, emit a single mixed sentence.
         nonzero_parts = 0
         parts: list[str] = []
@@ -206,10 +203,7 @@ class _Renderer:
             parts.append(_plural(sm, "bill", "bills") + f" {phrase}")
             nonzero_parts += 1
         if votes > 0:
-            phrase = (
-                "with new vote records" if votes == 1
-                else "with new vote records"
-            )
+            phrase = "with new vote records" if votes == 1 else "with new vote records"
             parts.append(_plural(votes, "bill", "bills") + f" {phrase}")
             nonzero_parts += 1
         if nb > 0:
@@ -273,9 +267,7 @@ class _Renderer:
             # (most specific cause first)
             if ctx.bills_improved_with_summaries:
                 k = len(ctx.bills_improved_with_summaries)
-                preview = _print_preview(
-                    ctx.bills_improved_with_summaries, 5
-                )
+                preview = _print_preview(ctx.bills_improved_with_summaries, 5)
                 return (
                     f"New summaries moved {_plural(k, 'bill', 'bills')} "
                     f"({preview}) toward compliance."
@@ -289,9 +281,7 @@ class _Renderer:
                 )
             if ctx.bills_improved_with_report_out:
                 k = len(ctx.bills_improved_with_report_out)
-                preview = _print_preview(
-                    ctx.bills_improved_with_report_out, 5
-                )
+                preview = _print_preview(ctx.bills_improved_with_report_out, 5)
                 return (
                     f"Report-outs moved {_plural(k, 'bill', 'bills')} "
                     f"({preview}) toward compliance."
@@ -306,9 +296,7 @@ class _Renderer:
                 )
             # Priority 3: Report-outs present but no clear improvement
             if ro > 0:
-                return (
-                    "The movement aligns with committee report-outs."
-                )
+                return "The movement aligns with committee report-outs."
         elif ctx.delta_direction is DeltaDirection.DECLINED:
             if ctx.bills_degraded_compliance:
                 k = len(ctx.bills_degraded_compliance)
@@ -323,19 +311,10 @@ class _Renderer:
         else:
             # Stable: avoid speculation; only emit if we truly have
             # nothing moving.
-            return (
-                "No material shift is attributable to activity in this "
-                "window."
-            )
+            return "No material shift is attributable to activity in this " "window."
 
-        if (
-            not any_activity
-            and ctx.delta_direction is not DeltaDirection.STABLE
-        ):
-            return (
-                "The change reflects updates recorded outside this "
-                "window."
-            )
+        if not any_activity and ctx.delta_direction is not DeltaDirection.STABLE:
+            return "The change reflects updates recorded outside this " "window."
 
         # If we get here, skip attribution instead of emitting filler.
         return ""
@@ -352,8 +331,7 @@ class _Renderer:
 
         if total == exempt and short_ == 0:
             return (
-                "All hearings in this window are exempt from the "
-                "10-day notice rule."
+                "All hearings in this window are exempt from the " "10-day notice rule."
             )
         if short_ > 0:
             return (
@@ -389,9 +367,7 @@ def build_analysis_context(
         delta_direction = DeltaDirection.DECLINED
 
     current_bills_by_id = {b["bill_id"]: b for b in current_bills}
-    previous_bills_by_id = {
-        b["bill_id"]: b for b in (previous_bills or [])
-    } or None
+    previous_bills_by_id = {b["bill_id"]: b for b in (previous_bills or [])} or None
 
     # Track state transitions for attribution
     improved: list[str] = []
@@ -403,11 +379,14 @@ def build_analysis_context(
                 continue
             prev_state = prev.get("state", "")
             curr_state = curr.get("state", "")
-            if (prev_state in ("Non-Compliant", "Incomplete") and
-                    curr_state in ("Compliant", "Unknown")):
+            if prev_state in ("Non-Compliant", "Incomplete") and curr_state in (
+                "Compliant",
+                "Unknown",
+            ):
                 improved.append(bill_id)
             elif prev_state in ("Compliant", "Unknown") and curr_state in (
-                "Non-Compliant", "Incomplete"
+                "Non-Compliant",
+                "Incomplete",
             ):
                 degraded.append(bill_id)
 
@@ -428,17 +407,10 @@ def build_analysis_context(
     # Compute intersections: bills that improved AND got specific activities
     improved_set = set(improved)
     improved_with_summaries = [
-        bid for bid in improved_set
-        if bid in bills_with_new_summaries
+        bid for bid in improved_set if bid in bills_with_new_summaries
     ]
-    improved_with_votes = [
-        bid for bid in improved_set
-        if bid in bills_with_new_votes
-    ]
-    improved_with_report_out = [
-        bid for bid in improved_set
-        if bid in reported_out
-    ]
+    improved_with_votes = [bid for bid in improved_set if bid in bills_with_new_votes]
+    improved_with_report_out = [bid for bid in improved_set if bid in reported_out]
 
     # Transparency: compute short notice & exemptions only over the filtered
     # hearing list.
@@ -526,6 +498,7 @@ def generate_deterministic_analysis(
 # Use the below code to test the template generator.
 # Run this file directly.
 if __name__ == "__main__":
+
     def create_bill(
         bill_id: str,
         state: str = "Unknown",
@@ -537,9 +510,10 @@ if __name__ == "__main__":
     ) -> dict:
         """Create a bill dictionary."""
         d: dict[str, str | int | bool] = {
-            "bill_id": bill_id, "state": state,
+            "bill_id": bill_id,
+            "state": state,
             "votes_present": votes_present,
-            "summary_present": summary_present
+            "summary_present": summary_present,
         }
         if announcement_date is not None:
             d["announcement_date"] = str(announcement_date)
@@ -604,30 +578,58 @@ if __name__ == "__main__":
         create_bill("A1", state=State.UNKNOWN),
         create_bill("A2", state=State.UNKNOWN),
         # State changes for attribution
-        create_bill("D1", state=State.NONCOMPLIANT),    # degraded
-        create_bill("I2", state=State.COMPLIANT),       # improved
+        create_bill("D1", state=State.NONCOMPLIANT),  # degraded
+        create_bill("I2", state=State.COMPLIANT),  # improved
         # Hearing bills with notice metadata
         # Meets 10-day:
-        create_bill("H1", state=State.UNKNOWN,
-                    announcement_date=date(2025, 7, 10), notice_gap_days=12),
-        create_bill("H2", state=State.UNKNOWN,
-                    announcement_date=date(2025, 7, 12), notice_gap_days=7),
+        create_bill(
+            "H1",
+            state=State.UNKNOWN,
+            announcement_date=date(2025, 7, 10),
+            notice_gap_days=12,
+        ),
+        create_bill(
+            "H2",
+            state=State.UNKNOWN,
+            announcement_date=date(2025, 7, 12),
+            notice_gap_days=7,
+        ),
         # Short notice: exempt by date
-        create_bill("H3", state=State.UNKNOWN,
-                    announcement_date=date(2025, 6, 10), notice_gap_days=15),
+        create_bill(
+            "H3",
+            state=State.UNKNOWN,
+            announcement_date=date(2025, 6, 10),
+            notice_gap_days=15,
+        ),
         # Short notice: exempt by reason
-        create_bill("H4", state=State.UNKNOWN,
-                    announcement_date=date(2025, 8, 1),  notice_gap_days=10,
-                    reason="Exempt per prior announcement"),
+        create_bill(
+            "H4",
+            state=State.UNKNOWN,
+            announcement_date=date(2025, 8, 1),
+            notice_gap_days=10,
+            reason="Exempt per prior announcement",
+        ),
         # Meets 10-day:
-        create_bill("H5", state=State.UNKNOWN,
-                    announcement_date=date(2025, 8, 5),  notice_gap_days=14),
+        create_bill(
+            "H5",
+            state=State.UNKNOWN,
+            announcement_date=date(2025, 8, 5),
+            notice_gap_days=14,
+        ),
         # Short notice:
-        create_bill("H6", state=State.UNKNOWN,
-                    announcement_date=date(2025, 8, 6),  notice_gap_days=5),
+        create_bill(
+            "H6",
+            state=State.UNKNOWN,
+            announcement_date=date(2025, 8, 6),
+            notice_gap_days=5,
+        ),
         # Exempt by date:
-        create_bill("E1", state=State.UNKNOWN,
-                    announcement_date=date(2025, 6, 20), notice_gap_days=20),
+        create_bill(
+            "E1",
+            state=State.UNKNOWN,
+            announcement_date=date(2025, 6, 20),
+            notice_gap_days=20,
+        ),
         # Bills that will get new summaries
         create_bill("S1", state=State.UNKNOWN, summary_present=True),
         create_bill("S2", state=State.UNKNOWN, summary_present=True),
@@ -636,15 +638,19 @@ if __name__ == "__main__":
         create_bill("V2", state=State.UNKNOWN, votes_present=True),
         create_bill("V3", state=State.UNKNOWN, votes_present=True),
         # Bills that will improve with votes (got votes, now compliant)
-        create_bill("IV1", state=State.COMPLIANT,
-                    summary_present=True, votes_present=True),
-        create_bill("IV2", state=State.COMPLIANT,
-                    summary_present=True, votes_present=True),
+        create_bill(
+            "IV1", state=State.COMPLIANT, summary_present=True, votes_present=True
+        ),
+        create_bill(
+            "IV2", state=State.COMPLIANT, summary_present=True, votes_present=True
+        ),
         # Bills that will improve with summaries (got summaries, now compliant)
-        create_bill("IS1", state=State.COMPLIANT,
-                    summary_present=True, votes_present=True),
-        create_bill("IS2", state=State.COMPLIANT,
-                    summary_present=True, votes_present=True),
+        create_bill(
+            "IS1", state=State.COMPLIANT, summary_present=True, votes_present=True
+        ),
+        create_bill(
+            "IS2", state=State.COMPLIANT, summary_present=True, votes_present=True
+        ),
         # "Newly detected" bills
         create_bill("NB1", state=State.UNKNOWN),
         create_bill("NB2", state=State.UNKNOWN),
@@ -656,170 +662,267 @@ if __name__ == "__main__":
     ]
     scenarios = [
         # 1) Stable, no activity → negative activity sentence + stable attr
-        ("Stable / No activity",
-         {"time_interval": "1 day", "previous_date": "2025-06-25",
-          "current_date": "2025-06-26",
-          "compliance_delta": 0.01,
-          "new_bills": [], "bills_with_new_hearings": [],
-          "bills_reported_out": [], "bills_with_new_summaries": [],
-          "bills_with_new_votes": []}),
-
+        (
+            "Stable / No activity",
+            {
+                "time_interval": "1 day",
+                "previous_date": "2025-06-25",
+                "current_date": "2025-06-26",
+                "compliance_delta": 0.01,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                "bills_reported_out": [],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 2) Rose by exactly 1.0 → singular "percentage point", single report
-        ("Rose by 1.0 / One report-out",
-         {"time_interval": "1 week", "previous_date": "2025-06-19",
-          "current_date": "2025-06-26",
-          "compliance_delta": +1.0,
-          "new_bills": [], "bills_with_new_hearings": [],
-          "bills_reported_out": ["A1"], "bills_with_new_summaries": [],
-          "bills_with_new_votes": []}),
-
+        (
+            "Rose by 1.0 / One report-out",
+            {
+                "time_interval": "1 week",
+                "previous_date": "2025-06-19",
+                "current_date": "2025-06-26",
+                "compliance_delta": +1.0,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                "bills_reported_out": ["A1"],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 3) Rose / Multiple report-outs (plural path) + attribution to report
-        ("Rose / Two report-outs",
-         {"time_interval": "1 day", "previous_date": "2025-06-25",
-          "current_date": "2025-06-26",
-          "compliance_delta": +2.3,
-          "new_bills": [], "bills_with_new_hearings": [],
-          "bills_reported_out": ["A1", "A2"], "bills_with_new_summaries": [],
-          "bills_with_new_votes": []}),
-
+        (
+            "Rose / Two report-outs",
+            {
+                "time_interval": "1 day",
+                "previous_date": "2025-06-25",
+                "current_date": "2025-06-26",
+                "compliance_delta": +2.3,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                "bills_reported_out": ["A1", "A2"],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 4) Declined / Summaries only (single-bucket sentence) + degraded attr
-        ("Declined / New summaries + degraded bills",
-         {"time_interval": "1 day", "previous_date": "2025-07-09",
-          "current_date": "2025-07-10",
-          "compliance_delta": -2.5,
-          "new_bills": [], "bills_with_new_hearings": [],
-          "bills_reported_out": [],
-          "bills_with_new_summaries": ["S1", "S2"],
-          "bills_with_new_votes": []}),
-
+        (
+            "Declined / New summaries + degraded bills",
+            {
+                "time_interval": "1 day",
+                "previous_date": "2025-07-09",
+                "current_date": "2025-07-10",
+                "compliance_delta": -2.5,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                "bills_reported_out": [],
+                "bills_with_new_summaries": ["S1", "S2"],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 5) Mixed activity (all buckets > 0) → combined one-liner;
         # transparency
-        ("Mixed: report-outs, hearings, summaries, votes, new bills",
-         {"time_interval": "1 week", "previous_date": "2025-07-05",
-          "current_date": "2025-07-12",
-          "compliance_delta": +0.8,
-          "new_bills": ["NB1", "NB2"],
-          "bills_with_new_hearings": ["H1", "H2", "H6"],  # contains shorts
-          "bills_reported_out": ["A2"],
-          "bills_with_new_summaries": ["S1"],
-          "bills_with_new_votes": ["V1"]}),
-
+        (
+            "Mixed: report-outs, hearings, summaries, votes, new bills",
+            {
+                "time_interval": "1 week",
+                "previous_date": "2025-07-05",
+                "current_date": "2025-07-12",
+                "compliance_delta": +0.8,
+                "new_bills": ["NB1", "NB2"],
+                "bills_with_new_hearings": ["H1", "H2", "H6"],  # contains shorts
+                "bills_reported_out": ["A2"],
+                "bills_with_new_summaries": ["S1"],
+                "bills_with_new_votes": ["V1"],
+            },
+        ),
         # 6) Hearings: all exempt by date → transparency "All hearings ...
         # exempt"
-        ("Hearings only / All exempt by date",
-         {"time_interval": "1 day", "previous_date": "2025-06-19",
-          "current_date": "2025-06-26",
-          "compliance_delta": 0.0,
-          "new_bills": [], "bills_with_new_hearings": ["H3", "E1"],
-          "bills_reported_out": [], "bills_with_new_summaries": [],
-          "bills_with_new_votes": []}),
-
+        (
+            "Hearings only / All exempt by date",
+            {
+                "time_interval": "1 day",
+                "previous_date": "2025-06-19",
+                "current_date": "2025-06-26",
+                "compliance_delta": 0.0,
+                "new_bills": [],
+                "bills_with_new_hearings": ["H3", "E1"],
+                "bills_reported_out": [],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 7) Hearings: meet 10-day with some exempt by reason → transparency
         # mixed
-        ("Hearings only / Met 10-day; some exempt by reason",
-         {"time_interval": "1 day", "previous_date": "2025-07-31",
-          "current_date": "2025-08-01",
-          "compliance_delta": +0.2,
-          "new_bills": [], "bills_with_new_hearings": ["H1", "H4", "H5"],
-          "bills_reported_out": [], "bills_with_new_summaries": [],
-          "bills_with_new_votes": []}),
-
+        (
+            "Hearings only / Met 10-day; some exempt by reason",
+            {
+                "time_interval": "1 day",
+                "previous_date": "2025-07-31",
+                "current_date": "2025-08-01",
+                "compliance_delta": +0.2,
+                "new_bills": [],
+                "bills_with_new_hearings": ["H1", "H4", "H5"],
+                "bills_reported_out": [],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 8) Change outside window (non-zero delta, no activity) → explicit
         # attr message
-        ("Non-zero delta / No activity in window",
-         {"time_interval": "1 day", "previous_date": "2025-07-20",
-          "current_date": "2025-07-21",
-          "compliance_delta": -0.6,
-          "new_bills": [], "bills_with_new_hearings": [],
-          "bills_reported_out": [], "bills_with_new_summaries": [],
-          "bills_with_new_votes": []}),
-
+        (
+            "Non-zero delta / No activity in window",
+            {
+                "time_interval": "1 day",
+                "previous_date": "2025-07-20",
+                "current_date": "2025-07-21",
+                "compliance_delta": -0.6,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                "bills_reported_out": [],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 9) New bills only (uses preview limit 2 → triggers 'and X more')
-        ("New bills only / Long preview",
-         {"time_interval": "1 day", "previous_date": "2025-10-30",
-          "current_date": "2025-10-31",
-          "compliance_delta": +5.0,
-          "new_bills": ["NB1", "NB2", "NB3", "NB4", "NB5", "NB6", "NB7"],
-          "bills_with_new_hearings": [], "bills_reported_out": [],
-          "bills_with_new_summaries": [], "bills_with_new_votes": []}),
-
+        (
+            "New bills only / Long preview",
+            {
+                "time_interval": "1 day",
+                "previous_date": "2025-10-30",
+                "current_date": "2025-10-31",
+                "compliance_delta": +5.0,
+                "new_bills": ["NB1", "NB2", "NB3", "NB4", "NB5", "NB6", "NB7"],
+                "bills_with_new_hearings": [],
+                "bills_reported_out": [],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 10) Declined with report-outs present → neutral attr ("coincided")
-        ("Declined / Report-outs present (neutral attribution)",
-         {"time_interval": "1 day", "previous_date": "2025-07-14",
-          "current_date": "2025-07-15",
-          "compliance_delta": -1.4,
-          "new_bills": [], "bills_with_new_hearings": [],
-          "bills_reported_out": ["A1"],
-          "bills_with_new_summaries": [], "bills_with_new_votes": []}),
-
+        (
+            "Declined / Report-outs present (neutral attribution)",
+            {
+                "time_interval": "1 day",
+                "previous_date": "2025-07-14",
+                "current_date": "2025-07-15",
+                "compliance_delta": -1.4,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                "bills_reported_out": ["A1"],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 11) Hearings: exactly one → singular phrasing "heard at a hearing"
-        ("One hearing only / Singular phrasing check",
-         {"time_interval": "1 day", "previous_date": "2025-08-05",
-          "current_date": "2025-08-06",
-          "compliance_delta": +0.3,
-          "new_bills": [], "bills_with_new_hearings": ["H5"],
-          "bills_reported_out": [], "bills_with_new_summaries": [],
-          "bills_with_new_votes": []}),
-
+        (
+            "One hearing only / Singular phrasing check",
+            {
+                "time_interval": "1 day",
+                "previous_date": "2025-08-05",
+                "current_date": "2025-08-06",
+                "compliance_delta": +0.3,
+                "new_bills": [],
+                "bills_with_new_hearings": ["H5"],
+                "bills_reported_out": [],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 12) Improved compliance attribution (no report-outs, positive delta,
         # improved list non-empty)
-        ("Rose / Improvements without report-outs",
-         {"time_interval": "1 week", "previous_date": "2025-07-01",
-          "current_date": "2025-07-08",
-          "compliance_delta": +1.1,
-          "new_bills": [], "bills_with_new_hearings": [],
-          "bills_reported_out": [],
-          "bills_with_new_summaries": [], "bills_with_new_votes": []}),
-
+        (
+            "Rose / Improvements without report-outs",
+            {
+                "time_interval": "1 week",
+                "previous_date": "2025-07-01",
+                "current_date": "2025-07-08",
+                "compliance_delta": +1.1,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                "bills_reported_out": [],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 13) New votes only (single-bucket sentence) → test vote activity
-        ("Votes only / Single vote record",
-         {"time_interval": "1 day", "previous_date": "2025-07-15",
-          "current_date": "2025-07-16",
-          "compliance_delta": +0.5,
-          "new_bills": [], "bills_with_new_hearings": [],
-          "bills_reported_out": [], "bills_with_new_summaries": [],
-          "bills_with_new_votes": ["V1"]}),
-
+        (
+            "Votes only / Single vote record",
+            {
+                "time_interval": "1 day",
+                "previous_date": "2025-07-15",
+                "current_date": "2025-07-16",
+                "compliance_delta": +0.5,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                "bills_reported_out": [],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": ["V1"],
+            },
+        ),
         # 14) Multiple votes (plural path) → test vote activity plural
-        ("Votes only / Multiple vote records",
-         {"time_interval": "1 day", "previous_date": "2025-07-15",
-          "current_date": "2025-07-16",
-          "compliance_delta": +1.2,
-          "new_bills": [], "bills_with_new_hearings": [],
-          "bills_reported_out": [], "bills_with_new_summaries": [],
-          "bills_with_new_votes": ["V1", "V2", "V3"]}),
-
+        (
+            "Votes only / Multiple vote records",
+            {
+                "time_interval": "1 day",
+                "previous_date": "2025-07-15",
+                "current_date": "2025-07-16",
+                "compliance_delta": +1.2,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                "bills_reported_out": [],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": ["V1", "V2", "V3"],
+            },
+        ),
         # 15) Rose / Votes moved bills toward compliance (priority attribution)
-        ("Rose / Votes improved compliance (priority attribution)",
-         {"time_interval": "1 week", "previous_date": "2025-07-01",
-          "current_date": "2025-07-08",
-          "compliance_delta": +2.5,
-          "new_bills": [], "bills_with_new_hearings": [],
-          # Report-out present but votes priority
-          "bills_reported_out": ["A1"],
-          "bills_with_new_summaries": [],
-          "bills_with_new_votes": ["IV1", "IV2"]}),
-
+        (
+            "Rose / Votes improved compliance (priority attribution)",
+            {
+                "time_interval": "1 week",
+                "previous_date": "2025-07-01",
+                "current_date": "2025-07-08",
+                "compliance_delta": +2.5,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                # Report-out present but votes priority
+                "bills_reported_out": ["A1"],
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": ["IV1", "IV2"],
+            },
+        ),
         # 16) Rose / Summaries moved bills toward compliance (priority)
-        ("Rose / Summaries improved compliance (priority attribution)",
-         {"time_interval": "1 week", "previous_date": "2025-07-01",
-          "current_date": "2025-07-08",
-          "compliance_delta": +2.0,
-          "new_bills": [], "bills_with_new_hearings": [],
-          # Report-out present but summaries priority
-          "bills_reported_out": ["A1"],
-          "bills_with_new_summaries": ["IS1", "IS2"],
-          "bills_with_new_votes": []}),
-
+        (
+            "Rose / Summaries improved compliance (priority attribution)",
+            {
+                "time_interval": "1 week",
+                "previous_date": "2025-07-01",
+                "current_date": "2025-07-08",
+                "compliance_delta": +2.0,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                # Report-out present but summaries priority
+                "bills_reported_out": ["A1"],
+                "bills_with_new_summaries": ["IS1", "IS2"],
+                "bills_with_new_votes": [],
+            },
+        ),
         # 17) Rose / Report-outs moved bills (when no summaries/votes)
-        ("Rose / Report-outs improved compliance",
-         {"time_interval": "1 week", "previous_date": "2025-07-01",
-          "current_date": "2025-07-08",
-          "compliance_delta": +1.5,
-          "new_bills": [], "bills_with_new_hearings": [],
-          "bills_reported_out": ["I2"],  # This bill improved with report-out
-          "bills_with_new_summaries": [],
-          "bills_with_new_votes": []}),
+        (
+            "Rose / Report-outs improved compliance",
+            {
+                "time_interval": "1 week",
+                "previous_date": "2025-07-01",
+                "current_date": "2025-07-08",
+                "compliance_delta": +1.5,
+                "new_bills": [],
+                "bills_with_new_hearings": [],
+                "bills_reported_out": ["I2"],  # This bill improved with report-out
+                "bills_with_new_summaries": [],
+                "bills_with_new_votes": [],
+            },
+        ),
     ]
 
     for name, diff in scenarios:

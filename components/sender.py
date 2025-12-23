@@ -31,6 +31,7 @@ Notes:
     'basic-J14-2025.json'.
 - You can batch large 'basic' lists with batch_size.
 """
+
 from __future__ import annotations
 
 from enum import Enum
@@ -85,9 +86,7 @@ def infer_committee_id(path: str) -> Optional[str]:
     name = os.path.basename(path)
     # Try common patterns
     m: Optional[re.Match] = re.search(
-        r"(?:basic|report)[-_]?([A-Za-z0-9]+)\b",
-        name,
-        re.IGNORECASE
+        r"(?:basic|report)[-_]?([A-Za-z0-9]+)\b", name, re.IGNORECASE
     )
     if m:
         return m.group(1)
@@ -115,23 +114,20 @@ def _wrap_timeout(fn, timeout: int):
         if "timeout" not in kwargs:
             kwargs["timeout"] = timeout
         return fn(method, url, **kwargs)
+
     return _inner
 
 
 def _safe_json(resp: requests.Response) -> dict[str, Any]:
     try:
-        return {
-            "ok": resp.ok, "status": resp.status_code, "body": resp.json()
-        }
+        return {"ok": resp.ok, "status": resp.status_code, "body": resp.json()}
     except Exception as e:  # pylint: disable=broad-exception-caught
         print(e)
-        return {
-            "ok": resp.ok, "status": resp.status_code, "text": resp.text[:2000]
-        }
+        return {"ok": resp.ok, "status": resp.status_code, "text": resp.text[:2000]}
 
 
 def _chunked(seq: list[Any], size: int) -> list[list[Any]]:
-    return [seq[i:i+size] for i in range(0, len(seq), size)]
+    return [seq[i : i + size] for i in range(0, len(seq), size)]
 
 
 class IngestClient:
@@ -156,23 +152,16 @@ class IngestClient:
         self.signing_key_id = signing_key_id
         self.signing_key_secret = signing_key_secret
 
-    def _signed_headers(
-        self, method: str, path: str, body: dict
-    ) -> dict[str, str]:
+    def _signed_headers(self, method: str, path: str, body: dict) -> dict[str, str]:
         if not (self.signing_key_id and self.signing_key_secret):
             return {}
         ts = str(int(time.time()))
         body_hash = hashlib.sha256(
-            json.dumps(
-                body, separators=(",", ":"),
-                ensure_ascii=False
-            ).encode("utf-8")
+            json.dumps(body, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
         ).hexdigest()
         msg = f"{ts}.{method.upper()}.{path}.{body_hash}".encode("utf-8")
         sig = hmac.new(
-            self.signing_key_secret.encode("utf-8"),
-            msg,
-            hashlib.sha256
+            self.signing_key_secret.encode("utf-8"), msg, hashlib.sha256
         ).hexdigest()
         return {
             "X-Ingest-Key-Id": self.signing_key_id,
@@ -238,11 +227,13 @@ class IngestClient:
         if dry_run:
             return {
                 "endpoint": url,
-                "results": [{
-                    "status": 0,
-                    "dry_run": True,
-                    "payload_preview": json.dumps(cache_payload)[:4000]
-                }],
+                "results": [
+                    {
+                        "status": 0,
+                        "dry_run": True,
+                        "payload_preview": json.dumps(cache_payload)[:4000],
+                    }
+                ],
             }
         resp = self.session.post(url, json=cache_payload, headers=headers)
         return {"endpoint": url, "results": [_safe_json(resp)]}
@@ -262,11 +253,7 @@ class IngestClient:
         if isinstance(payload, list):
             payload = {"bills": payload}
         # Add committee_id and run_id to the payload
-        body = {
-            "committee_id": committee_id,
-            "run_id": run_id,
-            **payload
-        }
+        body = {"committee_id": committee_id, "run_id": run_id, **payload}
         # If batch_size is specified and payload has "bills", batch the bills
         if batch_size > 0 and isinstance(payload.get("bills"), list):
             items = payload["bills"]
@@ -276,17 +263,19 @@ class IngestClient:
                     "committee_id": committee_id,
                     "run_id": run_id,
                     **{k: v for k, v in payload.items() if k != "bills"},
-                    "bills": batch
+                    "bills": batch,
                 }
                 extra = self._signed_headers("POST", path, batch_body)
                 headers = {**self.headers, **extra}
                 if dry_run:
-                    results.append({
-                        "status": 0,
-                        "batch": idx,
-                        "dry_run": True,
-                        "payload_preview": json.dumps(batch_body)[:4000]
-                    })
+                    results.append(
+                        {
+                            "status": 0,
+                            "batch": idx,
+                            "dry_run": True,
+                            "payload_preview": json.dumps(batch_body)[:4000],
+                        }
+                    )
                     continue
                 resp = self.session.post(url, json=batch_body, headers=headers)
                 results.append(_safe_json(resp))
@@ -295,11 +284,13 @@ class IngestClient:
             extra = self._signed_headers("POST", path, body)
             headers = {**self.headers, **extra}
             if dry_run:
-                results.append({
-                    "status": 0,
-                    "dry_run": True,
-                    "payload_preview": json.dumps(body)[:4000]
-                })
+                results.append(
+                    {
+                        "status": 0,
+                        "dry_run": True,
+                        "payload_preview": json.dumps(body)[:4000],
+                    }
+                )
             else:
                 resp = self.session.post(url, json=body, headers=headers)
                 results.append(_safe_json(resp))
@@ -328,7 +319,7 @@ class IngestClient:
                 changelog_data = {
                     "current_version": __version__,
                     "user_agent": get_user_agent(),
-                    "changelog": []
+                    "changelog": [],
                 }
         else:
             if "user_agent" not in changelog_data:
@@ -341,11 +332,13 @@ class IngestClient:
         if dry_run:
             return {
                 "endpoint": url,
-                "results": [{
-                    "status": 0,
-                    "dry_run": True,
-                    "payload_preview": json.dumps(changelog_data)[:4000]
-                }],
+                "results": [
+                    {
+                        "status": 0,
+                        "dry_run": True,
+                        "payload_preview": json.dumps(changelog_data)[:4000],
+                    }
+                ],
             }
         resp = self.session.post(url, json=changelog_data, headers=headers)
         return {"endpoint": url, "results": [_safe_json(resp)]}

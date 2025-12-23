@@ -23,17 +23,10 @@ class VotesCommitteeDocumentsParser(ParserInterface):
     _bill_vote_data: dict = {}
 
     @staticmethod
-    def _extract_pdf_text(
-        pdf_url: str,
-        cache=None,
-        config=None
-    ) -> Optional[str]:
+    def _extract_pdf_text(pdf_url: str, cache=None, config=None) -> Optional[str]:
         """Extract text content from a PDF URL using extraction service."""
         return DocumentExtractionService.extract_text(
-            url=pdf_url,
-            cache=cache,
-            config=config,
-            timeout=30
+            url=pdf_url, cache=cache, config=config, timeout=30
         )
 
     @staticmethod
@@ -45,22 +38,17 @@ class VotesCommitteeDocumentsParser(ParserInterface):
             return None
         bill_text = bill_text.strip().upper()
         patterns = [
-            r'HOUSE\s+(\d+)',   # "House 475" -> "H475"
-            r'SENATE\s+(\d+)',  # "Senate 123" -> "S123"
-            r'H\.?\s*(\d+)',    # "H.475" or "H 475" -> "H475"
-            r'S\.?\s*(\d+)',    # "S.123" or "S 123" -> "S123"
-            r'^([HS]\d+)$',     # Already normalized "H475", "S123"
+            r"HOUSE\s+(\d+)",  # "House 475" -> "H475"
+            r"SENATE\s+(\d+)",  # "Senate 123" -> "S123"
+            r"H\.?\s*(\d+)",  # "H.475" or "H 475" -> "H475"
+            r"S\.?\s*(\d+)",  # "S.123" or "S 123" -> "S123"
+            r"^([HS]\d+)$",  # Already normalized "H475", "S123"
         ]
         for pattern in patterns:
             match = re.search(pattern, bill_text)
             if match:
                 number = match.group(1)
-                prefix = (
-                    'H'
-                    if 'HOUSE' in bill_text
-                    or 'H' in bill_text
-                    else 'S'
-                )
+                prefix = "H" if "HOUSE" in bill_text or "H" in bill_text else "S"
                 return f"{prefix}{number}"
         return None
 
@@ -71,17 +59,14 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         """
         if not pdf_text:
             return []
-        lines = pdf_text.split('\n')
+        lines = pdf_text.split("\n")
         vote_records = []
         header_line_idx = None
         for i, line in enumerate(lines):
             line_lower = line.lower()
             if any(
-                keyword
-                in line_lower
-                for keyword in [
-                    'bill number', 'bill', 'vote', 'result', 'status'
-                ]
+                keyword in line_lower
+                for keyword in ["bill number", "bill", "vote", "result", "status"]
             ):
                 header_line_idx = i
                 break
@@ -92,50 +77,45 @@ class VotesCommitteeDocumentsParser(ParserInterface):
             if not line:
                 continue
             if any(
-                keyword
-                in line.lower()
+                keyword in line.lower()
                 for keyword in [
-                    'bill number',
-                    'bill',
-                    'vote',
-                    'result',
-                    'status',
-                    '---',
-                    '==='
+                    "bill number",
+                    "bill",
+                    "vote",
+                    "result",
+                    "status",
+                    "---",
+                    "===",
                 ]
             ):
                 continue
-            bill_match = re.search(
-                r'([HS]\d+|HOUSE\s+\d+|SENATE\s+\d+)', line, re.I
-            )
+            bill_match = re.search(r"([HS]\d+|HOUSE\s+\d+|SENATE\s+\d+)", line, re.I)
             if bill_match:
                 bill_id = cls._normalize_bill_id(bill_match.group(1))
                 if bill_id:
                     vote_result = cls._extract_vote_result(line)
-                    vote_records.append({
-                        'bill_id': bill_id,
-                        'vote_result': vote_result,
-                        'raw_line': line
-                    })
+                    vote_records.append(
+                        {
+                            "bill_id": bill_id,
+                            "vote_result": vote_result,
+                            "raw_line": line,
+                        }
+                    )
         return vote_records
 
     @staticmethod
     def _extract_vote_result(line: str) -> str:
         """Extract vote result from a line of text."""
         line_lower = line.lower()
-        if any(word in line_lower for word in [
-            'passed', 'favorable', 'yea', 'yes'
-        ]):
-            return 'Passed'
-        elif any(word in line_lower for word in [
-            'failed', 'unfavorable', 'nay', 'no'
-        ]):
-            return 'Failed'
-        elif any(word in line_lower for word in ['reported', 'reported out']):
-            return 'Reported Out'
-        elif any(word in line_lower for word in ['held', 'study']):
-            return 'Held'
-        return 'Unknown'
+        if any(word in line_lower for word in ["passed", "favorable", "yea", "yes"]):
+            return "Passed"
+        elif any(word in line_lower for word in ["failed", "unfavorable", "nay", "no"]):
+            return "Failed"
+        elif any(word in line_lower for word in ["reported", "reported out"]):
+            return "Reported Out"
+        elif any(word in line_lower for word in ["held", "study"]):
+            return "Held"
+        return "Unknown"
 
     @staticmethod
     def _find_committee_documents_pdf(
@@ -154,11 +134,7 @@ class VotesCommitteeDocumentsParser(ParserInterface):
 
     @classmethod
     def discover(
-        cls,
-        base_url: str,
-        bill: BillAtHearing,
-        cache=None,
-        config=None
+        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover vote documents in committee Documents tab."""
         logger.debug("Trying %s...", cls.__name__)
@@ -177,7 +153,7 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         vote_records = cls._parse_vote_table(pdf_text)
         bill_vote_record = None
         for record in vote_records:
-            if record['bill_id'] == bill.bill_id:
+            if record["bill_id"] == bill.bill_id:
                 bill_vote_record = record
                 break
         if bill_vote_record:
@@ -189,20 +165,13 @@ class VotesCommitteeDocumentsParser(ParserInterface):
                 preview += f"\n\nPDF Content Preview:\n{pdf_text[:500]}..."
             else:
                 preview += f"\n\nPDF Content:\n{pdf_text}"
-            result = ParserInterface.DiscoveryResult(
-                preview,
-                pdf_text,
-                pdf_url,
-                0.9
-            )
+            result = ParserInterface.DiscoveryResult(preview, pdf_text, pdf_url, 0.9)
             cls._bill_vote_data[preview] = bill_vote_record
             return result
         return None
 
     @classmethod
-    def parse(
-        cls, _base_url: str, candidate: ParserInterface.DiscoveryResult
-    ) -> dict:
+    def parse(cls, _base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """Parse the committee vote document."""
         vote_data: dict = VotesCommitteeDocumentsParser._bill_vote_data[
             candidate.preview
@@ -210,13 +179,11 @@ class VotesCommitteeDocumentsParser(ParserInterface):
         return {
             "location": "committee_documents",
             "source_url": candidate.source_url,
-            "motion": (
-                f"Committee vote on {vote_data.get('bill_id', 'unknown bill')}"
-            ),
+            "motion": (f"Committee vote on {vote_data.get('bill_id', 'unknown bill')}"),
             "date": None,  # Could be extracted from PDF if available
             "tallies": {
-                "passed": 1 if vote_data.get('vote_result') == 'Passed' else 0,
-                "failed": 1 if vote_data.get('vote_result') == 'Failed' else 0
+                "passed": 1 if vote_data.get("vote_result") == "Passed" else 0,
+                "failed": 1 if vote_data.get("vote_result") == "Failed" else 0,
             },
-            "records": []  # Indiv member votes not available in this format
+            "records": [],  # Indiv member votes not available in this format
         }

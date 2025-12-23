@@ -23,7 +23,7 @@ VOTE_PATTERN = re.compile(
     r"\s*an Order relative to authorizing the joint\s+committee\s+on\s+"
     r"([A-Za-z& ]+)"
     r".*?\(Senate, No\.\s*([0-9]+)\)(?:\s*\[([^\]]+)\])?",
-    re.DOTALL | re.MULTILINE | re.IGNORECASE
+    re.DOTALL | re.MULTILINE | re.IGNORECASE,
 )
 
 PDF_RX = re.compile(r"\.pdf($|\?)", re.I)
@@ -40,17 +40,10 @@ class VotesJournalPdfParser(ParserInterface):
     _journal_pdf_cache: dict[str, str] = {}
 
     @staticmethod
-    def _extract_pdf_text(
-        pdf_url: str,
-        cache=None,
-        config=None
-    ) -> Optional[str]:
+    def _extract_pdf_text(pdf_url: str, cache=None, config=None) -> Optional[str]:
         """Extract text content from a PDF URL using extraction service."""
         return DocumentExtractionService.extract_text(
-            url=pdf_url,
-            cache=cache,
-            config=config,
-            timeout=30
+            url=pdf_url, cache=cache, config=config, timeout=30
         )
 
     @staticmethod
@@ -71,7 +64,7 @@ class VotesJournalPdfParser(ParserInterface):
         # Clean up the text
         bill_text = bill_text.strip().replace(",", "").replace(".", "")
         # Extract numbers
-        numbers = re.findall(r'\d+', bill_text)
+        numbers = re.findall(r"\d+", bill_text)
         if not numbers:
             return None
         # Determine prefix
@@ -92,10 +85,7 @@ class VotesJournalPdfParser(ParserInterface):
 
     @classmethod
     def _get_house_journal_pdf_urls(
-        cls,
-        base_url: str,
-        session: str = "194",
-        year: str = "2025"
+        cls, base_url: str, session: str = "194", year: str = "2025"
     ) -> list[str]:
         """Get House journal PDF URLs.
 
@@ -107,9 +97,7 @@ class VotesJournalPdfParser(ParserInterface):
         Returns:
             List of PDF URLs
         """
-        house_journal_url = (
-            f"{base_url}/Journal/House/{session}/{year}/Journal"
-        )
+        house_journal_url = f"{base_url}/Journal/House/{session}/{year}/Journal"
         pdf_urls = []
         try:
             # Try to scrape the page for PDF links first
@@ -134,14 +122,16 @@ class VotesJournalPdfParser(ParserInterface):
             if not pdf_urls:
                 logger.debug(
                     "No PDF links found on House journal page, "
-                    "treating URL as direct PDF: %s", house_journal_url
+                    "treating URL as direct PDF: %s",
+                    house_journal_url,
                 )
                 pdf_urls.append(house_journal_url)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.warning(
                 "Failed to scrape House journal page %s: %s. "
                 "Treating as direct PDF download.",
-                house_journal_url, e
+                house_journal_url,
+                e,
             )
             # Fallback: treat as direct PDF download
             pdf_urls.append(house_journal_url)
@@ -149,9 +139,7 @@ class VotesJournalPdfParser(ParserInterface):
 
     @classmethod
     def _get_senate_journal_pdf_urls(
-        cls,
-        base_url: str,
-        session: str = "194"
+        cls, base_url: str, session: str = "194"
     ) -> list[str]:
         """Get Senate journal PDF URLs by scraping month pages.
 
@@ -167,14 +155,9 @@ class VotesJournalPdfParser(ParserInterface):
         for month in range(1, 12):
             month_str = f"{month:02d}"
             # Format: https://malegislature.gov/Journal/Senate/194/01-01-2025
-            month_url = (
-                f"{base_url}/Journal/Senate/{session}/{month_str}-01-2025"
-            )
+            month_url = f"{base_url}/Journal/Senate/{session}/{month_str}-01-2025"
             try:
-                logger.debug(
-                    "Scraping Senate journal month page: %s",
-                    month_url
-                )
+                logger.debug("Scraping Senate journal month page: %s", month_url)
                 soup = cls.soup(month_url)
                 # Find all PDF links on the page
                 for a in soup.find_all("a", href=True):
@@ -190,24 +173,17 @@ class VotesJournalPdfParser(ParserInterface):
                         full_url = urljoin(base_url, href)
                         if full_url not in pdf_urls:
                             pdf_urls.append(full_url)
-                            logger.debug(
-                                "Found Senate journal PDF: %s",
-                                full_url
-                            )
+                            logger.debug("Found Senate journal PDF: %s", full_url)
             except Exception as e:  # pylint: disable=broad-exception-caught
                 logger.warning(
-                    "Failed to scrape Senate journal month page %s: %s",
-                    month_url, e
+                    "Failed to scrape Senate journal month page %s: %s", month_url, e
                 )
                 continue
         return pdf_urls
 
     @classmethod
     def _download_and_cache_journal_pdfs(
-        cls,
-        base_url: str,
-        cache=None,
-        config=None
+        cls, base_url: str, cache=None, config=None
     ) -> list[dict[str, str]]:
         """Download and cache all journal PDFs.
 
@@ -227,22 +203,15 @@ class VotesJournalPdfParser(ParserInterface):
             # Check cache first
             if pdf_url in cls._journal_pdf_cache:
                 logger.debug("Using cached House journal PDF: %s", pdf_url)
-                cached_pdfs.append({
-                    "url": pdf_url,
-                    "text": cls._journal_pdf_cache[pdf_url]
-                })
+                cached_pdfs.append(
+                    {"url": pdf_url, "text": cls._journal_pdf_cache[pdf_url]}
+                )
             else:
                 pdf_text = cls._extract_pdf_text(pdf_url, cache, config)
                 if pdf_text:
                     cls._journal_pdf_cache[pdf_url] = pdf_text
-                    cached_pdfs.append({
-                        "url": pdf_url,
-                        "text": pdf_text
-                    })
-                    logger.debug(
-                        "Downloaded and cached House journal PDF: %s",
-                        pdf_url
-                    )
+                    cached_pdfs.append({"url": pdf_url, "text": pdf_text})
+                    logger.debug("Downloaded and cached House journal PDF: %s", pdf_url)
         # Get Senate journal PDFs
         logger.debug("Downloading Senate journal PDFs...")
         senate_urls = cls._get_senate_journal_pdf_urls(base_url)
@@ -250,29 +219,22 @@ class VotesJournalPdfParser(ParserInterface):
             # Check cache first
             if pdf_url in cls._journal_pdf_cache:
                 logger.debug("Using cached Senate journal PDF: %s", pdf_url)
-                cached_pdfs.append({
-                    "url": pdf_url,
-                    "text": cls._journal_pdf_cache[pdf_url]
-                })
+                cached_pdfs.append(
+                    {"url": pdf_url, "text": cls._journal_pdf_cache[pdf_url]}
+                )
             else:
                 pdf_text = cls._extract_pdf_text(pdf_url, cache, config)
                 if pdf_text:
                     cls._journal_pdf_cache[pdf_url] = pdf_text
-                    cached_pdfs.append({
-                        "url": pdf_url,
-                        "text": pdf_text
-                    })
+                    cached_pdfs.append({"url": pdf_url, "text": pdf_text})
                     logger.debug(
-                        "Downloaded and cached Senate journal PDF: %s",
-                        pdf_url
+                        "Downloaded and cached Senate journal PDF: %s", pdf_url
                     )
         return cached_pdfs
 
     @classmethod
     def _search_journals_for_bill(
-        cls,
-        cached_pdfs: list[dict[str, str]],
-        bill: BillAtHearing
+        cls, cached_pdfs: list[dict[str, str]], bill: BillAtHearing
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Search journal PDFs for the given bill.
 
@@ -302,32 +264,33 @@ class VotesJournalPdfParser(ParserInterface):
                 bill_numbers = []
                 if bill_numbers_str:
                     # Split by comma and extract numbers
-                    numbers = re.findall(r'\d+', bill_numbers_str)
+                    numbers = re.findall(r"\d+", bill_numbers_str)
                     for num in numbers:
                         normalized = cls._normalize_bill_id(num, chamber)
                         if normalized:
                             bill_numbers.append(normalized)
                             logger.debug(
                                 "Extracted bill number %s from chamber %s: %s",
-                                num, chamber, normalized
+                                num,
+                                chamber,
+                                normalized,
                             )
                 # Also check the Senate bill number if present (group 6)
                 if senate_bill_num:
                     senate_normalized = cls._normalize_bill_id(
-                        senate_bill_num,
-                        "Senate"
+                        senate_bill_num, "Senate"
                     )
                     if senate_normalized:
                         bill_numbers.append(senate_normalized)
                         logger.debug(
-                            "Extracted Senate bill number: %s",
-                            senate_normalized
+                            "Extracted Senate bill number: %s", senate_normalized
                         )
                 # Check if our bill is in the list
                 bill_numbers_upper = [b.upper() for b in bill_numbers]
                 logger.debug(
                     "Checking if bill %s is in extracted bill numbers: %s",
-                    bill_id_normalized, bill_numbers_upper
+                    bill_id_normalized,
+                    bill_numbers_upper,
                 )
                 if bill_id_normalized in bill_numbers_upper:
                     # Found the bill!
@@ -343,24 +306,18 @@ class VotesJournalPdfParser(ParserInterface):
                         preview=preview,
                         full_text=match_text,
                         source_url=pdf_url,
-                        confidence=0.9
+                        confidence=0.9,
                     )
         return None
 
     @classmethod
     def discover(
-        cls,
-        base_url: str,
-        bill: BillAtHearing,
-        cache=None,
-        config=None
+        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover votes in House and Senate journal PDFs."""
         logger.debug("Trying %s for bill %s...", cls.__name__, bill.bill_id)
         # Download and cache all journal PDFs
-        cached_pdfs = cls._download_and_cache_journal_pdfs(
-            base_url, cache, config
-        )
+        cached_pdfs = cls._download_and_cache_journal_pdfs(base_url, cache, config)
         if not cached_pdfs:
             logger.debug("No journal PDFs found or downloaded")
             return None
@@ -373,9 +330,7 @@ class VotesJournalPdfParser(ParserInterface):
         return result
 
     @classmethod
-    def parse(
-        cls, _base_url: str, candidate: ParserInterface.DiscoveryResult
-    ) -> dict:
+    def parse(cls, _base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """Parse the journal vote document."""
         return {
             "location": cls.location,
@@ -383,15 +338,14 @@ class VotesJournalPdfParser(ParserInterface):
             "motion": "Journal vote record",
             "date": None,  # Could be extracted from PDF if available
             "tallies": None,  # Not available in this format
-            "records": []  # Individual member votes not available
+            "records": [],  # Individual member votes not available
         }
 
 
 if __name__ == "__main__":
     # Test PDF URL and expected text
     TEST_PDF_URL = (
-        "https://malegislature.gov/Journal/Senate/194/1031/"
-        "sj11172025_1100AM.pdf"
+        "https://malegislature.gov/Journal/Senate/194/1031/" "sj11172025_1100AM.pdf"
     )
     TEST_TEXT = (
         "By Ms. Rausch, for the committee on Environment and Natural "
@@ -404,18 +358,14 @@ if __name__ == "__main__":
         "No. 588 and Senator Tarr dissenting in so much as relates to "
         "Senate, Nos. 646 and 661]"
     )
-    EXPECTED_BILLS = [
-        "S562", "S588", "S593", "S634", "S645", "S646", "S649", "S661"
-    ]
+    EXPECTED_BILLS = ["S562", "S588", "S593", "S634", "S645", "S646", "S649", "S661"]
 
     print("Running journal vote parser unit tests...\n")
 
     # Test 1: Regex pattern matches the test text
     print("Test 1: Regex pattern matches test text")
     test_matches = list(VOTE_PATTERN.finditer(TEST_TEXT))
-    assert len(test_matches) > 0, (
-        "Regex pattern should match the test text"
-    )
+    assert len(test_matches) > 0, "Regex pattern should match the test text"
     print(f"  OK Found {len(test_matches)} match(es)")
 
     # Test 2: Extract bill numbers from the match
@@ -423,19 +373,15 @@ if __name__ == "__main__":
     test_match = test_matches[0]
     test_chamber = test_match.group(3)
     test_bill_numbers_str = test_match.group(4)
-    test_senate_bill_num = (
-        test_match.group(6) if test_match.group(6) else None
-    )
+    test_senate_bill_num = test_match.group(6) if test_match.group(6) else None
 
-    assert test_chamber == "Senate", (
-        f"Expected 'Senate', got '{test_chamber}'"
-    )
+    assert test_chamber == "Senate", f"Expected 'Senate', got '{test_chamber}'"
     print(f"  OK Chamber: {test_chamber}")
 
     # Extract bill numbers
     test_bill_numbers = []
     if test_bill_numbers_str:
-        test_numbers = re.findall(r'\d+', test_bill_numbers_str)
+        test_numbers = re.findall(r"\d+", test_bill_numbers_str)
         for test_num in test_numbers:
             test_normalized = VotesJournalPdfParser._normalize_bill_id(
                 test_num, test_chamber
@@ -464,10 +410,7 @@ if __name__ == "__main__":
 
     # Test 4: Test _search_journals_for_bill with mock data
     print("\nTest 4: Test bill search with mock PDF data")
-    mock_pdf = {
-        "url": TEST_PDF_URL,
-        "text": TEST_TEXT
-    }
+    mock_pdf = {"url": TEST_PDF_URL, "text": TEST_TEXT}
     mock_pdfs = [mock_pdf]
 
     found_bills = []
@@ -475,10 +418,8 @@ if __name__ == "__main__":
         mock_bill = BillAtHearing(
             bill_id=expected_bill,
             bill_label=f"Bill {expected_bill}",
-            bill_url=(
-                f"https://malegislature.gov/Bills/194/{expected_bill}"
-            ),
-            committee_id="J33"
+            bill_url=(f"https://malegislature.gov/Bills/194/{expected_bill}"),
+            committee_id="J33",
         )
         test_result = VotesJournalPdfParser._search_journals_for_bill(
             mock_pdfs, mock_bill
@@ -497,16 +438,12 @@ if __name__ == "__main__":
     # Test 5: Test with actual PDF extraction (if available)
     print("\nTest 5: Test with actual PDF extraction")
     try:
-        extracted_pdf_text = VotesJournalPdfParser._extract_pdf_text(
-            TEST_PDF_URL
-        )
+        extracted_pdf_text = VotesJournalPdfParser._extract_pdf_text(TEST_PDF_URL)
         if extracted_pdf_text:
             # Check if our test text appears in the extracted text
-            test_text_normalized = (
-                TEST_TEXT.replace("\n", " ").replace("  ", " ")
-            )
-            pdf_text_normalized = (
-                extracted_pdf_text.replace("\n", " ").replace("  ", " ")
+            test_text_normalized = TEST_TEXT.replace("\n", " ").replace("  ", " ")
+            pdf_text_normalized = extracted_pdf_text.replace("\n", " ").replace(
+                "  ", " "
             )
             if test_text_normalized in pdf_text_normalized:
                 print("  OK Test text found in extracted PDF")
@@ -518,24 +455,19 @@ if __name__ == "__main__":
                         bill_id=expected_bill,
                         bill_label=f"Bill {expected_bill}",
                         bill_url=(
-                            f"https://malegislature.gov/Bills/194/"
-                            f"{expected_bill}"
+                            f"https://malegislature.gov/Bills/194/" f"{expected_bill}"
                         ),
-                        committee_id="J33"
+                        committee_id="J33",
                     )
                     mock_pdfs_extracted = [
                         {"url": TEST_PDF_URL, "text": extracted_pdf_text}
                     ]
-                    test_result2 = (
-                        VotesJournalPdfParser._search_journals_for_bill(
-                            mock_pdfs_extracted, mock_bill
-                        )
+                    test_result2 = VotesJournalPdfParser._search_journals_for_bill(
+                        mock_pdfs_extracted, mock_bill
                     )
                     if test_result2:
                         found_any = True
-                        print(
-                            f"  OK Found {expected_bill} in extracted PDF"
-                        )
+                        print(f"  OK Found {expected_bill} in extracted PDF")
                         break
                 if not found_any:
                     print(
@@ -543,14 +475,8 @@ if __name__ == "__main__":
                         "PDF (may be extraction issue)"
                     )
         else:
-            print(
-                "  WARNING: PDF extraction returned None "
-                "(may need network/cache)"
-            )
+            print("  WARNING: PDF extraction returned None " "(may need network/cache)")
     except Exception as e:  # pylint: disable=broad-exception-caught
-        print(
-            f"  WARNING: PDF extraction failed: {e} "
-            "(may need network/cache)"
-        )
+        print(f"  WARNING: PDF extraction failed: {e} " "(may need network/cache)")
 
     print("\nSUCCESS: All unit tests passed!")

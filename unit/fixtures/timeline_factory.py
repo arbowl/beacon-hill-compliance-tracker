@@ -8,7 +8,7 @@ from timeline.models import BillAction, BillActionTimeline, ActionType
 
 class TimelineFactory:
     """Factory for creating test timelines."""
-    
+
     @staticmethod
     def create_action(
         action_date: date,
@@ -17,10 +17,10 @@ class TimelineFactory:
         raw_text: str = "",
         committee_id: Optional[str] = None,
         hearing_date: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> BillAction:
         """Create a single BillAction.
-        
+
         Args:
             action_type: Use ActionType enum (e.g., ActionType.REFERRED)
         """
@@ -30,7 +30,7 @@ class TimelineFactory:
         if hearing_date:
             extracted_data["hearing_date"] = hearing_date
         extracted_data.update(kwargs.get("extracted_data", {}))
-        
+
         return BillAction(
             date=action_date,
             branch=branch,
@@ -40,7 +40,7 @@ class TimelineFactory:
             extracted_data=extracted_data,
             confidence=kwargs.get("confidence", 1.0),
         )
-    
+
     @staticmethod
     def create_simple_timeline(
         bill_id: str = "H100",
@@ -54,7 +54,7 @@ class TimelineFactory:
             referred_date = date.today() - timedelta(days=60)
         if hearing_date is None:
             hearing_date = referred_date + timedelta(days=20)
-        
+
         actions = [
             TimelineFactory.create_action(
                 referred_date,
@@ -70,7 +70,7 @@ class TimelineFactory:
                 raw_text=f"Hearing scheduled for {hearing_date}",
             ),
         ]
-        
+
         if reported_date:
             actions.append(
                 TimelineFactory.create_action(
@@ -80,16 +80,16 @@ class TimelineFactory:
                     raw_text=f"Reported favorably by committee {committee_id}",
                 )
             )
-        
+
         return BillActionTimeline(actions, bill_id=bill_id)
-    
+
     @staticmethod
     def create_complex_timeline(
         bill_id: str = "H100",
         committee_transitions: Optional[list[tuple[str, date, date]]] = None,
     ) -> BillActionTimeline:
         """Create a complex timeline with multiple committee referrals.
-        
+
         Args:
             committee_transitions: List of (committee_id, referred_date, reported_date)
         """
@@ -99,7 +99,7 @@ class TimelineFactory:
                 ("J33", base_date, base_date + timedelta(days=40)),
                 ("J10", base_date + timedelta(days=40), base_date + timedelta(days=80)),
             ]
-        
+
         actions = []
         for committee_id, referred, reported in committee_transitions:
             actions.append(
@@ -127,6 +127,5 @@ class TimelineFactory:
                     committee_id=committee_id,
                 )
             )
-        
-        return BillActionTimeline(actions, bill_id=bill_id)
 
+        return BillActionTimeline(actions, bill_id=bill_id)
