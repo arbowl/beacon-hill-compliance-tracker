@@ -356,7 +356,7 @@ class BillActionTimeline:
                 if committee_id:
                     active_committees_at_time[committee_id] = action.date
 
-            elif action_type in TERMINAL_COMMITTEE_ACTIONS:
+            elif action_type in (TERMINAL_COMMITTEE_ACTIONS | {ActionType.DISCHARGE}):
                 # Committee is no longer active after discharge/report
                 if committee_id and committee_id in active_committees_at_time:
                     del active_committees_at_time[committee_id]
