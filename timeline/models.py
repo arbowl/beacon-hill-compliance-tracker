@@ -39,6 +39,13 @@ class ActionType(str, Enum):
     UNKNOWN = "UNKNOWN"
 
 
+TERMINAL_COMMITTEE_ACTIONS = {
+    ActionType.REPORTED,
+    ActionType.STUDY_ORDER,
+    ActionType.ACCOMPANIED,
+}
+
+
 @dataclass
 class BillAction:
     """A single action taken on a bill.
@@ -174,7 +181,7 @@ class BillActionTimeline:
             Date of report-out, or None if not reported
         """
         for action in reversed(self.actions):
-            if action.action_type == ActionType.REPORTED:
+            if action.action_type in TERMINAL_COMMITTEE_ACTIONS:
                 action_committee = action.extracted_data.get("committee_id")
                 if action_committee == committee_id:
                     return action.date
@@ -349,7 +356,7 @@ class BillActionTimeline:
                 if committee_id:
                     active_committees_at_time[committee_id] = action.date
 
-            elif action_type in {ActionType.DISCHARGED, ActionType.REPORTED}:
+            elif action_type in TERMINAL_COMMITTEE_ACTIONS:
                 # Committee is no longer active after discharge/report
                 if committee_id and committee_id in active_committees_at_time:
                     del active_committees_at_time[committee_id]
