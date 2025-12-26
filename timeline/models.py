@@ -284,7 +284,7 @@ class BillActionTimeline:
                 pass
         return None
 
-    def get_actions_by_type(self, action_type: ActionType) -> list[BillAction]:
+    def get_actions_by_type(self, *action_type: ActionType) -> list[BillAction]:
         """Get all actions of a specific type.
 
         Args:
@@ -293,7 +293,7 @@ class BillActionTimeline:
         Returns:
             List of matching actions
         """
-        return [a for a in self.actions if a.action_type == action_type]
+        return [a for a in self.actions if a.action_type in action_type]
 
     def get_actions_by_category(self, category: str) -> list[BillAction]:
         """Get all actions in a specific category.

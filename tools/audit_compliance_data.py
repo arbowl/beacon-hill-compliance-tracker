@@ -40,7 +40,7 @@ if sys.platform == "win32":
 # Folder containing JSON files in "basic" format (not cache format)
 # Each file should be named like: committee_id.json
 # Format: {"committee_id": "XXX", "bills": [...]}
-OUTPUT_FOLDER = "../out/2025/12/22"
+OUTPUT_FOLDER = "../out/2025/12/25"
 
 
 # ============================================================================

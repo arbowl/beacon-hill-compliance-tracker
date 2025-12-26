@@ -11,7 +11,7 @@ from components.models import BillAtHearing, BillStatus
 from components.utils import compute_deadlines, extract_session_from_bill_url
 from components.interfaces import ParserInterface
 from timeline.parser import extract_timeline
-from timeline.models import ActionType
+from timeline.models import ActionType, TERMINAL_COMMITTEE_ACTIONS
 
 
 @dataclass
@@ -83,7 +83,7 @@ def get_committee_tenure(bill_url: str, committee_id: str) -> Optional[Committee
     if not tenure_start_action:
         return None
     tenure_start = tenure_start_action.date
-    reported_actions = timeline.get_actions_by_type(ActionType.REPORTED)
+    reported_actions = timeline.get_actions_by_type(*TERMINAL_COMMITTEE_ACTIONS)
     reported_date = None
     for action in sorted(reported_actions, key=lambda a: a.date):
         action_committee = action.extracted_data.get("committee_id")

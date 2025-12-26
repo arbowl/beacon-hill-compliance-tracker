@@ -44,24 +44,24 @@ def create_action_nodes() -> List[ActionNode]:
                 re.compile(
                     r"referred\s+to\s+the\s+committee\s+on\s+[^,]+(?:,\s+[^,]+)*,?\s+"
                     r"(?:reported|discharged)[^,]*,?\s+(?:rules\s+suspended\s+and\s+)?"
-                    r"referred\s+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*(?:the\s+)?(?:Internet|Cybersecurity|and)[^,]*)*)",
+                    r"referred\s+.*?\s+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*[^,]+)*)",
                     re.I,
                 ),
                 re.compile(
                     r"Read[;,]?\s+and\s+referred[,\s]+as\s+relates\s+to\s+sections?\s+"
-                    r"(?P<sections>.+?)[,\s]+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*(?:the\s+)?(?:Internet|Cybersecurity|and)[^,]*)*)",
+                    r"(?P<sections>.+?)[,\s]+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*[^,]+)*)",
                     re.I,
                 ),
                 re.compile(
-                    r"referred\s+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*(?:the\s+)?(?:Internet|Cybersecurity|and)[^,]*)*)",
+                    r"referred\s+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*[^,]+)*)",
                     re.I,
                 ),
                 re.compile(
-                    r"Read[;,]?\s+and\s+referred\s+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*(?:the\s+)?(?:Internet|Cybersecurity|and)[^,]*)*)",
+                    r"Read[;,]?\s+and\s+referred\s+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*[^,]+)*)",
                     re.I,
                 ),
                 re.compile(
-                    r"referred.*?to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*(?:the\s+)?(?:Internet|Cybersecurity|and)[^,]*)*)",
+                    r"referred.*?to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*[^,]+)*)",
                     re.I,
                 ),
             ],
@@ -162,6 +162,7 @@ def create_action_nodes() -> List[ActionNode]:
                     r"Accompanied\s+a\s+new\s+draft[,\s]+(?:see\s+)?(?P<related_bill>[HS]\d+)",
                     re.I,
                 ),
+                re.compile(r"\bAccompanied\b", re.I),
             ],
             extractors={
                 "related_bill": extract_bill_id,
