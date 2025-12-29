@@ -318,10 +318,7 @@ class ReportedOutRequirementRule(ComplianceRule):
         deadline_60: date
         deadline_90: date
         if context.committee_id == "J24":
-            if status.referred_date and status.referred_date > c.third_wednesday_march:
-                deadline_60 = c.last_wednesday_may
-                deadline_90 = deadline_60
-            elif status.referred_date and status.referred_date <= c.hcf_december_deadline:
+            if status.referred_date and status.referred_date <= c.hcf_december_deadline:
                 deadline_60 = c.last_wednesday_january
                 deadline_90 = deadline_60
             elif status.referred_date:
