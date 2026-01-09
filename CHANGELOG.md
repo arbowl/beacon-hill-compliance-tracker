@@ -5,6 +5,12 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-01-09
+
+## Added
+- Expanded the title formats the vote document parser will use to find valid vote packets in hearing "Documents" tabs, allowing for increased vote packet detection accuracy where applicable.
+
+
 ## [1.3.0] - 2025-12-23
 
 ### Changed
@@ -178,6 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Implemented document content hashing for cache validation
 - Added secure configuration management via YAML
+
 
 
 
