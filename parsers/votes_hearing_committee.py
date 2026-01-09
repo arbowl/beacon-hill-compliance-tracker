@@ -12,10 +12,10 @@ from components.extraction import DocumentExtractionService
 logger = logging.getLogger(__name__)
 
 VOTE_DOC_PATTERNS = [
-    r"committee.*members.*votes",
-    r"house.*committee.*members.*votes",
-    r"senate.*committee.*members.*votes",
-    r"votes.*committee.*members",
+    r"committee.*members?.*votes",
+    r"house.*committee.*members?.*votes",
+    r"senate.*committee.*members?.*votes",
+    r"votes.*committee.*members?",
     r"committee.*vote.*record",
     r"roll.*call.*vote",
 ]
@@ -111,3 +111,4 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
     def parse(cls, _base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """Parse the committee vote document."""
         return {"location": cls.location, "source_url": candidate.source_url}
+
