@@ -29,7 +29,9 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
     cost = 2
 
     @staticmethod
-    def _extract_pdf_text(pdf_url: str, cache=None, config=None) -> Optional[str]:
+    def _extract_pdf_text(
+        pdf_url: str, cache=None, config=None
+    ) -> Optional[str]:
         """Extract text content from a PDF URL using extraction service."""
         return DocumentExtractionService.extract_text(
             url=pdf_url, cache=cache, config=config, timeout=30
@@ -69,11 +71,17 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
                 if title_match:
                     title_param = title_match.group(1)
             if cls._looks_like_vote_document(link_text, title_param):
+                # Extract PDF first to check if bill ID is in content
+                pdf_url = urljoin(base_url, href)
+                pdf_text = cls._extract_pdf_text(pdf_url, cache, config)
+
+                # Check for bill ID in both title and PDF content
                 full_text = f"{link_text} {title_param}".lower()
+                if pdf_text:
+                    full_text += f" {pdf_text}".lower()
+
                 bill_pattern = re.escape(bill.bill_id.lower())
                 if re.search(bill_pattern, full_text):
-                    pdf_url = urljoin(base_url, href)
-                    pdf_text = cls._extract_pdf_text(pdf_url, cache, config)
                     if pdf_text:
                         preview = (
                             f"Committee vote document found for "
@@ -81,7 +89,8 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
                         )
                         if len(pdf_text) > 200:
                             preview += (
-                                f"\n\nPDF Content Preview:\n" f"{pdf_text[:500]}..."
+                                f"\n\nPDF Content Preview:\n"
+                                f"{pdf_text[:500]}..."
                             )
                         else:
                             preview += f"\n\nPDF Content:\n{pdf_text}"
@@ -108,7 +117,8 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
         return None
 
     @classmethod
-    def parse(cls, _base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
+    def parse(
+        cls, _base_url: str, candidate: ParserInterface.DiscoveryResult
+    ) -> dict:
         """Parse the committee vote document."""
         return {"location": cls.location, "source_url": candidate.source_url}
-
