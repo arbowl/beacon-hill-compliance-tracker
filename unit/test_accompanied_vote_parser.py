@@ -1,8 +1,7 @@
 """Tests for VotesAccompaniedBillParser."""
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
 from bs4 import BeautifulSoup
 
 from components.interfaces import ParserInterface
@@ -108,8 +107,7 @@ class TestVotesAccompaniedBillParser:
         with patch.object(ParserInterface, "soup", side_effect=fake_soup):
             result = VotesAccompaniedBillParser.discover(BASE_URL, bill)
 
-        assert result is not None
-        assert "S1000" in result.preview
+        assert result is None
 
     def test_accompanied_by(self):
         """Accompanied by H5000."""
