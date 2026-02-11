@@ -31,6 +31,7 @@ from parsers.votes_committee_documents import VotesCommitteeDocumentsParser
 from parsers.votes_docx import VotesDocxParser
 from parsers.votes_hearing_committee import VotesHearingCommitteeDocumentsParser
 from parsers.votes_journal import VotesJournalPdfParser
+from parsers.votes_accompanied_bill import VotesAccompaniedBillParser
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,7 @@ VOTES_REGISTRY: dict[str, type[ParserInterface]] = {
         VotesDocxParser,
         VotesHearingCommitteeDocumentsParser,
         VotesJournalPdfParser,
+        VotesAccompaniedBillParser,
     ]
 }
 

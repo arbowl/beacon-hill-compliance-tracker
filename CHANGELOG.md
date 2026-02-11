@@ -5,6 +5,12 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2026-02-11
+
+### Added
+- In cases where a bill does not have a vote posted, but it accompanied a study order, and the corresponding bill page does have a vote posted, the parser will traverse the latter bill page to search for vote postings.
+
+
 ## [1.3.1] - 2026-01-09
 
 ### Added

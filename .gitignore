@@ -218,3 +218,5 @@ cache.json
 *.db
 *.db-journal
 .vscode/
+CLAUDE.md
+nul

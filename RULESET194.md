@@ -31,7 +31,7 @@ Whether the hearing was announced far enough in advance.
 **Outcomes:**
 
 * **Insufficient notice -> Automatic Non-Compliance**
-  Notice failures are *deal-breakers*. No other rules are considered.
+  Notice failures after the rule was implemented are *deal-breakers*. No other rules are considered.
 
 * **Missing announcement or hearing date -> Special Handling**
   The system checks for other evidence:
@@ -56,7 +56,7 @@ This rule determines whether the committee acted on the bill by its deadline.
   * Up to 90 days if extended
 * **Senate bills:**
 
-  * The session’s Wednesday deadline
+  * Referral-based anchoring with specific milestones set by Joint Rules
   * Up to 30 days extension
 
 ### **Key behaviors**
@@ -102,7 +102,7 @@ This is a **core requirement**.
 
 After all rules run (except when a notice failure short-circuits):
 
-### **A. If there is no hearing date**
+### **A. If there is no hearing date (House bills)**
 
 The system cannot evaluate deadlines:
 -> **UNKNOWN** with reason:
