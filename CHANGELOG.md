@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.1] - 2026-01-09
 
-## Added
+### Added
 - Expanded the title formats the vote document parser will use to find valid vote packets in hearing "Documents" tabs, allowing for increased vote packet detection accuracy where applicable.
 
 
