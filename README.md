@@ -52,8 +52,6 @@ Interactive mode with prompts and menu options:
 
 ```bash
 python app.py
-# or simply:
-python app.py
 ```
 
 #### One-Run Mode
@@ -669,6 +667,7 @@ deferred_review:
 5. Submit a pull request
 
 The codebase is designed to be easily understood and extended by students, hobbyists, and grassroots organizations tracking legislative compliance.
+
 
 
 
