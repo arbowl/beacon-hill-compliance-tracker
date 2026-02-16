@@ -45,7 +45,7 @@ class VotesBillEmbeddedParser(ParserInterface):
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the votes."""
         logger.debug("Trying %s...", cls.__name__)
-        soup = cls.soup(f"{bill.bill_url}/CommitteeVote")
+        soup = cls.soup(f"{bill.bill_url}/CommitteeVote", cache=cache, config=config)
         # 1) Look for site-specific committee vote panels by class name
         # Example seen in HTML: div.panel.panel-primary committeeVote
         panels = soup.find_all("div", class_=lambda c: c and "committeeVote" in c)
@@ -56,7 +56,7 @@ class VotesBillEmbeddedParser(ParserInterface):
                 return ParserInterface.DiscoveryResult(
                     f"Embedded committee vote panel detected on"
                     f"bill page for {bill.bill_id}\n\n{preview}",
-                    "",
+                    txt,
                     f"{bill.bill_url}/CommitteeVote",
                     0.95,
                 )
@@ -72,7 +72,7 @@ class VotesBillEmbeddedParser(ParserInterface):
                 return ParserInterface.DiscoveryResult(
                     f"Embedded committee vote summary detected on "
                     f"bill page for {bill.bill_id}\n\n{preview}",
-                    "",
+                    txt,
                     f"{bill.bill_url}/CommitteeVote",
                     0.95,
                 )
@@ -87,7 +87,7 @@ class VotesBillEmbeddedParser(ParserInterface):
                 return ParserInterface.DiscoveryResult(
                     f"Embedded vote table detected on bill page "
                     f"for {bill.bill_id}\n\n{preview}",
-                    "",
+                    txt,
                     bill.bill_url,
                     0.9,
                 )

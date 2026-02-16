@@ -71,6 +71,24 @@ VOTES_REGISTRY: dict[str, type[ParserInterface]] = {
 }
 
 
+def _cache_extracted_text_for_html(
+    cache: Cache, config: Config, source_url: str, full_text: str
+) -> None:
+    """Store extracted text for an HTML-sourced discovery.
+
+    Looks up the raw HTML document in the cache by URL, then stores
+    the extracted text keyed by the same content hash — mirroring
+    the pattern used for PDF/DOCX documents.
+    """
+    if not full_text:
+        return
+    cached_doc = cache.get_cached_document(source_url, config)
+    if cached_doc:
+        content_hash = cached_doc.get("content_hash")
+        if content_hash:
+            cache.cache_extracted_text(content_hash, full_text, config)
+
+
 def should_use_llm_for_parser(
     parser_module: str,
     committee_id: str,
@@ -345,6 +363,9 @@ def resolve_summary_for_bill(
                 result.to_dict(),
                 confirmed=cfg.review_mode == "on" and not needs_review,
             )
+            _cache_extracted_text_for_html(
+                cache, cfg, candidate.source_url, candidate.full_text
+            )
             # Record success for committee-level learning
             cache.record_committee_parser(
                 row.committee_id, ParserInterface.ParserType.SUMMARY.value, modname
@@ -562,6 +583,9 @@ def resolve_votes_for_bill(
             modname,
             result.to_dict(),
             confirmed=cfg.review_mode == "on" and not needs_review,
+        )
+        _cache_extracted_text_for_html(
+            cache, cfg, candidate.source_url, candidate.full_text
         )
         # Record success for committee-level learning
         cache.record_committee_parser(

@@ -499,6 +499,8 @@ class Cache:
             return "docx"
         elif "msword" in content_type.lower() or "doc" in content_type.lower():
             return "doc"
+        elif "html" in content_type.lower():
+            return "html"
         # Fallback: try to get extension from URL
         if url.lower().endswith(".pdf"):
             return "pdf"

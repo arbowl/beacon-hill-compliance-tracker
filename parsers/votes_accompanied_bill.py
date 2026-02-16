@@ -42,7 +42,7 @@ class VotesAccompaniedBillParser(ParserInterface):
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover votes on an accompanied bill's page."""
         logger.debug("Trying %s for %s...", cls.__name__, bill.bill_id)
-        soup = cls.soup(bill.bill_url)
+        soup = cls.soup(bill.bill_url, cache=cache, config=config)
         # Scan action-history rows (date | branch | action text)
         for row in soup.find_all("tr"):
             cells = row.find_all(["td", "th"])
@@ -74,7 +74,7 @@ class VotesAccompaniedBillParser(ParserInterface):
                 related_url = f"{base_url}/Bills/194/{related_bill_id}"
             vote_url = f"{related_url}/CommitteeVote"
             # Fetch the related bill's vote page and check for vote content
-            vote_soup = cls.soup(vote_url)
+            vote_soup = cls.soup(vote_url, cache=cache, config=config)
             # Reuse VotesBillEmbeddedParser's heuristic checks
             panels = vote_soup.find_all(
                 "div", class_=lambda c: c and "committeeVote" in c
@@ -86,7 +86,7 @@ class VotesAccompaniedBillParser(ParserInterface):
                     return ParserInterface.DiscoveryResult(
                         f"Vote found on accompanied bill {related_bill_id} "
                         f"(referenced from {bill.bill_id})\n\n{preview}",
-                        "",
+                        txt,
                         vote_url,
                         0.85,
                     )
@@ -101,7 +101,7 @@ class VotesAccompaniedBillParser(ParserInterface):
                         f"Vote summary found on accompanied bill "
                         f"{related_bill_id} (referenced from "
                         f"{bill.bill_id})\n\n{preview}",
-                        "",
+                        txt,
                         vote_url,
                         0.85,
                     )
@@ -114,7 +114,7 @@ class VotesAccompaniedBillParser(ParserInterface):
                         f"Vote table found on accompanied bill "
                         f"{related_bill_id} (referenced from "
                         f"{bill.bill_id})\n\n{preview}",
-                        "",
+                        txt,
                         vote_url,
                         0.85,
                     )

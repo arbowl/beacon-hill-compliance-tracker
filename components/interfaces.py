@@ -516,10 +516,22 @@ class ParserInterface(ABC):
             raise TypeError(f"{cls.__name__}.location must be a str")
 
     @staticmethod
-    def soup(url: str) -> BeautifulSoup:
-        """Get the soup of the page (cached by URL with deduplication)."""
+    def soup(
+        url: str,
+        cache: Optional[Cache] = None,
+        config: Optional[Config] = None,
+    ) -> BeautifulSoup:
+        """Get the soup of the page (cached by URL with deduplication).
+
+        When cache and config are provided, uses persistent disk caching
+        via _fetch_html(). Otherwise falls back to in-memory caching via
+        _fetch_with_deduplication().
+        """
         try:
-            html = _fetch_with_deduplication(url, timeout=20)
+            if cache and config:
+                html = _fetch_html(url, timeout=20, cache=cache, config=config)
+            else:
+                html = _fetch_with_deduplication(url, timeout=20)
             return BeautifulSoup(html, "html.parser")
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.debug("Failed to fetch %s: %s", url, e)

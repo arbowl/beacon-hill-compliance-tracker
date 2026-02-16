@@ -74,7 +74,7 @@ class TestVotesAccompaniedBillParser:
         )
         vote_html = _vote_page_html(has_votes=True)
 
-        def fake_soup(url):
+        def fake_soup(url, **kwargs):
             if url == bill.bill_url:
                 return _soup(bill_html)
             if "S2774/CommitteeVote" in url:
@@ -97,7 +97,7 @@ class TestVotesAccompaniedBillParser:
         )
         vote_html = _vote_page_html(has_votes=True)
 
-        def fake_soup(url):
+        def fake_soup(url, **kwargs):
             if url == bill.bill_url:
                 return _soup(bill_html)
             if "S1000/CommitteeVote" in url:
@@ -115,7 +115,7 @@ class TestVotesAccompaniedBillParser:
         bill_html = _bill_page_html("Accompanied by H5000", "H5000")
         vote_html = _vote_page_html(has_votes=True)
 
-        def fake_soup(url):
+        def fake_soup(url, **kwargs):
             if url == bill.bill_url:
                 return _soup(bill_html)
             if "H5000/CommitteeVote" in url:
@@ -134,7 +134,7 @@ class TestVotesAccompaniedBillParser:
         bill_html = _bill_page_html("Accompanied S3000", "S3000")
         vote_html = _vote_page_html(has_votes=True)
 
-        def fake_soup(url):
+        def fake_soup(url, **kwargs):
             if url == bill.bill_url:
                 return _soup(bill_html)
             if "S3000/CommitteeVote" in url:
@@ -178,7 +178,7 @@ class TestVotesAccompaniedBillParser:
         )
         vote_html = _vote_page_html(has_votes=False)
 
-        def fake_soup(url):
+        def fake_soup(url, **kwargs):
             if url == bill.bill_url:
                 return _soup(bill_html)
             if "S2774/CommitteeVote" in url:
@@ -200,7 +200,7 @@ class TestVotesAccompaniedBillParser:
         )
         vote_html = _vote_page_html(has_votes=True)
 
-        def fake_soup(url):
+        def fake_soup(url, **kwargs):
             if url == bill.bill_url:
                 return _soup(bill_html)
             if "S2774/CommitteeVote" in url:
@@ -227,7 +227,7 @@ class TestVotesAccompaniedBillParser:
         </body></html>
         """
 
-        def fake_soup(url):
+        def fake_soup(url, **kwargs):
             if url == bill.bill_url:
                 return _soup(bill_html)
             if "S2774/CommitteeVote" in url:
@@ -254,7 +254,7 @@ class TestVotesAccompaniedBillParser:
         </body></html>
         """
 
-        def fake_soup(url):
+        def fake_soup(url, **kwargs):
             if url == bill.bill_url:
                 return _soup(bill_html)
             if "S5555/CommitteeVote" in url:
