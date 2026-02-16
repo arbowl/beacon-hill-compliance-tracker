@@ -183,3 +183,66 @@ class ArtifactSnapshot:
             computed_state=computed_state,
             computed_reason=computed_reason,
         )
+
+
+@dataclass
+class DocumentIndexEntry:
+    """A search-optimized reference to a discovered legislative document."""
+
+    reference_id: str
+    bill_id: str
+    session: str
+    committee_id: str
+    document_type: DocumentType
+    source_url: Optional[str] = None
+    acquired_date: Optional[str] = None
+    parser_module: Optional[str] = None
+    content_hash: Optional[str] = None
+    text_length: Optional[int] = None
+    file_format: Optional[str] = None
+    confidence: Optional[float] = None
+    bill_title: Optional[str] = None
+    bill_url: Optional[str] = None
+    full_text: Optional[str] = None
+    preview: Optional[str] = None
+    needs_review: bool = False
+
+    @staticmethod
+    def new(
+        bill_id: str,
+        session: str,
+        committee_id: str,
+        document_type: DocumentType,
+    ) -> "DocumentIndexEntry":
+        """Create a new document index entry."""
+        return DocumentIndexEntry(
+            reference_id=str(uuid.uuid4()),
+            bill_id=bill_id,
+            session=session,
+            committee_id=committee_id,
+            document_type=document_type,
+            acquired_date=datetime.utcnow().isoformat(),
+        )
+
+
+@dataclass
+class VoteParticipant:
+    """A legislator's vote on a specific bill document."""
+
+    participant_id: str
+    reference_id: str
+    legislator_name: str
+    vote_value: str
+    chamber: Optional[str] = None
+
+    @staticmethod
+    def new(
+        reference_id: str, legislator_name: str, vote_value: str
+    ) -> "VoteParticipant":
+        """Create a new vote participant."""
+        return VoteParticipant(
+            participant_id=str(uuid.uuid4()),
+            reference_id=reference_id,
+            legislator_name=legislator_name,
+            vote_value=vote_value,
+        )

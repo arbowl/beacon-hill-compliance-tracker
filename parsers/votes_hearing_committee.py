@@ -27,6 +27,7 @@ class VotesHearingCommitteeDocumentsParser(ParserInterface):
     parser_type = ParserInterface.ParserType.VOTES
     location = "Hearing page Documents tab"
     cost = 2
+    file_format = "pdf"
 
     @staticmethod
     def _extract_pdf_text(

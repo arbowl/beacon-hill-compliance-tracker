@@ -24,6 +24,7 @@ class SummaryHearingDocsPdfContentParser(ParserInterface):
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "Hearing page Documents tab PDF content"
     cost = 6
+    file_format = "pdf"
 
     @staticmethod
     def _norm_bill_id(s: str) -> str:

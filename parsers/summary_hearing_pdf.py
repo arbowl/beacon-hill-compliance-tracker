@@ -27,6 +27,7 @@ class SummaryHearingPdfParser(ParserInterface):
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "Hearing page PDF"
     cost = 5
+    file_format = "pdf"
 
     @staticmethod
     def _find_candidate_pdf(soup: BeautifulSoup, base_url: str) -> Optional[str]:

@@ -6,11 +6,13 @@ from history.artifacts import (
     ArtifactSnapshot,
     BillArtifact,
     DocumentArtifact,
+    DocumentIndexEntry,
     DocumentType,
     ExtensionRecord,
     HearingRecord,
     MetadataKey,
     TimelineAction,
+    VoteParticipant,
 )
 from components.compliance import BillCompliance
 from components.models import (
@@ -136,6 +138,62 @@ class BillArtifactComposer:
         }
         artifact.snapshots.append(snapshot)
         return artifact
+
+    @staticmethod
+    def compose_document_index_entries(
+        bill: BillAtHearing,
+        summary: SummaryInfo,
+        votes: VoteInfo,
+        bill_title: Optional[str] = None,
+    ) -> tuple[list[DocumentIndexEntry], list[VoteParticipant]]:
+        """Build document index entries from enriched scrape data."""
+        entries: list[DocumentIndexEntry] = []
+        participants: list[VoteParticipant] = []
+        session = extract_session_from_bill_url(bill.bill_url) or "194"
+
+        if summary.present:
+            entry = DocumentIndexEntry.new(
+                bill.bill_id, session, bill.committee_id, DocumentType.SUMMARY
+            )
+            entry.source_url = summary.source_url
+            entry.parser_module = summary.parser_module
+            entry.content_hash = summary.content_hash
+            entry.text_length = summary.text_length
+            entry.file_format = summary.file_format
+            entry.bill_title = bill_title or ""
+            entry.bill_url = bill.bill_url
+            entry.full_text = summary.full_text
+            entry.preview = (summary.full_text or "")[:500] or None
+            entry.needs_review = summary.needs_review
+            entries.append(entry)
+
+        if votes.present:
+            entry = DocumentIndexEntry.new(
+                bill.bill_id, session, bill.committee_id, DocumentType.VOTES
+            )
+            entry.source_url = votes.source_url
+            entry.parser_module = votes.parser_module
+            entry.content_hash = votes.content_hash
+            entry.text_length = votes.text_length
+            entry.file_format = votes.file_format
+            entry.bill_title = bill_title or ""
+            entry.bill_url = bill.bill_url
+            entry.full_text = votes.full_text
+            entry.preview = (votes.full_text or "")[:500] or None
+            entry.needs_review = votes.needs_review
+            entries.append(entry)
+
+            # Extract vote participants if individual records exist
+            if votes.records:
+                chamber = "House" if bill.bill_id.startswith("H") else "Senate"
+                for record in votes.records:
+                    participant = VoteParticipant.new(
+                        entry.reference_id, record.member, record.vote
+                    )
+                    participant.chamber = chamber
+                    participants.append(participant)
+
+        return entries, participants
 
     @staticmethod
     def _get_parser_version(parser_module: Optional[str]) -> Optional[str]:

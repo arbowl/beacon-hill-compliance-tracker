@@ -35,6 +35,7 @@ class VotesJournalPdfParser(ParserInterface):
     parser_type = ParserInterface.ParserType.VOTES
     location = "House/Senate Journal PDFs"
     cost = 7  # Higher cost due to multiple PDF downloads
+    file_format = "pdf"
 
     # Cache for downloaded journal PDFs (by URL)
     _journal_pdf_cache: dict[str, str] = {}

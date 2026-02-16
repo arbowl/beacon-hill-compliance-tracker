@@ -20,6 +20,7 @@ class SummaryCommitteePdfParser(ParserInterface):
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "committee page PDF"
     cost = 4
+    file_format = "pdf"
 
     @staticmethod
     def _find_committee_summary_pdf(

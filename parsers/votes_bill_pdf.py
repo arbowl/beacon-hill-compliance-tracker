@@ -21,6 +21,7 @@ class VotesBillPdfParser(ParserInterface):
     parser_type = ParserInterface.ParserType.VOTES
     location = "Bill page PDF"
     cost = 5
+    file_format = "pdf"
 
     @staticmethod
     def _extract_pdf_text(pdf_url: str, cache=None, config=None) -> Optional[str]:

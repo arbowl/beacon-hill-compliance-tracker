@@ -19,6 +19,7 @@ class SummaryBillTabTextParser(ParserInterface):
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "Bill page summary tab"
     cost = 2
+    file_format = "html"
 
     @staticmethod
     def _normalize_bill_url(bill_url: str) -> str:

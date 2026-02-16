@@ -178,6 +178,21 @@ def _process_single_bill(
             )
             repo = BillArtifactRepository(cfg.artifacts.db_path)
             repo.save_artifact(artifact)
+            # Build and save document index entries
+            index_entries, vote_participants = (
+                BillArtifactComposer.compose_document_index_entries(
+                    bill=row,
+                    summary=summary,
+                    votes=votes,
+                    bill_title=bill_title,
+                )
+            )
+            for entry in index_entries:
+                entry_participants = [
+                    p for p in vote_participants
+                    if p.reference_id == entry.reference_id
+                ]
+                repo.save_document_index_entry(entry, entry_participants)
         hearing_str = str(status.hearing_date) if status.hearing_date else "N/A"
         d60_str = str(status.deadline_60) if status.deadline_60 else "N/A"
         eff_str = str(status.effective_deadline) if status.effective_deadline else "N/A"

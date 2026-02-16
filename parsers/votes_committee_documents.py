@@ -20,6 +20,7 @@ class VotesCommitteeDocumentsParser(ParserInterface):
     parser_type = ParserInterface.ParserType.VOTES
     location = "Committee page Documents tab"
     cost = 3
+    file_format = "pdf"
     _bill_vote_data: dict = {}
 
     @staticmethod

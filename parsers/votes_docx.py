@@ -20,6 +20,7 @@ class VotesDocxParser(ParserInterface):
     parser_type = ParserInterface.ParserType.VOTES
     location = "Bill page Word document"
     cost = 4
+    file_format = "docx"
 
     @staticmethod
     def _extract_docx_text(docx_url: str, cache=None, config=None) -> Optional[str]:

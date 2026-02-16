@@ -496,6 +496,8 @@ class ParserInterface(ABC):
     """Plaintext, human-readable description of where this parser looks"""
     cost: int
     """Relative cost of running this parser (higher = more expensive)"""
+    file_format: str
+    """File format this parser works with: 'pdf', 'html', or 'docx'"""
 
     def __init_subclass__(cls, **kwargs):
         """Ensures each subclass sets required class attributes at startup"""
@@ -514,6 +516,10 @@ class ParserInterface(ABC):
             raise TypeError(f"{cls.__name__} must set class attribute 'location'")
         if not isinstance(getattr(cls, "location"), str):
             raise TypeError(f"{cls.__name__}.location must be a str")
+        if not hasattr(cls, "file_format"):
+            raise TypeError(f"{cls.__name__} must set class attribute 'file_format'")
+        if not isinstance(getattr(cls, "file_format"), str):
+            raise TypeError(f"{cls.__name__}.file_format must be a str")
 
     @staticmethod
     def soup(

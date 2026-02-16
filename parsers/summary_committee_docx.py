@@ -20,6 +20,7 @@ class SummaryCommitteeDocxParser(ParserInterface):
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "Committee page Word document"
     cost = 3
+    file_format = "docx"
 
     @staticmethod
     def _extract_docx_text(docx_url: str, cache=None, config=None) -> Optional[str]:

@@ -17,6 +17,7 @@ class VotesBillEmbeddedParser(ParserInterface):
     parser_type = ParserInterface.ParserType.VOTES
     location = "Bill page Votes tab"
     cost = 1
+    file_format = "html"
 
     @staticmethod
     def _looks_like_vote_table(tbl: BeautifulSoup) -> bool:

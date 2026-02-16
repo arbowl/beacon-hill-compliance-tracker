@@ -88,6 +88,10 @@ class SummaryInfo:
     source_url: Optional[str]  # direct link to the PDF or tab
     parser_module: Optional[str]  # which parser landed
     needs_review: bool = False  # if we auto-accepted in headless mode
+    content_hash: Optional[str] = None  # SHA256 hash of document content
+    text_length: Optional[int] = None  # length of extracted text
+    file_format: Optional[str] = None  # "pdf", "html", or "docx"
+    full_text: Optional[str] = None  # extracted document text
 
     def to_dict(self) -> dict:
         """Convert to dictionary, omitting None values."""
@@ -100,6 +104,14 @@ class SummaryInfo:
             result["source_url"] = self.source_url
         if self.parser_module is not None:
             result["parser_module"] = self.parser_module
+        if self.content_hash is not None:
+            result["content_hash"] = self.content_hash
+        if self.text_length is not None:
+            result["text_length"] = self.text_length
+        if self.file_format is not None:
+            result["file_format"] = self.file_format
+        if self.full_text is not None:
+            result["full_text"] = self.full_text
         return result
 
     @staticmethod
@@ -111,6 +123,10 @@ class SummaryInfo:
             source_url=data.get("source_url"),
             parser_module=data.get("parser_module"),
             needs_review=data.get("needs_review", False),
+            content_hash=data.get("content_hash"),
+            text_length=data.get("text_length"),
+            file_format=data.get("file_format"),
+            full_text=data.get("full_text"),
         )
 
 
@@ -135,6 +151,10 @@ class VoteInfo:  # pylint: disable=too-many-instance-attributes
     tallies: Optional[dict] = None  # {"yea": 10, "nay": 3, ...}
     records: Optional[list[VoteRecord]] = None
     needs_review: bool = False
+    content_hash: Optional[str] = None  # SHA256 hash of document content
+    text_length: Optional[int] = None  # length of extracted text
+    file_format: Optional[str] = None  # "pdf", "html", or "docx"
+    full_text: Optional[str] = None  # extracted document text
 
     def to_dict(self) -> dict:
         """Convert to dictionary, omitting None values."""
@@ -159,6 +179,14 @@ class VoteInfo:  # pylint: disable=too-many-instance-attributes
                 if self.records
                 else None
             )
+        if self.content_hash is not None:
+            result["content_hash"] = self.content_hash
+        if self.text_length is not None:
+            result["text_length"] = self.text_length
+        if self.file_format is not None:
+            result["file_format"] = self.file_format
+        if self.full_text is not None:
+            result["full_text"] = self.full_text
         return result
 
     @staticmethod
@@ -180,6 +208,10 @@ class VoteInfo:  # pylint: disable=too-many-instance-attributes
             tallies=data.get("tallies"),
             records=records,
             needs_review=data.get("needs_review", False),
+            content_hash=data.get("content_hash"),
+            text_length=data.get("text_length"),
+            file_format=data.get("file_format"),
+            full_text=data.get("full_text"),
         )
 
 

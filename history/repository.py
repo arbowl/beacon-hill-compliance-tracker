@@ -10,10 +10,12 @@ from history.artifacts import (
     ArtifactSnapshot,
     BillArtifact,
     DocumentArtifact,
+    DocumentIndexEntry,
     DocumentType,
     ExtensionRecord,
     HearingRecord,
     TimelineAction,
+    VoteParticipant,
 )
 
 
@@ -154,6 +156,73 @@ class BillArtifactRepository:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_snapshots_artifact "
             "ON artifact_snapshots(artifact_id)"
+        )
+
+        # Document index tables (search-optimized reference database)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS document_index (
+                reference_id VARCHAR PRIMARY KEY,
+                bill_id VARCHAR NOT NULL,
+                session VARCHAR NOT NULL,
+                committee_id VARCHAR NOT NULL,
+                document_type VARCHAR NOT NULL,
+                source_url VARCHAR,
+                acquired_date VARCHAR NOT NULL,
+                parser_module VARCHAR,
+                content_hash VARCHAR,
+                text_length INTEGER,
+                file_format VARCHAR,
+                confidence REAL,
+                bill_title VARCHAR,
+                bill_url VARCHAR,
+                full_text TEXT,
+                preview VARCHAR,
+                needs_review INTEGER DEFAULT 0,
+                UNIQUE(bill_id, session, document_type, content_hash)
+            )
+        """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS vote_participants (
+                participant_id VARCHAR PRIMARY KEY,
+                reference_id VARCHAR NOT NULL,
+                legislator_name VARCHAR NOT NULL,
+                vote_value VARCHAR NOT NULL,
+                chamber VARCHAR
+            )
+        """
+        )
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_document_index_bill "
+            "ON document_index(bill_id)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_document_index_committee "
+            "ON document_index(committee_id)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_document_index_session "
+            "ON document_index(session)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_document_index_type "
+            "ON document_index(document_type)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_document_index_hash "
+            "ON document_index(content_hash)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_vote_participants_ref "
+            "ON vote_participants(reference_id)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_vote_participants_legislator "
+            "ON vote_participants(legislator_name)"
         )
 
         conn.close()
@@ -511,3 +580,121 @@ class BillArtifactRepository:
         bill_ids = result["bill_id"].tolist() if not result.empty else []
         conn.close()
         return bill_ids
+
+    def save_document_index_entry(
+        self,
+        entry: DocumentIndexEntry,
+        participants: Optional[list[VoteParticipant]] = None,
+    ) -> None:
+        """Save or update a document index entry with optional vote participants."""
+        conn = duckdb.connect(self.db_path)
+
+        # Delete existing entry matching the unique constraint
+        conn.execute(
+            """DELETE FROM document_index
+               WHERE bill_id = ? AND session = ? AND document_type = ?
+               AND content_hash IS NOT DISTINCT FROM ?""",
+            [entry.bill_id, entry.session, entry.document_type.value,
+             entry.content_hash],
+        )
+
+        conn.execute(
+            """
+            INSERT INTO document_index
+            (reference_id, bill_id, session, committee_id, document_type,
+             source_url, acquired_date, parser_module, content_hash,
+             text_length, file_format, confidence, bill_title, bill_url,
+             full_text, preview, needs_review)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                entry.reference_id,
+                entry.bill_id,
+                entry.session,
+                entry.committee_id,
+                entry.document_type.value,
+                entry.source_url,
+                entry.acquired_date,
+                entry.parser_module,
+                entry.content_hash,
+                entry.text_length,
+                entry.file_format,
+                entry.confidence,
+                entry.bill_title,
+                entry.bill_url,
+                entry.full_text,
+                entry.preview,
+                1 if entry.needs_review else 0,
+            ],
+        )
+
+        if participants:
+            # Clean up old participants for this reference
+            conn.execute(
+                "DELETE FROM vote_participants WHERE reference_id = ?",
+                [entry.reference_id],
+            )
+            for p in participants:
+                conn.execute(
+                    """
+                    INSERT INTO vote_participants
+                    (participant_id, reference_id, legislator_name,
+                     vote_value, chamber)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    [p.participant_id, p.reference_id,
+                     p.legislator_name, p.vote_value, p.chamber],
+                )
+
+        conn.close()
+
+    def get_documents_by_bill(
+        self, bill_id: str, session: str = "194"
+    ) -> list[dict]:
+        """Get all indexed documents for a bill."""
+        conn = duckdb.connect(self.db_path)
+        columns = [
+            "reference_id", "bill_id", "session", "committee_id",
+            "document_type", "source_url", "acquired_date", "parser_module",
+            "content_hash", "text_length", "file_format", "confidence",
+            "bill_title", "bill_url", "preview", "needs_review",
+        ]
+        rows = conn.execute(
+            """
+            SELECT reference_id, bill_id, session, committee_id,
+                   document_type, source_url, acquired_date, parser_module,
+                   content_hash, text_length, file_format, confidence,
+                   bill_title, bill_url, preview, needs_review
+            FROM document_index
+            WHERE bill_id = ? AND session = ?
+            ORDER BY acquired_date DESC
+            """,
+            [bill_id, session],
+        ).fetchall()
+        conn.close()
+        return [dict(zip(columns, row)) for row in rows]
+
+    def get_index_stats(self) -> dict:
+        """Return aggregate statistics about the document index."""
+        conn = duckdb.connect(self.db_path)
+        total = conn.execute(
+            "SELECT COUNT(*) FROM document_index"
+        ).fetchone()[0]
+        by_type_rows = conn.execute(
+            """SELECT document_type, COUNT(*)
+               FROM document_index GROUP BY document_type"""
+        ).fetchall()
+        by_format_rows = conn.execute(
+            """SELECT file_format, COUNT(*)
+               FROM document_index GROUP BY file_format"""
+        ).fetchall()
+        unique_bills = conn.execute(
+            "SELECT COUNT(DISTINCT bill_id) FROM document_index"
+        ).fetchone()[0]
+        conn.close()
+        return {
+            "total_documents": total,
+            "unique_bills": unique_bills,
+            "by_type": {row[0]: row[1] for row in by_type_rows},
+            "by_format": {row[0]: row[1] for row in by_format_rows},
+        }

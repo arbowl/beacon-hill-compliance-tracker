@@ -35,6 +35,7 @@ class VotesAccompaniedBillParser(ParserInterface):
     parser_type = ParserInterface.ParserType.VOTES
     location = "Accompanied bill Votes tab"
     cost = 3
+    file_format = "html"
 
     @classmethod
     def discover(

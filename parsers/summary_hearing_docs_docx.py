@@ -21,6 +21,7 @@ class SummaryHearingDocsDocxParser(ParserInterface):
     parser_type = ParserInterface.ParserType.SUMMARY
     location = "Hearing page Documents tab DOCX"
     cost = 2
+    file_format = "docx"
 
     @staticmethod
     def _norm_bill_id(s: str) -> str:

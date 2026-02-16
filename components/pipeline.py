@@ -199,12 +199,17 @@ def resolve_summary_for_bill(
         )
         if candidate:
             parsed: dict = mod.parse(base_url, candidate)
+            doc_entry = cache.get_cached_document(candidate.source_url, cfg)
             result = SummaryInfo(
                 present=True,
                 location=mod.location,
                 source_url=candidate.source_url,
                 parser_module=summary_has_parser,
                 needs_review=False,
+                content_hash=doc_entry.get("content_hash") if doc_entry else None,
+                text_length=len(candidate.full_text) if candidate.full_text else None,
+                file_format=mod.file_format,
+                full_text=candidate.full_text or None,
             )
             cache.set_result(
                 row.bill_id,
@@ -349,12 +354,17 @@ def resolve_summary_for_bill(
 
         if accepted:
             parsed = p.parse(base_url, candidate)
+            doc_entry = cache.get_cached_document(candidate.source_url, cfg)
             result = SummaryInfo(
                 present=True,
                 location=p.location,
                 source_url=parsed.get("source_url"),
                 parser_module=modname,
                 needs_review=needs_review,
+                content_hash=doc_entry.get("content_hash") if doc_entry else None,
+                text_length=len(candidate.full_text) if candidate.full_text else None,
+                file_format=p.file_format,
+                full_text=candidate.full_text or None,
             )
             cache.set_result(
                 row.bill_id,
@@ -418,12 +428,17 @@ def resolve_votes_for_bill(
         )
         if candidate:
             parsed = mod.parse(base_url, candidate)
+            doc_entry = cache.get_cached_document(candidate.source_url, cfg)
             result = VoteInfo(
                 present=True,
                 location=mod.location,
                 source_url=candidate.source_url,
                 parser_module=votes_has_parser,
                 needs_review=False,
+                content_hash=doc_entry.get("content_hash") if doc_entry else None,
+                text_length=len(candidate.full_text) if candidate.full_text else None,
+                file_format=mod.file_format,
+                full_text=candidate.full_text or None,
             )
             cache.set_result(
                 row.bill_id,
@@ -566,12 +581,17 @@ def resolve_votes_for_bill(
             continue
 
         parsed = p.parse(base_url, candidate)
+        doc_entry = cache.get_cached_document(candidate.source_url, cfg)
         result = VoteInfo(
             present=True,
             location=p.location,
             source_url=parsed.get("source_url"),
             parser_module=modname,
             needs_review=needs_review,
+            content_hash=doc_entry.get("content_hash") if doc_entry else None,
+            text_length=len(candidate.full_text) if candidate.full_text else None,
+            file_format=p.file_format,
+            full_text=candidate.full_text or None,
         )
         # Mark confirmation status:
         # - review_mode ON -> confirmed True (user explicitly accepted)
