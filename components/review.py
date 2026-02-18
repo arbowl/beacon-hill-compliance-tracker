@@ -41,12 +41,20 @@ def conduct_batch_review(
             result = review_single_confirmation(confirmation, i, total, config)
             results[confirmation.confirmation_id] = result
             if result:
-                cache.set_parser(
-                    confirmation.bill_id,
-                    confirmation.parser_type,
-                    confirmation.parser_module,
-                    confirmed=True,
-                )
+                if confirmation.parser_type == "votes":
+                    cache.set_votes_parser(
+                        confirmation.bill_id,
+                        session.committee_id,
+                        confirmation.parser_module,
+                        confirmed=True,
+                    )
+                else:
+                    cache.set_parser(
+                        confirmation.bill_id,
+                        confirmation.parser_type,
+                        confirmation.parser_module,
+                        confirmed=True,
+                    )
         except (KeyboardInterrupt, EOFError):
             print(
                 f"\nReview session interrupted. Processed "
@@ -161,12 +169,20 @@ def apply_review_results(
         if confirmation_id in results:
             accepted = results[confirmation_id]
             if accepted:
-                cache.set_parser(
-                    confirmation.bill_id,
-                    confirmation.parser_type,
-                    confirmation.parser_module,
-                    confirmed=True,
-                )
+                if confirmation.parser_type == "votes":
+                    cache.set_votes_parser(
+                        confirmation.bill_id,
+                        session.committee_id,
+                        confirmation.parser_module,
+                        confirmed=True,
+                    )
+                else:
+                    cache.set_parser(
+                        confirmation.bill_id,
+                        confirmation.parser_type,
+                        confirmation.parser_module,
+                        confirmed=True,
+                    )
                 accepted_count += 1
             else:
                 rejected_count += 1
