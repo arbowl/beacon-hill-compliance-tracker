@@ -225,6 +225,79 @@ class Cache:
     def _slot(self, bill_id: str) -> dict[str, Any]:
         return self.data.setdefault("bill_parsers", {}).setdefault(bill_id, {})
 
+    def _votes_slot_ro(self, bill_id: str, committee_id: str) -> Optional[dict]:
+        bill_slot = self.data.get("bill_parsers", {}).get(bill_id)
+        if not bill_slot:
+            return None
+        return bill_slot.get("votes_by_committee", {}).get(committee_id)
+
+    def _votes_slot(self, bill_id: str, committee_id: str) -> dict[str, Any]:
+        slot = self._slot(bill_id)
+        return slot.setdefault("votes_by_committee", {}).setdefault(committee_id, {})
+
+    def get_votes_parser(self, bill_id: str, committee_id: str) -> Optional[str]:
+        comm_slot = self._votes_slot_ro(bill_id, committee_id)
+        if comm_slot is not None:
+            entry = comm_slot.get("votes")
+            if isinstance(entry, str):
+                return entry
+            if isinstance(entry, dict):
+                return entry.get("module")
+        return self.get_parser(bill_id, "votes")
+
+    def is_votes_confirmed(self, bill_id: str, committee_id: str) -> bool:
+        comm_slot = self._votes_slot_ro(bill_id, committee_id)
+        if comm_slot is not None:
+            entry = comm_slot.get("votes")
+            if isinstance(entry, dict):
+                return bool(entry.get("confirmed"))
+        return False
+
+    def get_votes_result(self, bill_id: str, committee_id: str) -> Optional[dict]:
+        comm_slot = self._votes_slot_ro(bill_id, committee_id)
+        if comm_slot is not None:
+            entry = comm_slot.get("votes")
+            if isinstance(entry, dict):
+                return entry.get("result")
+            return None
+        return self.get_result(bill_id, "votes")
+
+    def set_votes_result(
+        self,
+        bill_id: str,
+        committee_id: str,
+        module_name: str,
+        result_data: dict,
+        *,
+        confirmed: bool,
+    ) -> None:
+        with self._lock:
+            slot = self._votes_slot(bill_id, committee_id)
+            slot["votes"] = {
+                "module": module_name,
+                "confirmed": bool(confirmed),
+                "result": result_data,
+                "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            }
+            self.save()
+
+    def set_votes_parser(
+        self,
+        bill_id: str,
+        committee_id: str,
+        module_name: str,
+        *,
+        confirmed: bool,
+    ) -> None:
+        with self._lock:
+            slot = self._votes_slot(bill_id, committee_id)
+            slot["votes"] = {
+                "module": module_name,
+                "confirmed": bool(confirmed),
+                "updated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+            }
+            self.save()
+
     def get_extension(self, bill_id: str) -> Optional[dict]:
         """Return cached extension data for a bill (or None)."""
         entry = self._slot(bill_id).get("extensions")
@@ -499,8 +572,6 @@ class Cache:
             return "docx"
         elif "msword" in content_type.lower() or "doc" in content_type.lower():
             return "doc"
-        elif "html" in content_type.lower():
-            return "html"
         # Fallback: try to get extension from URL
         if url.lower().endswith(".pdf"):
             return "pdf"
