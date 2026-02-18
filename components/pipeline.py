@@ -18,6 +18,7 @@ from components.utils import (
     ask_yes_no_with_preview_and_llm_fallback,
     ask_llm_decision,
 )
+from timeline.normalizers import _COMMITTEES
 from parsers.summary_bill_tab_text import SummaryBillTabTextParser
 from parsers.summary_committee_pdf import SummaryCommitteePdfParser
 from parsers.summary_hearing_docs_pdf import SummaryHearingDocsPdfParser
@@ -31,7 +32,6 @@ from parsers.votes_committee_documents import VotesCommitteeDocumentsParser
 from parsers.votes_docx import VotesDocxParser
 from parsers.votes_hearing_committee import VotesHearingCommitteeDocumentsParser
 from parsers.votes_journal import VotesJournalPdfParser
-from parsers.votes_accompanied_bill import VotesAccompaniedBillParser
 
 logger = logging.getLogger(__name__)
 
@@ -66,27 +66,31 @@ VOTES_REGISTRY: dict[str, type[ParserInterface]] = {
         VotesDocxParser,
         VotesHearingCommitteeDocumentsParser,
         VotesJournalPdfParser,
-        VotesAccompaniedBillParser,
     ]
 }
 
 
-def _cache_extracted_text_for_html(
-    cache: Cache, config: Config, source_url: str, full_text: str
-) -> None:
-    """Store extracted text for an HTML-sourced discovery.
-
-    Looks up the raw HTML document in the cache by URL, then stores
-    the extracted text keyed by the same content hash — mirroring
-    the pattern used for PDF/DOCX documents.
-    """
+def _detect_vote_committee(full_text: str) -> Optional[str]:
     if not full_text:
-        return
-    cached_doc = cache.get_cached_document(source_url, config)
-    if cached_doc:
-        content_hash = cached_doc.get("content_hash")
-        if content_hash:
-            cache.cache_extracted_text(content_hash, full_text, config)
+        return None
+    top = " ".join(full_text.splitlines()[:20])
+    top = " ".join(top.lower().split())
+    for committee in _COMMITTEES:
+        names = [committee.canonical_name] + list(committee.short_names)
+        for name in names:
+            n = " ".join(name.lower().split())
+            if ("committee on " + n) in top:
+                return committee.id
+            if len(n) >= 20 and n in top:
+                return committee.id
+    return None
+
+
+def _passes_committee_attribution(full_text: str, target_committee_id: str) -> bool:
+    detected = _detect_vote_committee(full_text)
+    if detected is None:
+        return True
+    return detected == target_committee_id
 
 
 def should_use_llm_for_parser(
@@ -199,17 +203,12 @@ def resolve_summary_for_bill(
         )
         if candidate:
             parsed: dict = mod.parse(base_url, candidate)
-            doc_entry = cache.get_cached_document(candidate.source_url, cfg)
             result = SummaryInfo(
                 present=True,
                 location=mod.location,
                 source_url=candidate.source_url,
                 parser_module=summary_has_parser,
                 needs_review=False,
-                content_hash=doc_entry.get("content_hash") if doc_entry else None,
-                text_length=len(candidate.full_text) if candidate.full_text else None,
-                file_format=mod.file_format,
-                full_text=candidate.full_text or None,
             )
             cache.set_result(
                 row.bill_id,
@@ -354,17 +353,12 @@ def resolve_summary_for_bill(
 
         if accepted:
             parsed = p.parse(base_url, candidate)
-            doc_entry = cache.get_cached_document(candidate.source_url, cfg)
             result = SummaryInfo(
                 present=True,
                 location=p.location,
                 source_url=parsed.get("source_url"),
                 parser_module=modname,
                 needs_review=needs_review,
-                content_hash=doc_entry.get("content_hash") if doc_entry else None,
-                text_length=len(candidate.full_text) if candidate.full_text else None,
-                file_format=p.file_format,
-                full_text=candidate.full_text or None,
             )
             cache.set_result(
                 row.bill_id,
@@ -372,9 +366,6 @@ def resolve_summary_for_bill(
                 modname,
                 result.to_dict(),
                 confirmed=cfg.review_mode == "on" and not needs_review,
-            )
-            _cache_extracted_text_for_html(
-                cache, cfg, candidate.source_url, candidate.full_text
             )
             # Record success for committee-level learning
             cache.record_committee_parser(
@@ -407,54 +398,48 @@ def resolve_votes_for_bill(
       * Mark confirmed=True when a user explicitly accepts; False for headless
       auto-accept.
     """
-    cached_result = cache.get_result(
-        row.bill_id, ParserInterface.ParserType.VOTES.value
-    )
-    if cached_result and cache.is_confirmed(
-        row.bill_id, ParserInterface.ParserType.VOTES.value
-    ):
+    cached_result = cache.get_votes_result(row.bill_id, row.committee_id)
+    if cached_result and cache.is_votes_confirmed(row.bill_id, row.committee_id):
         logger.debug("Found votes in cache; skipping votes search...")
         return VoteInfo.from_dict(cached_result)
-    votes_has_parser = cache.get_parser(
-        row.bill_id, ParserInterface.ParserType.VOTES.value
-    )
+    votes_has_parser = cache.get_votes_parser(row.bill_id, row.committee_id)
     # 1) Confirmed-cache fast path (silent)
-    if votes_has_parser and cache.is_confirmed(
-        row.bill_id, ParserInterface.ParserType.VOTES.value
-    ):
+    if votes_has_parser and cache.is_votes_confirmed(row.bill_id, row.committee_id):
         mod = VOTES_REGISTRY[votes_has_parser]
         candidate: Optional[ParserInterface.DiscoveryResult] = mod.discover(
             base_url, row, cache, cfg
         )
         if candidate:
-            parsed = mod.parse(base_url, candidate)
-            doc_entry = cache.get_cached_document(candidate.source_url, cfg)
-            result = VoteInfo(
-                present=True,
-                location=mod.location,
-                source_url=candidate.source_url,
-                parser_module=votes_has_parser,
-                needs_review=False,
-                content_hash=doc_entry.get("content_hash") if doc_entry else None,
-                text_length=len(candidate.full_text) if candidate.full_text else None,
-                file_format=mod.file_format,
-                full_text=candidate.full_text or None,
-            )
-            cache.set_result(
-                row.bill_id,
-                ParserInterface.ParserType.VOTES.value,
-                votes_has_parser,
-                result.to_dict(),
-                confirmed=True,
-            )
-            # Record success for committee-level learning
-            cache.record_committee_parser(
-                row.committee_id,
-                ParserInterface.ParserType.VOTES.value,
-                votes_has_parser,
-            )
-            return result
-        # stale: fall through to normal flow
+            doc_text = candidate.full_text if candidate.full_text else ""
+            if not _passes_committee_attribution(doc_text, row.committee_id):
+                logger.debug(
+                    "Confirmed-cache vote rejected for %s/%s: different committee",
+                    row.bill_id,
+                    row.committee_id,
+                )
+            else:
+                parsed = mod.parse(base_url, candidate)
+                result = VoteInfo(
+                    present=True,
+                    location=mod.location,
+                    source_url=candidate.source_url,
+                    parser_module=votes_has_parser,
+                    needs_review=False,
+                )
+                cache.set_votes_result(
+                    row.bill_id,
+                    row.committee_id,
+                    votes_has_parser,
+                    result.to_dict(),
+                    confirmed=True,
+                )
+                cache.record_committee_parser(
+                    row.committee_id,
+                    ParserInterface.ParserType.VOTES.value,
+                    votes_has_parser,
+                )
+                return result
+        # stale or attribution mismatch: fall through to normal flow
     # 2) Build parser sequence with committee-aware prioritization
     all_votes_parsers: list[type[ParserInterface]] = [
         parser
@@ -494,6 +479,14 @@ def resolve_votes_for_bill(
     for p, tier, modname in votes_sequence:
         candidate = p.discover(base_url, row, cache, cfg)
         if not candidate:
+            continue
+        doc_text = candidate.full_text if candidate.full_text else ""
+        if not _passes_committee_attribution(doc_text, row.committee_id):
+            logger.debug(
+                "Skipping vote candidate for %s/%s: attributed to different committee",
+                row.bill_id,
+                row.committee_id,
+            )
             continue
         # Decide whether to prompt
         accepted = True
@@ -581,33 +574,20 @@ def resolve_votes_for_bill(
             continue
 
         parsed = p.parse(base_url, candidate)
-        doc_entry = cache.get_cached_document(candidate.source_url, cfg)
         result = VoteInfo(
             present=True,
             location=p.location,
             source_url=parsed.get("source_url"),
             parser_module=modname,
             needs_review=needs_review,
-            content_hash=doc_entry.get("content_hash") if doc_entry else None,
-            text_length=len(candidate.full_text) if candidate.full_text else None,
-            file_format=p.file_format,
-            full_text=candidate.full_text or None,
         )
-        # Mark confirmation status:
-        # - review_mode ON -> confirmed True (user explicitly accepted)
-        # - review_mode OFF -> confirmed False (auto-accepted; will ask once
-        # in a future interactive run)
-        cache.set_result(
+        cache.set_votes_result(
             row.bill_id,
-            ParserInterface.ParserType.VOTES.value,
+            row.committee_id,
             modname,
             result.to_dict(),
             confirmed=cfg.review_mode == "on" and not needs_review,
         )
-        _cache_extracted_text_for_html(
-            cache, cfg, candidate.source_url, candidate.full_text
-        )
-        # Record success for committee-level learning
         cache.record_committee_parser(
             row.committee_id, ParserInterface.ParserType.VOTES.value, modname
         )
