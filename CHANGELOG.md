@@ -5,6 +5,12 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-18
+
+### Changed
+- The presence of a single vote for a bill will no longer automatically count towards compliance for all committees that handled it. That behavior will only persist in the event the committee cannot be extracted from the vote content. Instead, the vote tracker will attempt to match only the committee that posted the vote to the committee being analyzed.
+
+
 ## [1.3.2] - 2026-02-11
 
 ### Added
@@ -190,6 +196,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Implemented document content hashing for cache validation
 - Added secure configuration management via YAML
+
 
 
 
