@@ -77,15 +77,21 @@ def _detect_vote_committee(full_text: str) -> Optional[str]:
         return None
     top = " ".join(full_text.splitlines()[:20])
     top = " ".join(top.lower().split())
+    best_id: Optional[str] = None
+    best_len = 0
     for committee in _COMMITTEES:
         names = [committee.canonical_name] + list(committee.short_names)
         for name in names:
             n = " ".join(name.lower().split())
+            matched = False
             if ("committee on " + n) in top:
-                return committee.id
-            if len(n) >= 20 and n in top:
-                return committee.id
-    return None
+                matched = True
+            elif len(n) >= 20 and n in top:
+                matched = True
+            if matched and len(n) > best_len:
+                best_len = len(n)
+                best_id = committee.id
+    return best_id
 
 
 def _passes_committee_attribution(full_text: str, target_committee_id: str) -> bool:
