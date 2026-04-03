@@ -306,7 +306,7 @@ def create_action_nodes() -> List[ActionNode]:
             patterns=[
                 re.compile(
                     r"Reporting\s+date\s+extended\s+to\s+"
-                    r"(?P<new_deadline>[A-Za-z]+,\s+[A-Za-z]+\s+\d{1,2},\s+\d{4})"
+                    r"(?P<date>[A-Za-z]+,?\s+[A-Za-z]+\s+\d{1,2},\s+\d{4})"
                     r"(?:\s+\(sections?\s+(?P<sections>.+?)\))?",
                     re.I,
                 ),

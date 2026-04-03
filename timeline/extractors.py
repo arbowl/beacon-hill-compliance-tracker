@@ -30,6 +30,7 @@ def extract_date(match: re.Match, data: dict[str, Any]) -> Optional[str]:
         "%B %d, %Y",  # September 9, 2025
         "%b %d, %Y",  # Sep 9, 2025
         "%A, %B %d, %Y",  # Wednesday, September 9, 2025
+        "%A %B %d, %Y",  # Wednesday September 9, 2025 (no comma after weekday)
     ]
     for fmt in formats:
         try:

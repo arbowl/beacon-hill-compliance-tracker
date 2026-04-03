@@ -5,6 +5,12 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-04-02
+
+### Fixed
+- Days of the week in dates, for which there is no comma after the day of the week, as in "Friday April 3, 2026" (as opposed to "Friday, April 3, 2026") will now be properly extracted from bill timelines.
+
+
 ## [1.4.0] - 2026-02-18
 
 ### Changed

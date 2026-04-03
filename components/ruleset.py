@@ -633,7 +633,12 @@ def aggregate_to_compliance(
     Returns:
         BillCompliance with final state and reason
     """
-    if status.hearing_date is None:
+    can_evaluate_via_referred = (
+        context.bill_type != BillType.HOUSE
+        and context.committee_type == CommitteeType.JOINT
+        and status.referred_date is not None
+    )
+    if status.hearing_date is None and not can_evaluate_via_referred:
         status = BillStatus(
             bill_id=status.bill_id,
             committee_id=status.committee_id,
