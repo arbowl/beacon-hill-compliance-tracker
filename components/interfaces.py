@@ -16,8 +16,8 @@ import logging
 from datetime import datetime
 
 from bs4 import BeautifulSoup  # type: ignore
-import requests  # type: ignore
-from requests.adapters import HTTPAdapter  # type: ignore
+import niquests as requests  # type: ignore
+from niquests.adapters import HTTPAdapter  # type: ignore
 from urllib.parse import urlencode
 from urllib3.util.retry import Retry
 from yaml import safe_load  # type: ignore

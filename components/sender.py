@@ -43,8 +43,8 @@ import hmac
 import re
 from typing import Any, Optional, Literal
 
-import requests  # type: ignore
-from requests.adapters import HTTPAdapter  # type: ignore
+import niquests as requests  # type: ignore
+from niquests.adapters import HTTPAdapter  # type: ignore
 from urllib3.util import Retry
 
 from components.interfaces import get_user_agent

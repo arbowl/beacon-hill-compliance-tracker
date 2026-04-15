@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from typing import Optional, Literal
 
-import requests  # type: ignore
+import niquests as requests  # type: ignore
 
 from components.interfaces import Config
 

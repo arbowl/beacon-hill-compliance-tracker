@@ -9,7 +9,7 @@ from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
 
-import requests  # type: ignore
+import niquests as requests  # type: ignore
 
 from components.pipeline import (
     resolve_summary_for_bill,

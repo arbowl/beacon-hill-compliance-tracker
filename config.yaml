@@ -95,6 +95,6 @@ logging:
     audit: true                       # Enable event audit trail
 
 artifacts:
-  enabled: false                       # Enable bill artifact storage
+  enabled: true                       # Enable bill artifact storage
   db_path: "bill_artifacts.db"       # SQLite database path
   ruleset_version: "194.v1"          # Track which ruleset version is active

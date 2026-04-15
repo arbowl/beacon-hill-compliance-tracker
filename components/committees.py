@@ -5,7 +5,7 @@ from functools import lru_cache
 from urllib.parse import urljoin
 from typing import Iterable, Optional
 
-import requests  # type: ignore
+import niquests as requests  # type: ignore
 from bs4 import BeautifulSoup  # type: ignore
 
 from components.models import Committee

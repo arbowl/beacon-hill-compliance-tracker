@@ -109,6 +109,7 @@ class RuleResult:
     is_before_deadline: bool = False
     is_missing_notice: bool = False
     is_core_requirement: bool = False  # True for ReportedOut, Votes, Summary
+    is_referral_based_deadline: bool = False  # True when deadline uses referred_date (e.g. J24 no-hearing)
     missing_description: Optional[str] = None  # Missing requirement text
     notice_description: Optional[str] = None  # Notice rule description
 
@@ -256,8 +257,12 @@ class NoticeRequirementRule(ComplianceRule):
         # Count evidence from core requirements
         core_results = [r for rule, r in all_results if rule.is_core_requirement()]
         compliant_count = sum(1 for r in core_results if r.passed == Status.COMPLIANT)
+        referral_based_noncompliant = any(
+            r.passed == Status.NON_COMPLIANT and r.is_referral_based_deadline
+            for r in core_results
+        )
 
-        if compliant_count == 0:
+        if compliant_count == 0 and not referral_based_noncompliant:
             return (
                 ComplianceState.UNKNOWN,
                 "No hearing announcement found and no other evidence",
@@ -303,9 +308,15 @@ class ReportedOutRequirementRule(ComplianceRule):
         today = date.today()
         hearing_date = status.hearing_date
         referred_date = status.referred_date
+        referral_based = hearing_date is None and referred_date is not None
         if hearing_date is None and not (
-            context.bill_type != BillType.HOUSE
-            and context.committee_type == CommitteeType.JOINT
+            (
+                context.committee_id == "J24"
+                or (
+                    context.bill_type != BillType.HOUSE
+                    and context.committee_type == CommitteeType.JOINT
+                )
+            )
             and referred_date is not None
         ):
             return RuleResult(
@@ -390,6 +401,7 @@ class ReportedOutRequirementRule(ComplianceRule):
                     f"Action on {status.reported_date} after deadline {effective_deadline}"
                 ),
                 is_core_requirement=True,
+                is_referral_based_deadline=referral_based,
                 missing_description="reported out late",
             )
         missing_description = f"not reported out by deadline {effective_deadline}"
@@ -397,6 +409,7 @@ class ReportedOutRequirementRule(ComplianceRule):
             passed=Status.NON_COMPLIANT,
             reason=f"Deadline passed ({effective_deadline}) with no evidence of action",
             is_core_requirement=True,
+            is_referral_based_deadline=referral_based,
             missing_description=missing_description,
         )
 
@@ -634,10 +647,12 @@ def aggregate_to_compliance(
         BillCompliance with final state and reason
     """
     can_evaluate_via_referred = (
-        context.bill_type != BillType.HOUSE
-        and context.committee_type == CommitteeType.JOINT
-        and status.referred_date is not None
-    )
+        context.committee_id == "J24"
+        or (
+            context.bill_type != BillType.HOUSE
+            and context.committee_type == CommitteeType.JOINT
+        )
+    ) and status.referred_date is not None
     if status.hearing_date is None and not can_evaluate_via_referred:
         status = BillStatus(
             bill_id=status.bill_id,
