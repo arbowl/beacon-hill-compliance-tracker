@@ -213,7 +213,6 @@ cache/
 cache.json
 *.csv
 *.png
-*.html
 *.pdf
 *.db
 *.db-journal
