@@ -125,7 +125,32 @@ class SummaryBillTabTextParser(ParserInterface):
         """Discover the summary."""
         logger.debug("Trying %s...", cls.__name__)
         bill_url = cls._normalize_bill_url(bill.bill_url)
-        soup = cls.soup(f"{bill_url}/PrimarySponsorSummary", cache=cache, config=config)
+        source_url = f"{bill_url}/PrimarySponsorSummary"
+        soup = cls.soup(source_url, cache=cache, config=config)
+
+        # Strategy 1: active tab-pane (role="tabpanel") — the server renders the
+        # requested tab as the active pane. The site uses <button aria-controls>
+        # tabs, not <a aria-labelledby> tabs, so there is no aria-labelledby on
+        # the panel itself. Find the Summary: label and grab its sibling value.
+        tab_panel = soup.find(
+            "div", attrs={"role": "tabpanel", "class": re.compile(r"\bactive\b")}
+        )
+        if tab_panel:
+            label = tab_panel.find(
+                lambda tag: tag.name == "label"
+                and re.search(r"\bsummary\b", tag.get_text(), re.I)
+            )
+            if label:
+                value_div = label.find_parent().find_next_sibling()
+                if value_div:
+                    text = " ".join(value_div.get_text(" ", strip=True).split())
+                    if len(text) > 50:
+                        preview = text[:500] + ("..." if len(text) > 500 else "")
+                        return ParserInterface.DiscoveryResult(
+                            preview, text, source_url, 0.95
+                        )
+
+        # Strategy 2 (legacy): aria-labelledby on the panel div
         tab_panel = soup.find(
             "div", attrs={"aria-labelledby": re.compile("PrimarySponsorSummary", re.I)}
         )
