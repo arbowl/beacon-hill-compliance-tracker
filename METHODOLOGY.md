@@ -2,7 +2,7 @@
 
 **Beacon Hill Compliance Tracker -- as of v1.4.1**
 
-This document has two parts. The first ([How It Works](#how-it-works)) is a plain-language overview intended for anyone who wants to understand what the tracker does and why its findings can be trusted. The second ([Technical Detail](#technical-detail)) is a deeper description of the implementation for contributors and technical reviewers.
+This document has two parts. The first ([How It Works](#how-it-works)) is a plain-language overview intended for anyone who wants to understand what the Tracker does and why its findings can be trusted. The second ([Technical Detail](#technical-detail)) is a deeper description of the implementation for contributors and technical reviewers.
 
 For the plain-English description of the compliance rules themselves, see [RULESET194.md](RULESET194.md).
 
@@ -10,45 +10,45 @@ For the plain-English description of the compliance rules themselves, see [RULES
 
 ## How It Works
 
-### What the tracker does
+### What the Tracker does
 
-Massachusetts law requires legislative committees to give the public advance notice of hearings, to vote on bills within a fixed window after those hearings, and to post both a written summary of the hearing and a record of how members voted. The Beacon Hill Compliance Tracker checks whether committees are meeting those obligations, automatically, by reading the Legislature's own public website.
+In 2025, the Massachusetts Legislature adopted new Joint Rules requiring legislative committees to give the public advance notice of hearings, to vote on bills within a fixed window after those hearings, and to post both a written summary of the hearing and a record of how members voted. The Beacon Hill Compliance Tracker checks whether committees are meeting those obligations, automatically, by reading the Legislature's own public website.
 
 ### Step by step
 
 **1. Find the committees.**
-The tracker starts with the list of active Massachusetts legislative committees (House, Senate, and Joint) drawn directly from the Legislature's website (`malegislature.gov`).
+The Tracker starts with the list of active Massachusetts legislative committees (House, Senate, and Joint) drawn directly from the Legislature's website (`malegislature.gov`).
 
 **2. Find the hearings and bills.**
 For each committee, it collects two lists: bills that have been assigned a hearing date, and all bills that have been referred to that committee regardless of whether a hearing has been scheduled. Each bill's page is visited to extract its action history, the sequence of formal steps (referral, hearing notice, report-out, etc.) that constitute its legislative record.
 
 **3. Check the notice.**
-For Senate and Joint committees, the law requires that hearings be announced a minimum number of days in advance (5 days for Senate, 10 days for Joint). The tracker computes the gap between the public announcement date and the hearing date and flags hearings that fall short.
+For Senate and Joint committees, the law requires that hearings be announced a minimum number of days in advance (5 days for Senate, 10 days for Joint). The Tracker computes the gap between the public announcement date and the hearing date and flags hearings that fall short.
 
 **4. Check the deadline.**
-After a hearing, committees have a set window to act on each bill (typically 60 days for House bills, with session-specific deadlines for Senate and Joint bills). The tracker computes the applicable deadline for each bill, checks whether the committee formally reported the bill out within that window, and flags bills where the deadline has passed with no recorded action.
+After a hearing, committees have a set window to act on each bill (typically 60 days for House bills, with session-specific deadlines for Senate and Joint bills). The Tracker computes the applicable deadline for each bill, checks whether the committee formally reported the bill out within that window, and flags bills where the deadline has passed with no recorded action.
 
 **5. Look for the documents.**
-The tracker searches for two types of required documents: a hearing summary and a vote record. These can appear in several places on the Legislature's site: attached directly to a bill, embedded in the committee's hearing pages, posted as PDFs or Word documents in the committee's document folder, or recorded in the House or Senate journal. The tracker tries each location in order, starting with the cheapest (most likely) source and moving on if nothing is found.
+The Tracker searches for two types of required documents: a hearing summary and a vote record. These can appear in several places on the Legislature's site: attached directly to a bill, embedded in the committee's hearing pages, posted as PDFs or Word documents in the committee's document folder, or recorded in the House or Senate journal. The Tracker tries each location in order, starting with the cheapest (most likely) source and moving on if nothing is found.
 
 **6. Classify each bill.**
-With all of the above in hand, the tracker applies four rules -- notice, deadline, summary posting, and vote posting -- and assigns each bill one of four states:
+With all of the above in hand, the Tracker applies four rules -- notice, deadline, summary posting, and vote posting -- and assigns each bill one of four states:
 
 - **Compliant**: all requirements met
 - **Non-Compliant**: one or more requirements failed
 - **Incomplete**: a subset of requirements is missing (same as Non-Compliant in effect, but used to audit edge cases and bifurcate single-offenders with multi-offenders)
-- **Unknown**: the deadline has not yet passed, or the tracker cannot determine the answer from available data
+- **Unknown**: the deadline has not yet passed, or the Tracker cannot determine the answer from available data
 
 **7. Publish the results.**
 Results are written to dated HTML and JSON files and sent to [beaconhilltracker.org](https://beaconhilltracker.org), where they are publicly accessible. Every run is recorded with a full audit log so that any finding can be traced back to the specific data that produced it.
 
 ### Why scraping, not the API?
 
-The Legislature provides a developer API. The Tracker deliberately does not use it as a primary source, because compliance is only meaningful if it is visible in the public record. A document that exists in a database but is not accessible on the public website does not satisfy the transparency purpose of the statute. The tracker checks what a citizen would see.
+The Legislature provides a developer API. The Tracker deliberately does not use it as a primary source, because compliance is only meaningful if it is visible in the public record. A document that exists in a database but is not accessible on the public website does not satisfy the transparency purpose of the statute. The Tracker checks what a citizen would see.
 
 ### External validation
 
-The tracker's findings have been used and independently verified by policy advocates, legislative researchers, and journalists. Coverage and citations include:
+The Tracker's findings have been used and independently verified by policy advocates, legislative researchers, and journalists. Coverage and citations include:
 
 - [Boston Globe](https://www.bostonglobe.com/2026/05/05/metro/legislature-transparency-loophole-committee-votes/) (May 2026)
 - [New Bedford Light](https://newbedfordlight.org/how-much-progress-did-new-bedfords-legislators-make-in-fall-2025/) (Fall 2025 retrospective)
@@ -58,7 +58,7 @@ The tracker's findings have been used and independently verified by policy advoc
 
 ### Contributing
 
-The tracker is open source. If you find a bug in how a document is detected, a committee is parsed, or a deadline is computed, contributions are welcome via pull request. The [unit test suite](#12-unit-testing) includes recorded web responses (cassettes) so that parser fixes can be verified without live network access. See [README.md](README.md) for setup instructions.
+The Tracker is open source. If you find a bug in how a document is detected, a committee is parsed, or a deadline is computed, contributions are welcome via pull request. The [unit test suite](#12-unit-testing) includes recorded web responses (cassettes) so that parser fixes can be verified without live network access. See [README.md](README.md) for setup instructions.
 
 ---
 
