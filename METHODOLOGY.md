@@ -12,7 +12,7 @@ For the plain-English description of the compliance rules themselves, see [RULES
 
 ### What the Tracker does
 
-In 2025, the Massachusetts Legislature adopted new Joint Rules requiring legislative committees to give the public advance notice of hearings, to vote on bills within a fixed window after those hearings, and to post both a written summary of the hearing and a record of how members voted. The Beacon Hill Compliance Tracker checks whether committees are meeting those obligations, automatically, by reading the Legislature's own public website.
+In 2025, the Massachusetts Legislature adopted new Joint Rules requiring legislative committees to give the public advance notice of hearings, to vote on bills within a fixed window after those hearings, and to post both a written summary in advance of the hearing and a record of how members voted. The Beacon Hill Compliance Tracker checks whether committees are meeting those obligations, automatically, by reading the Legislature's own public website.
 
 ### Step by step
 
