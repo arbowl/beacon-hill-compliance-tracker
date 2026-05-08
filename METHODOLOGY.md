@@ -51,6 +51,7 @@ The Legislature provides a developer API. The Tracker deliberately does not use 
 The Tracker's findings have been used and independently verified by policy advocates, legislative researchers, and journalists. Coverage and citations include:
 
 - [Boston Globe](https://www.bostonglobe.com/2026/05/05/metro/legislature-transparency-loophole-committee-votes/) (May 2026)
+- [Commonwealth Beacon Op-Ed](https://commonwealthbeacon.org/opinion/beacon-hills-new-rules-are-good-they-should-follow-them/) (December 2025)
 - [New Bedford Light](https://newbedfordlight.org/how-much-progress-did-new-bedfords-legislators-make-in-fall-2025/) (Fall 2025 retrospective)
 - [POLITICO Massachusetts Playbook](https://www.politico.com/newsletters/massachusetts-playbook/2025/11/19/legislature-hits-the-halfway-mark-00658660) (November 2025)
 - [Act On Mass](https://actonmass.org/post/2025/11/24/11-22-2025-saturday-scoop-reps-vote-to-roll-back-mas-climate-laws-in-classic-tale-of-beacon-hill-corruption/) (November 2025)
