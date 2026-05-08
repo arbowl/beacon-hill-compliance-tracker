@@ -44,7 +44,7 @@ Results are written to dated HTML and JSON files and sent to [beaconhilltracker.
 
 ### Why scraping, not the API?
 
-The Legislature provides a developer API. The Tracker deliberately does not use it as a primary source, because compliance is only meaningful if it is visible in the public record. A document that exists in a database but is not accessible on the public website does not satisfy the transparency purpose of the statute. The Tracker checks what a citizen would see.
+The Legislature provides a developer API. The Tracker deliberately does not use it as a primary source, because compliance is only meaningful if it is visible in the public record. A document that exists in a database but is not accessible on the public website does not satisfy the transparency purpose of the Rules. The Tracker checks what a citizen would see.
 
 ### External validation
 
