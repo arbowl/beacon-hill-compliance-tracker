@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Added logic to differentiate between "discharged **from**" and "discharged **to**" in bill action timelines, rather than always assuming the former.
+- In cases where two sets of votes are present in the same "Committee Vote" tab, the vote parser will now traverse both sets to detect a vote posting for the current committee being processsed.
+- Addressed a compound pattern regex issue (reported, referred, reported, referred) which prevented the final action from superseding all previous actions.
 
 
 ## [1.4.1] - 2026-04-02

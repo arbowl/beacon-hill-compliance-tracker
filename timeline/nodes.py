@@ -44,7 +44,7 @@ def create_action_nodes() -> List[ActionNode]:
                 re.compile(
                     r"referred\s+to\s+the\s+committee\s+on\s+[^,]+(?:,\s+[^,]+)*,?\s+"
                     r"(?:reported|discharged)[^,]*,?\s+(?:rules\s+suspended\s+and\s+)?"
-                    r"referred\s+.*?\s+to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*[^,]+)*)",
+                    r"referred\s+(?:.*?\s+)?to\s+the\s+committee\s+on\s+(?P<committee>[^,]+(?:,\s*[^,]+)*)",
                     re.I,
                 ),
                 re.compile(

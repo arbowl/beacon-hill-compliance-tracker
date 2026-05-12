@@ -109,6 +109,49 @@ class TestVotesBillEmbeddedParserDiscover:
         assert any("CommitteeVote" in url for url in fetched_urls)
 
 
+class TestVotesBillEmbeddedParserMultiPanel:
+    """Tests for committee selection when multiple vote panels are present."""
+
+    def _html_with_two_panels(self) -> str:
+        return """
+        <html><body>
+          <div class="panel panel-primary committeeVote">
+            <h4>Joint Committee on Education</h4>
+            <div class="panel-body committeeVoteSummary">
+              <p>Favorable: 8 Adverse: 2</p>
+            </div>
+          </div>
+          <div class="panel panel-primary committeeVote">
+            <h4>Joint Committee on Public Health</h4>
+            <div class="panel-body committeeVoteSummary">
+              <p>Favorable: 10 Adverse: 1</p>
+            </div>
+          </div>
+        </body></html>
+        """
+
+    def test_selects_matching_committee_panel(self):
+        """When multiple panels exist, returns the one matching bill.committee_id."""
+        bill = _make_bill(committee_id="J16")  # J16 = Joint Committee on Public Health
+
+        with patch.object(ParserInterface, "soup", return_value=_soup(self._html_with_two_panels())):
+            result = VotesBillEmbeddedParser.discover(BASE_URL, bill)
+
+        assert result is not None
+        assert "Public Health" in result.full_text
+        assert "Education" not in result.full_text
+
+    def test_falls_back_to_first_panel_for_unknown_committee(self):
+        """Falls back to the first panel when committee_id is not in the registry."""
+        bill = _make_bill(committee_id="X99")  # Unknown committee
+
+        with patch.object(ParserInterface, "soup", return_value=_soup(self._html_with_two_panels())):
+            result = VotesBillEmbeddedParser.discover(BASE_URL, bill)
+
+        assert result is not None
+        assert "Education" in result.full_text  # First panel
+
+
 class TestVotesBillEmbeddedParserParse:
     """Tests for VotesBillEmbeddedParser.parse()."""
 

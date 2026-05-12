@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup  # type: ignore
 
 from components.models import BillAtHearing
 from components.interfaces import ParserInterface
+from timeline.normalizers import get_committee
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,16 @@ class VotesBillEmbeddedParser(ParserInterface):
     location = "Bill page Votes tab"
     cost = 1
     file_format = "html"
+
+    @staticmethod
+    def _pick_for_committee(candidates: list, committee_id: str) -> BeautifulSoup:
+        """Return the candidate whose text matches the committee; fall back to first."""
+        committee = get_committee(committee_id)
+        if committee:
+            for candidate in candidates:
+                if committee.matches(candidate.get_text(" ", strip=True)):
+                    return candidate
+        return candidates[0]
 
     @staticmethod
     def _looks_like_vote_table(tbl: BeautifulSoup) -> bool:
@@ -46,53 +57,42 @@ class VotesBillEmbeddedParser(ParserInterface):
     ) -> Optional[ParserInterface.DiscoveryResult]:
         """Discover the votes."""
         logger.debug("Trying %s...", cls.__name__)
-        soup = cls.soup(f"{bill.bill_url}/CommitteeVote", cache=cache, config=config)
-        # 1) Look for site-specific committee vote panels by class name
-        # Example seen in HTML: div.panel.panel-primary committeeVote
-        panels = soup.find_all("div", class_=lambda c: c and "committeeVote" in c)
-        for panel in panels:
-            if cls._looks_like_vote_table(panel):
-                txt = " ".join(panel.get_text(" ", strip=True).split())
-                preview = (txt[:180] + "...") if len(txt) > 180 else txt
-                return ParserInterface.DiscoveryResult(
-                    f"Embedded committee vote panel detected on"
-                    f"bill page for {bill.bill_id}\n\n{preview}",
-                    txt,
-                    f"{bill.bill_url}/CommitteeVote",
-                    0.95,
-                )
+        url = f"{bill.bill_url}/CommitteeVote"
+        soup = cls.soup(url, cache=cache, config=config)
 
-        # 2) Look for a summary block that may contain vote counts/names
-        summaries = soup.find_all(
-            "div", class_=lambda c: c and "committeeVoteSummary" in c
+        # 1) committeeVote panels (highest confidence)
+        candidates = [
+            p for p in soup.find_all("div", class_=lambda c: c and "committeeVote" in c)
+            if cls._looks_like_vote_table(p)
+        ]
+        confidence = 0.95
+
+        # 2) committeeVoteSummary divs
+        if not candidates:
+            candidates = [
+                s for s in soup.find_all(
+                    "div", class_=lambda c: c and "committeeVoteSummary" in c
+                )
+                if cls._looks_like_vote_table(s)
+            ]
+
+        # 3) Fallback: any table
+        if not candidates:
+            candidates = [t for t in soup.find_all("table") if cls._looks_like_vote_table(t)]
+            confidence = 0.9
+
+        if not candidates:
+            return None
+
+        chosen = cls._pick_for_committee(candidates, bill.committee_id)
+        txt = " ".join(chosen.get_text(" ", strip=True).split())
+        preview = (txt[:180] + "...") if len(txt) > 180 else txt
+        return ParserInterface.DiscoveryResult(
+            f"Embedded committee vote detected on bill page for {bill.bill_id}\n\n{preview}",
+            txt,
+            url,
+            confidence,
         )
-        for summ in summaries:
-            if cls._looks_like_vote_table(summ):
-                txt = " ".join(summ.get_text(" ", strip=True).split())
-                preview = (txt[:180] + "...") if len(txt) > 180 else txt
-                return ParserInterface.DiscoveryResult(
-                    f"Embedded committee vote summary detected on "
-                    f"bill page for {bill.bill_id}\n\n{preview}",
-                    txt,
-                    f"{bill.bill_url}/CommitteeVote",
-                    0.95,
-                )
-
-        # 3) Fallback: scan tables as before
-        tables = soup.find_all("table")
-        for tbl in tables:
-            if cls._looks_like_vote_table(tbl):
-                # Build a short preview line (e.g., first few cells)
-                txt = " ".join(tbl.get_text(" ", strip=True).split())
-                preview = (txt[:180] + "...") if len(txt) > 180 else txt
-                return ParserInterface.DiscoveryResult(
-                    f"Embedded vote table detected on bill page "
-                    f"for {bill.bill_id}\n\n{preview}",
-                    txt,
-                    bill.bill_url,
-                    0.9,
-                )
-        return None
 
     @classmethod
     def parse(cls, base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:

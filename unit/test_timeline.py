@@ -3,6 +3,8 @@
 from datetime import date, timedelta
 
 from timeline.models import ActionType, BillActionTimeline
+from timeline.nodes import ACTION_NODES
+from timeline.normalizers import normalize_committee_name
 from unit.fixtures.timeline_factory import TimelineFactory
 
 
@@ -216,6 +218,57 @@ class TestTimelineQuerying:
         assert hearings[1].extracted_data.get("committee_id") == "H40", (
             "Post-discharge hearing should be attributed to the destination committee"
         )
+
+
+class TestCompoundReferralPattern:
+    """Tests for the compound REFERRED pattern that extracts the final committee.
+
+    Regression for: action text like "Reported, referred to the committee on
+    Joint Rules, reported, rules suspended and referred to the committee on
+    Public Health" was matching the first committee (Joint Rules) instead of
+    the last (Public Health), because the pattern required extra words between
+    'referred' and 'to the committee on'.
+    """
+
+    @staticmethod
+    def _referred_node():
+        return next(n for n in ACTION_NODES if n.action_type == ActionType.REFERRED)
+
+    def test_compound_rules_suspended_referral(self):
+        """Compound action ending in 'referred to the committee on X' extracts X."""
+        node = self._referred_node()
+        text = (
+            "Reported, referred to the committee on Joint Rules, reported, "
+            "rules suspended and referred to the committee on Public Health"
+        )
+        match = node.match(text)
+        assert match is not None
+        data = node.extract_data(match)
+        assert data.get("committee_id") == "J16", (
+            "Should resolve to J16 (Joint Committee on Public Health), "
+            f"got committee={data.get('committee')!r}, id={data.get('committee_id')!r}"
+        )
+
+    def test_compound_referral_with_words_between_still_works(self):
+        """Compound action with 'referred back to the committee on X' still works."""
+        node = self._referred_node()
+        text = (
+            "referred to the committee on Education, reported, "
+            "rules suspended and referred back to the committee on Public Health"
+        )
+        match = node.match(text)
+        assert match is not None
+        data = node.extract_data(match)
+        assert data.get("committee_id") == "J16"
+
+    def test_simple_referral_unaffected(self):
+        """Plain 'referred to the committee on X' still resolves correctly."""
+        node = self._referred_node()
+        text = "referred to the committee on Public Health"
+        match = node.match(text)
+        assert match is not None
+        data = node.extract_data(match)
+        assert data.get("committee_id") == "J16"
 
 
 class TestTimelineChronology:
