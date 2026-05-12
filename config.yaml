@@ -77,7 +77,7 @@ document_cache:
   extracted_text_directory: "cache/extracted"  # Directory for extracted text
   max_size_mb: 5120                   # Maximum cache size in MB (5GB)
   max_age_days: 180                   # Maximum age of cached documents in days
-  validate_after_days: 7              # Validate cached documents after N days
+  validate_after_days: 1              # Validate cached documents after N days
 
   store_extracted_text: true          # Store extracted text from PDFs/DOCX
 
@@ -95,6 +95,6 @@ logging:
     audit: true                       # Enable event audit trail
 
 artifacts:
-  enabled: true                       # Enable bill artifact storage
+  enabled: false                       # Enable bill artifact storage
   db_path: "bill_artifacts.db"       # SQLite database path
   ruleset_version: "194.v1"          # Track which ruleset version is active

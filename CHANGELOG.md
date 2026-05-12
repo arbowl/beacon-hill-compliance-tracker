@@ -5,12 +5,21 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.2] - 2026-05-12
+
+## [1.4.3] - 2026-05-12
 
 ### Fixed
 - Added logic to differentiate between "discharged **from**" and "discharged **to**" in bill action timelines, rather than always assuming the former.
 - In cases where two sets of votes are present in the same "Committee Vote" tab, the vote parser will now traverse both sets to detect a vote posting for the current committee being processsed.
 - Addressed a compound pattern regex issue (reported, referred, reported, referred) which prevented the final action from superseding all previous actions.
+
+
+## [1.4.2] - 2026-04-16
+
+### Fixed
+
+- Corrected an issue where scraping on-page bill summaries would no longer properly render the summary as posted, which broke regular detection.
+- Improved on-page vote detection for cases where the underlying format looks slightly different than usual.
 
 
 ## [1.4.1] - 2026-04-02
