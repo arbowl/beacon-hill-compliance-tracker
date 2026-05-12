@@ -177,6 +177,46 @@ class TestTimelineQuerying:
         assert hearings[0].extracted_data.get("committee_id") == "J33"
         assert hearings[0].extracted_data.get("committee_id_inferred") is True
 
+    def test_infer_committee_ids_after_discharge(self, timeline_factory):
+        """Hearing after a discharge should be attributed to the destination committee.
+
+        Regression test for H.684: bill referred to Education, discharged to Public
+        Health, then a second hearing was incorrectly attributed to Education because
+        the discharge action was not updating active_committees correctly.
+        """
+        base_date = date(2025, 2, 27)
+
+        actions = [
+            timeline_factory.create_action(base_date, ActionType.REFERRED, committee_id="J30"),
+            timeline_factory.create_action(
+                base_date + timedelta(days=133),
+                ActionType.HEARING_SCHEDULED,
+                committee_id=None,
+                hearing_date=(base_date + timedelta(days=144)).isoformat(),
+            ),
+            timeline_factory.create_action(
+                base_date + timedelta(days=204),
+                ActionType.DISCHARGED,
+                committee_id="H40",
+            ),
+            # Hearing after discharge — should be attributed to H40, not J30
+            timeline_factory.create_action(
+                base_date + timedelta(days=240),
+                ActionType.HEARING_SCHEDULED,
+                committee_id=None,
+                hearing_date=(base_date + timedelta(days=250)).isoformat(),
+            ),
+        ]
+
+        timeline = BillActionTimeline(actions)
+        timeline.infer_missing_committee_ids()
+
+        hearings = timeline.get_actions_by_type(ActionType.HEARING_SCHEDULED)
+        assert hearings[0].extracted_data.get("committee_id") == "J30"
+        assert hearings[1].extracted_data.get("committee_id") == "H40", (
+            "Post-discharge hearing should be attributed to the destination committee"
+        )
+
 
 class TestTimelineChronology:
     """Test timeline ordering and date handling."""
