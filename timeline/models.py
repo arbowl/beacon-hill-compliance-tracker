@@ -356,8 +356,15 @@ class BillActionTimeline:
                 if committee_id:
                     active_committees_at_time[committee_id] = action.date
 
-            elif action_type in (TERMINAL_COMMITTEE_ACTIONS | {ActionType.DISCHARGED}):
-                # Committee is no longer active after discharge/report
+            elif action_type == ActionType.DISCHARGED:
+                # "Discharged TO <committee>" — committee_id is the destination.
+                # The source committee ends here; the destination becomes active.
+                active_committees_at_time.clear()
+                if committee_id:
+                    active_committees_at_time[committee_id] = action.date
+
+            elif action_type in TERMINAL_COMMITTEE_ACTIONS:
+                # Committee is no longer active after report/study/accompanied
                 if committee_id and committee_id in active_committees_at_time:
                     del active_committees_at_time[committee_id]
 
