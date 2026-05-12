@@ -23,7 +23,7 @@ The Tracker starts with the list of active Massachusetts legislative committees 
 For each committee, it collects two lists: bills that have been assigned a hearing date, and all bills that have been referred to that committee regardless of whether a hearing has been scheduled. Each bill's page is visited to extract its action history, the sequence of formal steps (referral, hearing notice, report-out, etc.) that constitute its legislative record.
 
 **3. Check the notice.**
-For Senate and Joint committees, the law requires that hearings be announced a minimum number of days in advance (5 days for Senate, 10 days for Joint). The Tracker computes the gap between the public announcement date and the hearing date and flags hearings that fall short.
+For Senate and Joint committees, the rules require that hearings be announced a minimum number of days in advance (5 days for Senate, 10 days for Joint). The Tracker computes the gap between the public announcement date and the hearing date and flags hearings that fall short.
 
 **4. Check the deadline.**
 After a hearing, committees have a set window to act on each bill (typically 60 days for House bills, with session-specific deadlines for Senate and Joint bills). The Tracker computes the applicable deadline for each bill, checks whether the committee formally reported the bill out within that window, and flags bills where the deadline has passed with no recorded action.
@@ -120,7 +120,8 @@ Five collectors (`collectors/`) fetch data that is guaranteed to exist if the un
 `timeline/extract_timeline(bill_url, bill_id)` parses the action history table on a bill's page (columns: Date, Branch, Action). Each row is matched against a registry of `ActionNode` objects. The registry contains 40+ distinct `ActionType` values covering the full legislative lifecycle:
 
 ```
-REFERRED > HEARING_SCHEDULED > [HEARING_RESCHEDULED] >
+REFERRED > HEARING_SCHEDULED > [HEARING_RESCHEDULED] 
+                                                 v
     REPORTED | STUDY_ORDER | ACCOMPANIED   < terminal committee actions
         v
     READ > READ_SECOND > READ_THIRD > ENACTED > SIGNED
@@ -193,7 +194,7 @@ The cache tracks per-committee parser statistics:
 - `count`: total successes for this parser on this committee
 - `current_streak`: consecutive successes (resets to 0 on any other parser succeeding)
 
-A parser is promoted to Tier 1 for a committee when `streak ≥ 3` and `count ≥ 5`. This prevents short-lived flukes from polluting the ranking. A new committee, or one where document sourcing practices have recently changed, begins at Tier 2 until a pattern is established.
+A parser is promoted to Tier 1 for a committee when `streak >= 3` and `count >= 5`. This prevents short-lived flukes from polluting the ranking. A new committee, or one where document sourcing practices have recently changed, begins at Tier 2 until a pattern is established.
 
 ### Cost Ordering
 
