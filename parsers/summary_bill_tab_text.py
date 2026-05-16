@@ -128,7 +128,7 @@ class SummaryBillTabTextParser(ParserInterface):
         source_url = f"{bill_url}/PrimarySponsorSummary"
         soup = cls.soup(source_url, cache=cache, config=config)
 
-        # Strategy 1: active tab-pane (role="tabpanel") — the server renders the
+        # Strategy 1: active tab-pane (role="tabpanel") -- the server renders the
         # requested tab as the active pane. The site uses <button aria-controls>
         # tabs, not <a aria-labelledby> tabs, so there is no aria-labelledby on
         # the panel itself. Find the Summary: label and grab its sibling value.

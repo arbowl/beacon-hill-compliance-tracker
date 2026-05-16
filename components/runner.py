@@ -202,7 +202,7 @@ def _process_single_bill(
             f"Reported: {'Y' if status.reported_out else 'N'} | "
             f"Summary: {'Y' if summary.present else 'N'} | "
             f"Votes: {'Y' if votes.present else 'N'} | "
-            f"{comp.state.upper()} — {comp.reason}"
+            f"{comp.state.upper()} -- {comp.reason}"
         )
         logger.info(bill_info)
         extension_order_url = None

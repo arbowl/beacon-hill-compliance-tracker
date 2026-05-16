@@ -178,7 +178,7 @@ def scan(cache: dict) -> list[Finding]:
             # Don't double-count as MEDIUM if already flagged above
             continue
 
-        # No bill-ID mismatch — check for shared hearing-pack URL
+        # No bill-ID mismatch -- check for shared hearing-pack URL
         sharers = url_to_bills.get(url, [])
         if len(sharers) >= SHARED_URL_THRESHOLD and url not in seen_medium_urls:
             seen_medium_urls.add(url)
@@ -222,7 +222,7 @@ def print_text(findings: list[Finding], min_sev: str) -> None:
         counts[f.severity] += 1
 
     print(f"{'='*72}")
-    print(f"Suspicious Summary Scan  —  {len(shown)} findings")
+    print(f"Suspicious Summary Scan  --  {len(shown)} findings")
     for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
         if counts[sev]:
             print(f"  {sev}: {counts[sev]}")

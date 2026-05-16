@@ -97,7 +97,7 @@ All compliance decisions are deterministic given the same input data. The option
 
 ## 2. Data Collection
 
-Five collectors (`collectors/`) fetch data that is guaranteed to exist if the underlying page exists. They are not speculative — they raise or return empty on failure rather than returning partial results.
+Five collectors (`collectors/`) fetch data that is guaranteed to exist if the underlying page exists. They are not speculative -- they raise or return empty on failure rather than returning partial results.
 
 | Collector | Source | Returns |
 |---|---|---|
@@ -327,14 +327,14 @@ The optional LLM component (`components/llm.py`) acts as a **confidence booster 
 
 ### Mechanism
 
-`LLMParser.make_decision(content, doc_type, bill_id)` calls a local [Ollama](https://ollama.com) instance (default: `localhost:11434`, model: `qwen3:4b`). It sends a short text excerpt — aggressively truncated to prevent token expansion and timeout — and expects a `yes / no / unsure` response.
+`LLMParser.make_decision(content, doc_type, bill_id)` calls a local [Ollama](https://ollama.com) instance (default: `localhost:11434`, model: `qwen3:4b`). It sends a short text excerpt -- aggressively truncated to prevent token expansion and timeout -- and expects a `yes / no / unsure` response.
 
 Truncation strategy (applied in order until the excerpt is under 200 characters):
 1. First 1-2 complete sentences
 2. First 15 words
 3. First 200 characters verbatim
 
-The response is parsed by scanning for the last occurrence of `yes`, `no`, or `unsure` in the output (the model may reason before concluding). An `unsure` or `None` response is treated as "no confidence boost" — the pipeline falls back to the parser's intrinsic confidence score.
+The response is parsed by scanning for the last occurrence of `yes`, `no`, or `unsure` in the output (the model may reason before concluding). An `unsure` or `None` response is treated as "no confidence boost" -- the pipeline falls back to the parser's intrinsic confidence score.
 
 LLM inference is disabled by default (`config.yaml: llm.enabled: false`). The pipeline's gating logic (§5) further controls when calls are made even when the LLM is available.
 
