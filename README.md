@@ -87,8 +87,8 @@ The scheduled mode runs continuously, executing the compliance check at the spec
 
 ### The Cache
 
-This is the "sourdough starter" of this project; if you run this project, you'll want a cache from a trusted user. The "cache" is a JSON file aptly named
-"cache.json" which contains metadata about bills and committees that make the algorithm run faster over time. The code will generate it on its
+This is the "sourdough starter" of this project; if you run this project, you'll want a cache from a trusted user. The "cache" is a SQLite3 file at
+`cache/cache.db` which contains metadata about bills and committees that make the algorithm run faster over time. The code will generate it on its
 own, but using a trusted user's version will get you up and running much sooner.
 
 ## Outputs

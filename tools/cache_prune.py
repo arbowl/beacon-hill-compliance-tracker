@@ -169,7 +169,7 @@ examples:
     else:
         slot = bill_parsers.get(bill_id)
         if slot is None:
-            print(f"\nNothing to clear — {bill_id} has no cache entry.")
+            print(f"\nNothing to clear -- {bill_id} has no cache entry.")
             sys.exit(0)
         cleared = clear_axes(slot, axes, args.votes_committee)
 

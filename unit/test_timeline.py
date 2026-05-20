@@ -201,7 +201,7 @@ class TestTimelineQuerying:
                 ActionType.DISCHARGED,
                 committee_id="H40",
             ),
-            # Hearing after discharge — should be attributed to H40, not J30
+            # Hearing after discharge -- should be attributed to H40, not J30
             timeline_factory.create_action(
                 base_date + timedelta(days=240),
                 ActionType.HEARING_SCHEDULED,

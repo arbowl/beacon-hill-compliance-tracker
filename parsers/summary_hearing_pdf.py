@@ -72,7 +72,7 @@ class SummaryHearingPdfParser(ParserInterface):
     @staticmethod
     def parse(base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:
         """
-        Second stage. We don't parse PDF text yet—just confirm a stable link.
+        Second stage. We don't parse PDF text yet--just confirm a stable link.
         Return {"source_url": str}
         """
         return {"source_url": candidate.source_url}

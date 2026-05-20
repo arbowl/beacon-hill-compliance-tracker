@@ -357,7 +357,7 @@ class BillActionTimeline:
                     active_committees_at_time[committee_id] = action.date
 
             elif action_type == ActionType.DISCHARGED:
-                # "Discharged TO <committee>" — committee_id is the destination.
+                # "Discharged TO <committee>" -- committee_id is the destination.
                 # The source committee ends here; the destination becomes active.
                 active_committees_at_time.clear()
                 if committee_id:

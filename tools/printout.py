@@ -1,4 +1,4 @@
-"""printout.py — Compliance statistics report from the latest run data.
+"""printout.py -- Compliance statistics report from the latest run data.
 
 Prints a formatted summary of violations across all tracked committees:
   1. Hearing notice violations (10-day / 5-day requirement)
@@ -399,7 +399,7 @@ def main() -> None:
             date_dir = date_dir_for(target)
             data_date = target
         except ValueError:
-            print(f"Error: invalid date '{sys.argv[1]}' — expected YYYY-MM-DD", file=sys.stderr)
+            print(f"Error: invalid date '{sys.argv[1]}' -- expected YYYY-MM-DD", file=sys.stderr)
             sys.exit(1)
     else:
         date_dir, data_date = find_latest_date_dir()

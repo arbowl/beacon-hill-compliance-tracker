@@ -2,7 +2,7 @@
 """Manually override a bill's summary URL in the cache (and optionally
 existing snapshots).
 
-Use this when the pipeline found the wrong document — e.g. a different
+Use this when the pipeline found the wrong document -- e.g. a different
 bill's summary appeared on the same hearing page.
 
 Usage:
