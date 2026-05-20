@@ -1,6 +1,6 @@
 # Technical Methodology
 
-**Beacon Hill Compliance Tracker -- as of v1.4.1**
+**Beacon Hill Compliance Tracker -- as of v1.4.4**
 
 This document has two parts. The first ([How It Works](#how-it-works)) is a plain-language overview intended for anyone who wants to understand what the Tracker does and why its findings can be trusted. The second ([Technical Detail](#technical-detail)) is a deeper description of the implementation for contributors and technical reviewers.
 
@@ -182,8 +182,8 @@ For each bill, parsers are ordered into three tiers before any network request i
 
 | Tier | Name | Source | Description |
 |---|---|---|---|
-| 0 | `BILL_CACHED` | `cache.json` | Parser that succeeded for this exact bill on a prior run |
-| 1 | `COMMITTEE_PROVEN` | `cache.json` | Parsers with an established success record for this committee |
+| 0 | `BILL_CACHED` | `cache/cache.db` | Parser that succeeded for this exact bill on a prior run |
+| 1 | `COMMITTEE_PROVEN` | `cache/cache.db` | Parsers with an established success record for this committee |
 | 2 | `COST_FALLBACK` | Static | All remaining parsers sorted by `cost` (lower = cheaper) |
 
 Tier 0 is highest trust: the same parser that found a document before is tried first. This is both an optimization and a consistency property; re-runs are stable unless the source document has changed.
@@ -262,15 +262,15 @@ Low scores (infrequently accessed or long-idle entries) are evicted first. Evict
 
 ### Persistent Document Cache
 
-Fetched binary documents (PDFs, DOCX) are written to disk under `cache/document_cache/`. Storage is content-addressed: the on-disk filename is `SHA256(content)`. The `cache.json` index records per-URL metadata: `etag`, `last_modified`, `access_count`, and `file_size_bytes`.
+Fetched binary documents (PDFs, DOCX) are written to disk under `cache/document_cache/`. Storage is content-addressed: the on-disk filename is `SHA256(content)`. The `cache/cache.db` index records per-URL metadata: `etag`, `last_modified`, `access_count`, and `file_size_bytes`.
 
 On subsequent runs, the cache issues conditional HTTP requests (`If-None-Match` / `If-Modified-Since`) for documents older than `validate_after_days`. A 304 response reuses the cached copy without re-downloading. Documents older than `max_age_days` are evicted from the index (the disk file may remain until a separate cleanup pass).
 
 The content-addressed scheme means that two different URLs pointing to the same document (e.g., a hearing summary accessible from both the bill page and the committee page) store only one copy on disk and are linked via the index.
 
-### Parser Result Cache (`cache.json`)
+### Parser Result Cache (`cache/cache.db`)
 
-A single JSON file (`cache/cache.json`) records which parser succeeded per bill and which parsers have proven track records per committee. The structure is:
+A single JSON file (`cache/cache/cache.db`) records which parser succeeded per bill and which parsers have proven track records per committee. The structure is:
 
 ```json
 {
@@ -290,7 +290,7 @@ A single JSON file (`cache/cache.json`) records which parser succeeded per bill 
 }
 ```
 
-Votes are keyed by committee ID because the same bill can have different vote records for different committees (e.g., a joint bill referred to both chambers). The cache is written atomically after each bill completes using an `RLock`. When the active legislative session changes, the cache is archived to `cache/archive/<session>/cache.json` and a fresh cache is started.
+Votes are keyed by committee ID because the same bill can have different vote records for different committees (e.g., a joint bill referred to both chambers). The cache is written atomically after each bill completes using an `RLock`. When the active legislative session changes, the cache is archived to `cache/archive/<session>/cache/cache.db` and a fresh cache is started.
 
 ---
 
@@ -369,7 +369,7 @@ After collection, `conduct_batch_review()` presents each pending confirmation in
 - Parser confidence (if shown in config)
 - Options: accept (`y`), reject (`n`), skip (`s`), accept all remaining (`a`), quit (`q`)
 
-`apply_review_results()` writes accepted decisions back to `cache.json` with `confirmed=True`. Rejected decisions are not cached; the bill will be reattempted on the next run. Skipped decisions are left with `needs_review=True`.
+`apply_review_results()` writes accepted decisions back to `cache/cache.db` with `confirmed=True`. Rejected decisions are not cached; the bill will be reattempted on the next run. Skipped decisions are left with `needs_review=True`.
 
 This design ensures that human reviewers see all uncertain cases in context, rather than making ad-hoc per-document decisions while collection is still running.
 
@@ -433,7 +433,7 @@ Vote document attribution (§5) is based on committee name matching in the first
 1. **False rejection**: A legitimate vote record where the committee name does not appear in the header (e.g., minimally formatted PDFs) will be rejected, causing the bill to appear as missing votes.
 2. **False acceptance**: A document mentioning multiple committees in its header could in principle be attributed to the wrong one.
 
-Both failure modes are logged. False rejections can be corrected via the human-in-the-loop review (§10) or by recording the parser result in `cache.json` with `confirmed=True`.
+Both failure modes are logged. False rejections can be corrected via the human-in-the-loop review (§10) or by recording the parser result in `cache/cache.db` with `confirmed=True`.
 
 ### LLM Non-Determinism
 
