@@ -142,7 +142,7 @@ def export_heatmap(metrics_df, out_png, sort_by="avg_days_hearing_to_reported_ou
         for c, _ in cols:
             v = r[c]
             if pd.isna(v):
-                row_ann.append("—")
+                row_ann.append("--")
             elif c.endswith("_rate"):
                 row_ann.append(f"{v*100:.0f}%")
             else:

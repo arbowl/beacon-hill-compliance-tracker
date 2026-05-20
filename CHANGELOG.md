@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.4.4] - 2026-05-18
+
+### Fixed
+- Senate bills in Joint Committees that receive a study order before any hearing is held are now correctly evaluated for deadline compliance rather than being classified as Provisional. Previously, the absence of a hearing date caused these bills to fall through to an early-exit Provisional path, even though referral -> study order is a complete terminal disposition under Joint Rule 10.
+
+
 ## [1.4.3] - 2026-05-12
 
 ### Fixed

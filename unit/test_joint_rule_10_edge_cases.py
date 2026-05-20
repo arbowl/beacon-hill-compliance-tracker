@@ -492,3 +492,70 @@ class TestJointRule10SessionBoundaries:
             bill_factory.create_votes(True),
         )
         assert result.state == ComplianceState.NON_COMPLIANT
+
+
+class TestStudyOrderWithoutHearing:
+    """Referral → study order with no hearing is a complete terminal disposition.
+
+    S.491/J46 was the motivating case: Senate bill study-ordered before any
+    hearing in a Joint Committee was incorrectly classified as Unknown.
+    """
+
+    def test_senate_bill_study_ordered_within_deadline_is_compliant(
+        self, bill_factory: BillFactory
+    ):
+        """Study order before Dec 3 deadline → Compliant (no hearing required)."""
+        c = Constants194()
+        status = bill_factory.create_status(
+            bill_id="S491",
+            committee_id="J46",
+            hearing_date=None,
+            referred_date=date(2025, 9, 1),
+            reported_date=date(2025, 11, 1),
+        )
+        result = classify(
+            "S491",
+            "J46",
+            status,
+            bill_factory.create_summary(False),
+            bill_factory.create_votes(False),
+        )
+        assert result.state == ComplianceState.COMPLIANT
+
+    def test_senate_bill_study_ordered_after_deadline_is_noncompliant(
+        self, bill_factory: BillFactory
+    ):
+        """Study order after Dec 3 deadline → Non-Compliant."""
+        c = Constants194()
+        status = bill_factory.create_status(
+            bill_id="S491b",
+            committee_id="J46",
+            hearing_date=None,
+            referred_date=date(2025, 9, 1),
+            reported_date=c.first_wednesday_december + timedelta(days=1),
+        )
+        result = classify(
+            "S491b",
+            "J46",
+            status,
+            bill_factory.create_summary(False),
+            bill_factory.create_votes(False),
+        )
+        assert result.state == ComplianceState.NON_COMPLIANT
+
+    def test_house_bill_no_hearing_still_unknown(self, bill_factory: BillFactory):
+        """House bill with no hearing is unaffected by this path."""
+        status = bill_factory.create_status(
+            bill_id="H491",
+            committee_id="J46",
+            hearing_date=None,
+            reported_date=date(2025, 11, 1),
+        )
+        result = classify(
+            "H491",
+            "J46",
+            status,
+            bill_factory.create_summary(False),
+            bill_factory.create_votes(False),
+        )
+        assert result.state == ComplianceState.UNKNOWN

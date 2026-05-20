@@ -67,7 +67,7 @@ class TestVotesAccompaniedBillParser:
     """Tests for VotesAccompaniedBillParser.discover()."""
 
     def test_study_order_with_see(self):
-        """Accompanied a study order, see S2774 — with <a> tag."""
+        """Accompanied a study order, see S2774 -- with <a> tag."""
         bill = _make_bill()
         bill_html = _bill_page_html(
             "Accompanied a study order, see S2774", "S2774"

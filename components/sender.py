@@ -217,6 +217,18 @@ class IngestClient:
             )
         raise ValueError(f"Unsupported kind: {kind}")
 
+    def upload_cache_data(
+        self,
+        cache_data: dict[str, Any],
+        dry_run: bool = False,
+    ) -> dict[str, Any]:
+        """Upload a cache dict directly (no intermediate file required).
+
+        Use this instead of upload_file(..., kind='cache') when the cache
+        lives in SQLite and must be serialised on demand via cache.to_dict().
+        """
+        return self._upload_cache(cache_data, dry_run=dry_run)
+
     def _upload_cache(
         self, cache_payload: dict[str, Any], dry_run: bool = False
     ) -> dict[str, Any]:

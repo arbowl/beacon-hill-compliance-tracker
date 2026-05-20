@@ -653,7 +653,20 @@ def aggregate_to_compliance(
             and context.committee_type == CommitteeType.JOINT
         )
     ) and status.referred_date is not None
-    if status.hearing_date is None and not can_evaluate_via_referred:
+    # Referral → study order without a hearing is a complete terminal
+    # disposition for non-House bills in Joint Committees. Votes, summaries,
+    # and hearing notice are all N/A; only the deadline matters.
+    is_study_order_without_hearing = (
+        status.hearing_date is None
+        and status.reported_date is not None
+        and context.bill_type != BillType.HOUSE
+        and context.committee_type == CommitteeType.JOINT
+    )
+    if (
+        status.hearing_date is None
+        and not can_evaluate_via_referred
+        and not is_study_order_without_hearing
+    ):
         status = BillStatus(
             bill_id=status.bill_id,
             committee_id=status.committee_id,
@@ -677,6 +690,25 @@ def aggregate_to_compliance(
             state=ComplianceState.UNKNOWN,
             reason=("No hearing scheduled - " "cannot evaluate deadline compliance"),
         )
+    if is_study_order_without_hearing:
+        for rule, result in rule_results:
+            if isinstance(rule, ReportedOutRequirementRule):
+                if result.passed == Status.COMPLIANT:
+                    state = ComplianceState.COMPLIANT
+                elif result.passed == Status.NON_COMPLIANT:
+                    state = ComplianceState.NON_COMPLIANT
+                else:
+                    state = ComplianceState.UNKNOWN
+                return BillCompliance(
+                    bill_id=context.bill_id,
+                    committee_id=context.committee_id,
+                    hearing_date=None,
+                    summary=summary,
+                    votes=votes,
+                    status=status,
+                    state=state,
+                    reason=result.reason,
+                )
     deal_breaker_result = None
     for rule, result in rule_results:
         if rule.is_deal_breaker(result):

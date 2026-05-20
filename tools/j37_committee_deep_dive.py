@@ -7,11 +7,11 @@ and Energy (J37) compliance patterns in session 194. Generates five charts
 and a summary CSV for watchdogs and journalists.
 
 Charts:
-    1. Compliance Funnel — Requirement attrition waterfall
-    2. Hearing-to-Action Timeline — When bills were (or weren't) acted on
-    3. Requirement Heatmap — Per-cohort compliance rates
-    4. Lateness Profile — Distribution of days past deadline
-    5. Vote Gap — Selective transparency pattern
+    1. Compliance Funnel -- Requirement attrition waterfall
+    2. Hearing-to-Action Timeline -- When bills were (or weren't) acted on
+    3. Requirement Heatmap -- Per-cohort compliance rates
+    4. Lateness Profile -- Distribution of days past deadline
+    5. Vote Gap -- Selective transparency pattern
 
 Dependencies:
     pip install matplotlib numpy
@@ -237,7 +237,7 @@ def print_console_summary(stats: Dict):
 
 
 # ---------------------------------------------------------------------------
-# Chart 1: Compliance Funnel — Requirement Attrition Waterfall
+# Chart 1: Compliance Funnel -- Requirement Attrition Waterfall
 # ---------------------------------------------------------------------------
 
 def plot_compliance_funnel(stats: Dict, output_dir: Path):
@@ -296,7 +296,7 @@ def plot_compliance_funnel(stats: Dict, output_dir: Path):
     ax.set_xlabel("Number of Bills", fontsize=12, fontweight="bold")
     ax.set_title(
         "The Compliance Funnel: Requirement Attrition\n"
-        "J37 — Joint Committee on Telecommunications, Utilities, and Energy",
+        "J37 -- Joint Committee on Telecommunications, Utilities, and Energy",
         fontsize=14, fontweight="bold", pad=20,
     )
 
@@ -400,7 +400,7 @@ def plot_hearing_to_action_timeline(bills: List[Dict], stats: Dict, output_dir: 
     ax.set_ylabel("Bills (jittered by hearing cohort)", fontsize=12, fontweight="bold")
     ax.set_title(
         "Hearing-to-Action Timeline: When Bills Were (or Weren't) Acted On\n"
-        "J37 — Each dot is a bill; lines connect hearing to report-out date",
+        "J37 -- Each dot is a bill; lines connect hearing to report-out date",
         fontsize=14, fontweight="bold", pad=20,
     )
 
@@ -475,7 +475,7 @@ def plot_requirement_heatmap(stats: Dict, output_dir: Path):
 
     ax.set_title(
         "Requirement Compliance by Hearing Cohort\n"
-        "J37 — Green = high compliance, Red = low compliance",
+        "J37 -- Green = high compliance, Red = low compliance",
         fontsize=14, fontweight="bold", pad=20,
     )
     ax.set_xlabel("Requirement", fontsize=12, fontweight="bold")
@@ -489,7 +489,7 @@ def plot_requirement_heatmap(stats: Dict, output_dir: Path):
 
 
 # ---------------------------------------------------------------------------
-# Chart 4: Lateness Profile — How Late Were the Late Report-Outs?
+# Chart 4: Lateness Profile -- How Late Were the Late Report-Outs?
 # ---------------------------------------------------------------------------
 
 def plot_lateness_profile(bills: List[Dict], stats: Dict, output_dir: Path):
@@ -556,7 +556,7 @@ def plot_lateness_profile(bills: List[Dict], stats: Dict, output_dir: Path):
     ax1.set_ylabel("Number of Bills", fontsize=12, fontweight="bold")
     ax1.set_title(
         f"Lateness Profile: How Late Were the {len(late_bills)} Late Report-Outs?\n"
-        "J37 — Distribution of days past statutory deadline",
+        "J37 -- Distribution of days past statutory deadline",
         fontsize=14, fontweight="bold", pad=20,
     )
     ax1.legend(loc="upper right", fontsize=10)
@@ -588,7 +588,7 @@ def plot_lateness_profile(bills: List[Dict], stats: Dict, output_dir: Path):
 
 
 # ---------------------------------------------------------------------------
-# Chart 5: The Vote Gap — Selective Transparency Pattern
+# Chart 5: The Vote Gap -- Selective Transparency Pattern
 # ---------------------------------------------------------------------------
 
 def plot_vote_gap(stats: Dict, output_dir: Path):
@@ -663,7 +663,7 @@ def plot_vote_gap(stats: Dict, output_dir: Path):
     ax1.set_xticklabels(labels, rotation=30, ha="right", fontsize=10)
     ax1.set_title(
         "The Vote Gap: Selective Transparency Pattern\n"
-        "J37 — Summaries posted consistently; votes omitted systematically",
+        "J37 -- Summaries posted consistently; votes omitted systematically",
         fontsize=14, fontweight="bold", pad=20,
     )
 

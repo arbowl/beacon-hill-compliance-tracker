@@ -1,4 +1,4 @@
-"""chart.py — Horizontal bar chart of compliance violations from the latest run.
+"""chart.py -- Horizontal bar chart of compliance violations from the latest run.
 
 Violation categories:
   • Hearing notice
@@ -68,7 +68,7 @@ def main() -> None:
             date_dir = date_dir_for(target)
             data_date = target
         except ValueError:
-            print(f"Error: invalid date '{sys.argv[1]}' — expected YYYY-MM-DD", file=sys.stderr)
+            print(f"Error: invalid date '{sys.argv[1]}' -- expected YYYY-MM-DD", file=sys.stderr)
             sys.exit(1)
     else:
         date_dir, data_date = find_latest_date_dir()
@@ -108,7 +108,7 @@ def main() -> None:
 
     ax.set_xlabel("Number of bills", fontsize=10, labelpad=8)
     ax.set_title(
-        f"Beacon Hill Compliance — Violation Summary\nData date: {data_date}",
+        f"Beacon Hill Compliance -- Violation Summary\nData date: {data_date}",
         fontsize=12,
         fontweight="bold",
         pad=14,

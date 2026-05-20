@@ -136,7 +136,7 @@ def write_basic_html(
     lines = [
         "<!doctype html><meta charset='utf-8'>",
         f"<style>{css}</style>",
-        f"<h1>Basic Compliance — <a href='{committee_url}' target='_blank'>"
+        f"<h1>Basic Compliance -- <a href='{committee_url}' target='_blank'>"
         f"{comm_name} [{committee_id}]</a></h1>",
         f"<p>Generated {now}</p>",
         contact_html,
@@ -155,12 +155,12 @@ def write_basic_html(
         sum_link = (
             f"<a href='{r['summary_url']}' target='_blank'>Yes</a>"
             if r["summary_present"] and r.get("summary_url")
-            else ("Yes" if r["summary_present"] else "—")
+            else ("Yes" if r["summary_present"] else "--")
         )
         vote_link = (
             f"<a href='{r['votes_url']}' target='_blank'>Yes</a>"
             if r["votes_present"] and r.get("votes_url")
-            else ("Yes" if r["votes_present"] else "—")
+            else ("Yes" if r["votes_present"] else "--")
         )
         hearing_date = r["hearing_date"] if r["hearing_date"] else "N/A"
         deadline_60 = r["deadline_60"] if r["deadline_60"] else "N/A"
@@ -173,7 +173,7 @@ def write_basic_html(
                 f"{r['effective_deadline']}</a>"
             )
         rep = "Yes" if r["reported_out"] else "No"
-        notice_gap = "—"
+        notice_gap = "--"
         notice_class = ""
         if r.get("notice_gap_days") is not None:
             gap_days = r["notice_gap_days"]
@@ -191,7 +191,7 @@ def write_basic_html(
             f"<tr>"
             f"<td><a href='{r['bill_url']}' target='_blank'>{r['bill_id']}</a>"
             f"</td>"
-            f"<td>{r.get('bill_title','—')}</td>"
+            f"<td>{r.get('bill_title','--')}</td>"
             f"<td>{hearing_date}</td>"
             f"<td>{deadline_60}</td>"
             f"<td>{effective_deadline}</td>"

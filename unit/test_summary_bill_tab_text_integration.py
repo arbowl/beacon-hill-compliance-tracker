@@ -20,10 +20,10 @@ def _make_bill(bill_id, committee_id="J22"):
 @pytest.mark.integration
 @pytest.mark.slow
 class TestSummaryBillTabTextParserLive:
-    """Live scrape tests — make real HTTP requests, no mocking."""
+    """Live scrape tests -- make real HTTP requests, no mocking."""
 
     def test_discovers_summary_for_s1262(self):
-        """S1262 has a known Primary Sponsor Summary — parser must find it."""
+        """S1262 has a known Primary Sponsor Summary -- parser must find it."""
         bill = _make_bill("S1262")
         result = SummaryBillTabTextParser.discover(BASE_URL, bill)
         assert result is not None

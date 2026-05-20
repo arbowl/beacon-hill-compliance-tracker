@@ -551,7 +551,7 @@ def export_clusters_to_html(topics: dict, outfile: str = "cluster_cards.html") -
 </head>
 
 <body>
-<h1>Missing Votes — Topic Clusters Overview</h1>
+<h1>Missing Votes -- Topic Clusters Overview</h1>
 <div class="grid">
 """
 
@@ -563,7 +563,7 @@ def export_clusters_to_html(topics: dict, outfile: str = "cluster_cards.html") -
 
         html += f"""
     <div class="card">
-        <div class="cluster-title">Group {cid + 1} — {label}</div>
+        <div class="cluster-title">Group {cid + 1} -- {label}</div>
         <div class="bill-count">Bills affected: {bills_count}</div>
         <ul class="keywords">
 """
