@@ -231,28 +231,22 @@ class BillArtifactRepository:
         """Save a bill artifact to the database."""
         conn = duckdb.connect(self.db_path)
 
-        # Delete existing artifact and related records first
-        conn.execute(
-            "DELETE FROM artifact_snapshots WHERE artifact_id = ?",
-            [artifact.artifact_id],
-        )
-        conn.execute(
-            "DELETE FROM extension_records WHERE artifact_id = ?",
-            [artifact.artifact_id],
-        )
-        conn.execute(
-            "DELETE FROM document_artifacts WHERE artifact_id = ?",
-            [artifact.artifact_id],
-        )
-        conn.execute(
-            "DELETE FROM timeline_actions WHERE artifact_id = ?", [artifact.artifact_id]
-        )
-        conn.execute(
-            "DELETE FROM hearing_records WHERE artifact_id = ?", [artifact.artifact_id]
-        )
-        conn.execute(
-            "DELETE FROM bill_artifacts WHERE artifact_id = ?", [artifact.artifact_id]
-        )
+        # Resolve the stored artifact_id by natural key. artifact_id is a fresh
+        # UUID each run, so deleting by it would be a no-op against existing rows,
+        # which would then violate the UNIQUE(bill_id, session, committee_id) constraint.
+        existing = conn.execute(
+            "SELECT artifact_id FROM bill_artifacts "
+            "WHERE bill_id = ? AND session = ? AND committee_id = ?",
+            [artifact.bill_id, artifact.session, artifact.committee_id],
+        ).fetchone()
+        if existing:
+            old_id = existing[0]
+            conn.execute("DELETE FROM artifact_snapshots WHERE artifact_id = ?", [old_id])
+            conn.execute("DELETE FROM extension_records WHERE artifact_id = ?", [old_id])
+            conn.execute("DELETE FROM document_artifacts WHERE artifact_id = ?", [old_id])
+            conn.execute("DELETE FROM timeline_actions WHERE artifact_id = ?", [old_id])
+            conn.execute("DELETE FROM hearing_records WHERE artifact_id = ?", [old_id])
+            conn.execute("DELETE FROM bill_artifacts WHERE artifact_id = ?", [old_id])
 
         # Insert the main artifact
         conn.execute(
