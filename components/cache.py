@@ -979,13 +979,31 @@ class CacheDB:
         result["committee_contacts"] = contacts
 
         # --- committee_bills ---
+        # Derive last_updated per committee from the most recently updated
+        # bill_parsers row for any bill in that committee — mirrors the
+        # timestamp the old JSON cache wrote on every add_bill_to_committee call.
+        comm_last_updated: dict[str, str] = {}
+        for row in self._conn.execute(
+            """
+            SELECT cb.committee_id, MAX(bp.updated_at) AS last_updated
+            FROM committee_bills cb
+            LEFT JOIN bill_parsers bp ON cb.bill_id = bp.bill_id
+            GROUP BY cb.committee_id
+            """
+        ):
+            comm_last_updated[row["committee_id"]] = row["last_updated"] or ""
+
         comm_bills: dict[str, Any] = {}
         for row in self._conn.execute(
             "SELECT committee_id, bill_id FROM committee_bills ORDER BY committee_id"
         ):
             cid = row["committee_id"]
             if cid not in comm_bills:
-                comm_bills[cid] = {"bills": [], "bill_count": 0, "last_updated": ""}
+                comm_bills[cid] = {
+                    "bills": [],
+                    "bill_count": 0,
+                    "last_updated": comm_last_updated.get(cid, ""),
+                }
             comm_bills[cid]["bills"].append(row["bill_id"])
             comm_bills[cid]["bill_count"] += 1
         result["committee_bills"] = comm_bills
@@ -1026,13 +1044,16 @@ class CacheDB:
             if h not in seen_hashes:
                 seen_hashes.add(h)
                 total_size += row["file_size_bytes"] or 0
+        cleanup_row = self._docs_conn.execute(
+            "SELECT value FROM meta WHERE key='last_cleanup'"
+        ).fetchone()
         result["document_cache"] = {
             "by_url": by_url,
             "by_content_hash": by_hash,
             "metadata": {
                 "total_documents": len(by_url),
                 "total_size_bytes": total_size,
-                "last_cleanup": "",
+                "last_cleanup": cleanup_row["value"] if cleanup_row else "",
             },
         }
 
