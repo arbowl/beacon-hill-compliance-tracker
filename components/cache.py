@@ -593,6 +593,18 @@ class CacheDB:
         ).fetchall()
         return [row["module_name"] for row in rows]
 
+    def get_committee_parser_stats(
+        self, committee_id: str, parser_type: str, module_name: str
+    ) -> dict[str, int]:
+        row = self._conn.execute(
+            "SELECT count, current_streak FROM committee_parsers"
+            " WHERE committee_id=? AND parser_type=? AND module_name=?",
+            (committee_id, parser_type, module_name),
+        ).fetchone()
+        if not row:
+            return {}
+        return {"count": row["count"], "current_streak": row["current_streak"]}
+
     def record_committee_parser(
         self, committee_id: str, parser_type: str, module_name: str
     ) -> None:

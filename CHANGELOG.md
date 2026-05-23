@@ -5,6 +5,11 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2025-05-23
+
+### Fixed
+- Corrected a display-only bug introduced with a recent caching system upgrade that caused the dashboard to superficially report thousands of "newly discovered" bills each night and show large swings in per-committee compliance percentages. (No actual compliance determinations were affected; the underlying classifications were computed as per usual.)
+
 
 ## [1.4.4] - 2026-05-18
 

@@ -147,8 +147,7 @@ def should_use_llm_for_parser(
 
     # Tier 1: Committee-proven - phase-based with confidence gate
     if tier == ParserTier.COMMITTEE_PROVEN:
-        committee_data = cache.data.get("committee_parsers", {}).get(committee_id, {})
-        parser_stats = committee_data.get(parser_type, {}).get(parser_module, {})
+        parser_stats = cache.get_committee_parser_stats(committee_id, parser_type, parser_module)
         if not parser_stats:
             # No stats? Use LLM (shouldn't happen in tier 1, but be safe)
             return True
