@@ -5,10 +5,13 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.5] - 2025-05-23
+## [1.4.5] - 2026-05-23
+
+### Added
+- In cases where a bill is accompanied by a study order and the study order's Committee Summary tab contains a summary file specifically for that bill (identified by bill ID in the document row), the parser will now retrieve and extract that document as the bill's committee summary.
 
 ### Fixed
-- Corrected a display-only bug introduced with a recent caching system upgrade that caused the dashboard to superficially report thousands of "newly discovered" bills each night and show large swings in per-committee compliance percentages. (No actual compliance determinations were affected; the underlying classifications were computed as per usual.)
+- Corrected a display-only bug introduced with a recent caching system upgrade that caused the "Top Movers" dashboard widget to superficially report thousands of "newly discovered" bills each night. (No actual compliance determinations were affected; this was purely a visual bug isolated to that one widget.)
 
 
 ## [1.4.4] - 2026-05-18
@@ -20,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.4.3] - 2026-05-12
 
 ### Fixed
-- Added logic to differentiate between "discharged **from**" and "discharged **to**" in bill action timelines, rather than always assuming the former.
+- Added logic to differentiate between "discharged *from*" and "discharged *to*" in bill action timelines, rather than always assuming the former.
 - In cases where two sets of votes are present in the same "Committee Vote" tab, the vote parser will now traverse both sets to detect a vote posting for the current committee being processsed.
 - Addressed a compound pattern regex issue (reported, referred, reported, referred) which prevented the final action from superseding all previous actions.
 

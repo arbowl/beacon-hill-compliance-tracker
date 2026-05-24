@@ -1,6 +1,7 @@
 """Repository for storing and retrieving bill artifacts from DuckDB."""
 
 import json
+import threading
 import duckdb
 from datetime import date, datetime
 from pathlib import Path
@@ -22,13 +23,23 @@ from history.artifacts import (
 class BillArtifactRepository:
     """Repository for storing and retrieving bill artifacts."""
 
+    _write_lock = threading.Lock()
+    _connections: dict[str, "duckdb.DuckDBPyConnection"] = {}
+
+    @classmethod
+    def _get_conn(cls, db_path: str) -> "duckdb.DuckDBPyConnection":
+        if db_path not in cls._connections:
+            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+            cls._connections[db_path] = duckdb.connect(db_path)
+        return cls._connections[db_path]
+
     def __init__(self, db_path: str = "bill_artifacts.db"):
         self.db_path = db_path
-        self._init_db()
+        with BillArtifactRepository._write_lock:
+            conn = BillArtifactRepository._get_conn(db_path)
+            self._init_db(conn)
 
-    def _init_db(self):
-        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
-        conn = duckdb.connect(self.db_path)
+    def _init_db(self, conn: "duckdb.DuckDBPyConnection") -> None:
 
         # Create tables - DuckDB doesn't have executescript
         conn.execute(
@@ -225,11 +236,13 @@ class BillArtifactRepository:
             "ON vote_participants(legislator_name)"
         )
 
-        conn.close()
-
     def save_artifact(self, artifact: BillArtifact) -> None:
         """Save a bill artifact to the database."""
-        conn = duckdb.connect(self.db_path)
+        with BillArtifactRepository._write_lock:
+            self._save_artifact_locked(artifact)
+
+    def _save_artifact_locked(self, artifact: BillArtifact) -> None:
+        conn = BillArtifactRepository._get_conn(self.db_path)
 
         # Resolve the stored artifact_id by natural key. artifact_id is a fresh
         # UUID each run, so deleting by it would be a no-op against existing rows,
@@ -398,13 +411,17 @@ class BillArtifactRepository:
                 ],
             )
 
-        conn.close()
-
     def load_artifact(
         self, bill_id: str, committee_id: str, session: str = "194"
     ) -> Optional[BillArtifact]:
         """Load a bill artifact from the database."""
-        conn = duckdb.connect(self.db_path)
+        with BillArtifactRepository._write_lock:
+            return self._load_artifact_locked(bill_id, committee_id, session)
+
+    def _load_artifact_locked(
+        self, bill_id: str, committee_id: str, session: str
+    ) -> Optional[BillArtifact]:
+        conn = BillArtifactRepository._get_conn(self.db_path)
 
         # Query for the main artifact
         result = conn.execute(
@@ -416,7 +433,6 @@ class BillArtifactRepository:
         ).fetchdf()
 
         if result.empty:
-            conn.close()
             return None
 
         row = result.iloc[0]
@@ -551,12 +567,12 @@ class BillArtifactRepository:
             )
             artifact.snapshots.append(snapshot)
 
-        conn.close()
         return artifact
 
     def get_all_bill_ids(self, committee_id: Optional[str] = None) -> list[str]:
         """Get all bill IDs from the database."""
-        conn = duckdb.connect(self.db_path)
+        with BillArtifactRepository._write_lock:
+            conn = BillArtifactRepository._get_conn(self.db_path)
 
         if committee_id:
             result = conn.execute(
@@ -572,7 +588,6 @@ class BillArtifactRepository:
             ).fetchdf()
 
         bill_ids = result["bill_id"].tolist() if not result.empty else []
-        conn.close()
         return bill_ids
 
     def save_document_index_entry(
@@ -581,7 +596,15 @@ class BillArtifactRepository:
         participants: Optional[list[VoteParticipant]] = None,
     ) -> None:
         """Save or update a document index entry with optional vote participants."""
-        conn = duckdb.connect(self.db_path)
+        with BillArtifactRepository._write_lock:
+            self._save_document_index_entry_locked(entry, participants)
+
+    def _save_document_index_entry_locked(
+        self,
+        entry: DocumentIndexEntry,
+        participants: Optional[list[VoteParticipant]] = None,
+    ) -> None:
+        conn = BillArtifactRepository._get_conn(self.db_path)
 
         # Delete existing entry matching the unique constraint
         conn.execute(
@@ -640,13 +663,12 @@ class BillArtifactRepository:
                      p.legislator_name, p.vote_value, p.chamber],
                 )
 
-        conn.close()
-
     def get_documents_by_bill(
         self, bill_id: str, session: str = "194"
     ) -> list[dict]:
         """Get all indexed documents for a bill."""
-        conn = duckdb.connect(self.db_path)
+        with BillArtifactRepository._write_lock:
+            conn = BillArtifactRepository._get_conn(self.db_path)
         columns = [
             "reference_id", "bill_id", "session", "committee_id",
             "document_type", "source_url", "acquired_date", "parser_module",
@@ -665,12 +687,12 @@ class BillArtifactRepository:
             """,
             [bill_id, session],
         ).fetchall()
-        conn.close()
         return [dict(zip(columns, row)) for row in rows]
 
     def get_index_stats(self) -> dict:
         """Return aggregate statistics about the document index."""
-        conn = duckdb.connect(self.db_path)
+        with BillArtifactRepository._write_lock:
+            conn = BillArtifactRepository._get_conn(self.db_path)
         total = conn.execute(
             "SELECT COUNT(*) FROM document_index"
         ).fetchone()[0]
@@ -685,7 +707,6 @@ class BillArtifactRepository:
         unique_bills = conn.execute(
             "SELECT COUNT(DISTINCT bill_id) FROM document_index"
         ).fetchone()[0]
-        conn.close()
         return {
             "total_documents": total,
             "unique_bills": unique_bills,

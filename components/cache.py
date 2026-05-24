@@ -193,9 +193,10 @@ class CacheDB:
     # ------------------------------------------------------------------
 
     def get_session(self) -> Optional[str]:
-        row = self._conn.execute(
-            "SELECT value FROM meta WHERE key='session'"
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT value FROM meta WHERE key='session'"
+            ).fetchone()
         return row["value"] if row else None
 
     def _archive_cache(self, session: str) -> None:
@@ -246,17 +247,19 @@ class CacheDB:
     # ------------------------------------------------------------------
 
     def get_parser(self, bill_id: str, kind: str) -> Optional[str]:
-        row = self._conn.execute(
-            "SELECT module FROM bill_parsers WHERE bill_id=? AND kind=?",
-            (bill_id, kind),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT module FROM bill_parsers WHERE bill_id=? AND kind=?",
+                (bill_id, kind),
+            ).fetchone()
         return row["module"] if row else None
 
     def is_confirmed(self, bill_id: str, kind: str) -> bool:
-        row = self._conn.execute(
-            "SELECT confirmed FROM bill_parsers WHERE bill_id=? AND kind=?",
-            (bill_id, kind),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT confirmed FROM bill_parsers WHERE bill_id=? AND kind=?",
+                (bill_id, kind),
+            ).fetchone()
         return bool(row["confirmed"]) if row else False
 
     def set_parser(
@@ -276,10 +279,11 @@ class CacheDB:
             )
 
     def get_result(self, bill_id: str, kind: str) -> Optional[dict]:
-        row = self._conn.execute(
-            "SELECT result_json FROM bill_parsers WHERE bill_id=? AND kind=?",
-            (bill_id, kind),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT result_json FROM bill_parsers WHERE bill_id=? AND kind=?",
+                (bill_id, kind),
+            ).fetchone()
         if row and row["result_json"]:
             try:
                 return json.loads(row["result_json"])
@@ -315,26 +319,29 @@ class CacheDB:
     # ------------------------------------------------------------------
 
     def get_votes_parser(self, bill_id: str, committee_id: str) -> Optional[str]:
-        row = self._conn.execute(
-            "SELECT module FROM bill_votes_by_committee WHERE bill_id=? AND committee_id=?",
-            (bill_id, committee_id),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT module FROM bill_votes_by_committee WHERE bill_id=? AND committee_id=?",
+                (bill_id, committee_id),
+            ).fetchone()
         if row:
             return row["module"]
         return self.get_parser(bill_id, "votes")
 
     def is_votes_confirmed(self, bill_id: str, committee_id: str) -> bool:
-        row = self._conn.execute(
-            "SELECT confirmed FROM bill_votes_by_committee WHERE bill_id=? AND committee_id=?",
-            (bill_id, committee_id),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT confirmed FROM bill_votes_by_committee WHERE bill_id=? AND committee_id=?",
+                (bill_id, committee_id),
+            ).fetchone()
         return bool(row["confirmed"]) if row else False
 
     def get_votes_result(self, bill_id: str, committee_id: str) -> Optional[dict]:
-        row = self._conn.execute(
-            "SELECT result_json FROM bill_votes_by_committee WHERE bill_id=? AND committee_id=?",
-            (bill_id, committee_id),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT result_json FROM bill_votes_by_committee WHERE bill_id=? AND committee_id=?",
+                (bill_id, committee_id),
+            ).fetchone()
         if row and row["result_json"]:
             try:
                 return json.loads(row["result_json"])
@@ -393,11 +400,12 @@ class CacheDB:
     # ------------------------------------------------------------------
 
     def get_extension(self, bill_id: str) -> Optional[dict]:
-        row = self._conn.execute(
-            "SELECT extension_date, extension_url, is_fallback, updated_at"
-            " FROM bill_extensions WHERE bill_id=?",
-            (bill_id,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT extension_date, extension_url, is_fallback, updated_at"
+                " FROM bill_extensions WHERE bill_id=?",
+                (bill_id,),
+            ).fetchone()
         if not row:
             return None
         result: dict[str, Any] = {"updated_at": row["updated_at"] or ""}
@@ -439,11 +447,12 @@ class CacheDB:
     # ------------------------------------------------------------------
 
     def get_hearing_announcement(self, bill_id: str) -> Optional[dict]:
-        row = self._conn.execute(
-            "SELECT announcement_date, scheduled_hearing_date, updated_at"
-            " FROM bill_hearings WHERE bill_id=?",
-            (bill_id,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT announcement_date, scheduled_hearing_date, updated_at"
+                " FROM bill_hearings WHERE bill_id=?",
+                (bill_id,),
+            ).fetchone()
         if not row:
             return None
         return {
@@ -490,9 +499,10 @@ class CacheDB:
     # ------------------------------------------------------------------
 
     def get_bill_url(self, bill_id: str) -> Optional[str]:
-        row = self._conn.execute(
-            "SELECT bill_url FROM bill_meta WHERE bill_id=?", (bill_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT bill_url FROM bill_meta WHERE bill_id=?", (bill_id,)
+            ).fetchone()
         return row["bill_url"] if row else None
 
     def set_bill_url(self, bill_id: str, bill_url: str) -> None:
@@ -504,9 +514,10 @@ class CacheDB:
             )
 
     def get_title(self, bill_id: str) -> Optional[str]:
-        row = self._conn.execute(
-            "SELECT title FROM bill_meta WHERE bill_id=?", (bill_id,)
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT title FROM bill_meta WHERE bill_id=?", (bill_id,)
+            ).fetchone()
         return row["title"] if row else None
 
     def set_title(self, bill_id: str, title: str) -> None:
@@ -526,10 +537,11 @@ class CacheDB:
     # ------------------------------------------------------------------
 
     def get_committee_contact(self, committee_id: str) -> Optional[dict]:
-        row = self._conn.execute(
-            "SELECT contact_json FROM committee_contacts WHERE committee_id=?",
-            (committee_id,),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT contact_json FROM committee_contacts WHERE committee_id=?",
+                (committee_id,),
+            ).fetchone()
         if not row:
             return None
         try:
@@ -569,10 +581,11 @@ class CacheDB:
             )
 
     def get_committee_bills(self, committee_id: str) -> list[str]:
-        rows = self._conn.execute(
-            "SELECT bill_id FROM committee_bills WHERE committee_id=?",
-            (committee_id,),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT bill_id FROM committee_bills WHERE committee_id=?",
+                (committee_id,),
+            ).fetchall()
         return [row["bill_id"] for row in rows]
 
     # ------------------------------------------------------------------
@@ -580,27 +593,29 @@ class CacheDB:
     # ------------------------------------------------------------------
 
     def get_committee_parsers(self, committee_id: str, parser_type: str) -> list[str]:
-        rows = self._conn.execute(
-            """
-            SELECT module_name
-            FROM committee_parsers
-            WHERE committee_id=? AND parser_type=?
-            ORDER BY
-                CASE WHEN current_streak >= 2 THEN 1 ELSE 0 END DESC,
-                count DESC
-            """,
-            (committee_id, parser_type),
-        ).fetchall()
+        with self._lock:
+            rows = self._conn.execute(
+                """
+                SELECT module_name
+                FROM committee_parsers
+                WHERE committee_id=? AND parser_type=?
+                ORDER BY
+                    CASE WHEN current_streak >= 2 THEN 1 ELSE 0 END DESC,
+                    count DESC
+                """,
+                (committee_id, parser_type),
+            ).fetchall()
         return [row["module_name"] for row in rows]
 
     def get_committee_parser_stats(
         self, committee_id: str, parser_type: str, module_name: str
     ) -> dict[str, int]:
-        row = self._conn.execute(
-            "SELECT count, current_streak FROM committee_parsers"
-            " WHERE committee_id=? AND parser_type=? AND module_name=?",
-            (committee_id, parser_type, module_name),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT count, current_streak FROM committee_parsers"
+                " WHERE committee_id=? AND parser_type=? AND module_name=?",
+                (committee_id, parser_type, module_name),
+            ).fetchone()
         if not row:
             return {}
         return {"count": row["count"], "current_streak": row["current_streak"]}
@@ -651,19 +666,20 @@ class CacheDB:
     # ------------------------------------------------------------------
 
     def search_for_keyword(self, keyword: str) -> bool:
-        if "extension" in keyword.lower():
-            row = self._conn.execute(
-                "SELECT 1 FROM bill_extensions WHERE extension_date IS NOT NULL LIMIT 1"
-            ).fetchone()
-            return bool(row)
-        kw = f"%{keyword.lower()}%"
-        for table, col in [("bill_parsers", "module"), ("bill_meta", "bill_url")]:
-            row = self._conn.execute(
-                f"SELECT 1 FROM {table} WHERE lower({col}) LIKE ? LIMIT 1",  # noqa: S608
-                (kw,),
-            ).fetchone()
-            if row:
-                return True
+        with self._lock:
+            if "extension" in keyword.lower():
+                row = self._conn.execute(
+                    "SELECT 1 FROM bill_extensions WHERE extension_date IS NOT NULL LIMIT 1"
+                ).fetchone()
+                return bool(row)
+            kw = f"%{keyword.lower()}%"
+            for table, col in [("bill_parsers", "module"), ("bill_meta", "bill_url")]:
+                row = self._conn.execute(
+                    f"SELECT 1 FROM {table} WHERE lower({col}) LIKE ? LIMIT 1",  # noqa: S608
+                    (kw,),
+                ).fetchone()
+                if row:
+                    return True
         return False
 
     # ------------------------------------------------------------------
@@ -697,9 +713,10 @@ class CacheDB:
     ) -> Optional[dict]:
         if not config or not config.document_cache.enabled:
             return None
-        row = self._docs_conn.execute(
-            "SELECT * FROM document_cache WHERE url=?", (url,)
-        ).fetchone()
+        with self._lock:
+            row = self._docs_conn.execute(
+                "SELECT * FROM document_cache WHERE url=?", (url,)
+            ).fetchone()
         if not row:
             return None
         cached_file_path = Path(row["cached_file_path"] or "")
@@ -908,6 +925,10 @@ class CacheDB:
 
         Called only when uploading to the remote API -- not on the write path.
         """
+        with self._lock:
+            return self._to_dict_locked()
+
+    def _to_dict_locked(self) -> dict[str, Any]:
         result: dict[str, Any] = {}
 
         session = self.get_session()
@@ -1070,3 +1091,5 @@ class CacheDB:
         }
 
         return result
+
+

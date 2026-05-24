@@ -119,15 +119,14 @@ class SummaryBillTabTextParser(ParserInterface):
         return None
 
     @classmethod
-    def discover(
-        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
+    def _extract_from_soup(
+        cls, soup: BeautifulSoup, source_url: str, base_url: str, cache=None, config=None
     ) -> Optional[ParserInterface.DiscoveryResult]:
-        """Discover the summary."""
-        logger.debug("Trying %s...", cls.__name__)
-        bill_url = cls._normalize_bill_url(bill.bill_url)
-        source_url = f"{bill_url}/PrimarySponsorSummary"
-        soup = cls.soup(source_url, cache=cache, config=config)
+        """Try all strategies to extract a summary from an already-fetched soup.
 
+        Extracted so accompanied-bill and other parsers can reuse this logic
+        without re-fetching the page.
+        """
         # Strategy 1: active tab-pane (role="tabpanel") -- the server renders the
         # requested tab as the active pane. The site uses <button aria-controls>
         # tabs, not <a aria-labelledby> tabs, so there is no aria-labelledby on
@@ -150,23 +149,41 @@ class SummaryBillTabTextParser(ParserInterface):
                             preview, text, source_url, 0.95
                         )
 
-        # Strategy 2 (legacy): aria-labelledby on the panel div
+        # Strategy 2: col-sm-2 label + col-sm-10 value form-group row pattern
+        # <div class="col-sm-2"><label>Summary:</label></div>
+        # <div class="col-sm-10"><span>text</span></div>
+        label = soup.find(
+            lambda tag: tag.name == "label"
+            and re.search(r"\bsummary\b", tag.get_text(), re.I)
+            and tag.find_parent("div", class_=re.compile(r"\bcol-sm-2\b"))
+        )
+        if label:
+            col2 = label.find_parent("div", class_=re.compile(r"\bcol-sm-2\b"))
+            value_div = col2.find_next_sibling(
+                "div", class_=re.compile(r"\bcol-sm-10\b")
+            )
+            if value_div:
+                text = " ".join(value_div.get_text(" ", strip=True).split())
+                if len(text) > 10:
+                    preview = text[:500] + ("..." if len(text) > 500 else "")
+                    return ParserInterface.DiscoveryResult(
+                        preview, text, source_url, 0.90
+                    )
+
+        # Strategy 3 (legacy): aria-labelledby on the panel div
         tab_panel = soup.find(
             "div", attrs={"aria-labelledby": re.compile("PrimarySponsorSummary", re.I)}
         )
         if tab_panel:
             text = " ".join(tab_panel.get_text(" ", strip=True).split())
             if text:
-                # Extract actual summary content, not just tab text
                 full_text = cls._extract_summary_content(text)
                 if full_text:
                     preview = full_text[:500] + ("..." if len(full_text) > 500 else "")
                     return ParserInterface.DiscoveryResult(
-                        preview,
-                        full_text,
-                        f"{bill_url}/PrimarySponsorSummary",
-                        0.95,
+                        preview, full_text, source_url, 0.95
                     )
+
         summary_div = soup.find(id=re.compile("Summary", re.I)) or soup.find(
             "div", class_=re.compile("Summary", re.I)
         )
@@ -177,11 +194,9 @@ class SummaryBillTabTextParser(ParserInterface):
                 if full_text:
                     preview = full_text[:500] + ("..." if len(full_text) > 500 else "")
                     return ParserInterface.DiscoveryResult(
-                        preview,
-                        full_text,
-                        f"{bill_url}/PrimarySponsorSummary",
-                        0.7,
+                        preview, full_text, source_url, 0.7
                     )
+
         tab_link = cls._find_summary_tab_link(soup, base_url)
         if tab_link:
             tab_soup = cls.soup(tab_link, cache=cache, config=config)
@@ -191,12 +206,21 @@ class SummaryBillTabTextParser(ParserInterface):
                 if full_text:
                     preview = full_text[:500] + ("..." if len(full_text) > 500 else "")
                     return ParserInterface.DiscoveryResult(
-                        preview,
-                        full_text,
-                        tab_link,
-                        0.6,
+                        preview, full_text, tab_link, 0.6
                     )
+
         return None
+
+    @classmethod
+    def discover(
+        cls, base_url: str, bill: BillAtHearing, cache=None, config=None
+    ) -> Optional[ParserInterface.DiscoveryResult]:
+        """Discover the summary."""
+        logger.debug("Trying %s...", cls.__name__)
+        bill_url = cls._normalize_bill_url(bill.bill_url)
+        source_url = f"{bill_url}/PrimarySponsorSummary"
+        soup = cls.soup(source_url, cache=cache, config=config)
+        return cls._extract_from_soup(soup, source_url, base_url, cache=cache, config=config)
 
     @staticmethod
     def parse(_base_url: str, candidate: ParserInterface.DiscoveryResult) -> dict:

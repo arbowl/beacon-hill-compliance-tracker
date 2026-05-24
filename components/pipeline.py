@@ -19,6 +19,7 @@ from components.utils import (
     ask_llm_decision,
 )
 from timeline.normalizers import _COMMITTEES
+from parsers.summary_accompanied_committee import SummaryAccompaniedCommitteeParser
 from parsers.summary_bill_tab_text import SummaryBillTabTextParser
 from parsers.summary_committee_pdf import SummaryCommitteePdfParser
 from parsers.summary_hearing_docs_pdf import SummaryHearingDocsPdfParser
@@ -50,6 +51,7 @@ SUMMARY_REGISTRY: dict[str, type[ParserInterface]] = {
     module.__module__: module
     for module in [  # type: ignore
         SummaryBillTabTextParser,
+        SummaryAccompaniedCommitteeParser,
         SummaryCommitteePdfParser,
         SummaryHearingDocsPdfParser,
         SummaryHearingPdfParser,
