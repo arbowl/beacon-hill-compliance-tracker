@@ -5,6 +5,14 @@ All notable changes to the Beacon Hill Compliance Tracker will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.6] - 2026-05-24
+
+### Added
+- Extended the accompanied-bill traversal pattern (used to recover votes and committee summaries packaged with a related bill) to also follow "Accompanied a new draft, see H/Sxxx" cross-references, in addition to the existing study order traversal.
+- Parsers which traverse bill pages to find documentation may now execute a sub-search with the other available parser types to find matching bill patterns corresponding with the origin committee.
+- Bills whose hearing action carries no committee name (typically Resolves and cross-branch bills that were never explicitly referred) will now have their hearing date recovered when the bill had only a single committee tenure and no other committee has a labelled hearing. Previously these resolved as "no hearing scheduled" and were left as Provisional, or in rare cases, Non-Compliant if other factors were present.
+
+
 ## [1.4.5] - 2026-05-23
 
 ### Added

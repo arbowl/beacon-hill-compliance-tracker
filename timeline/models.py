@@ -231,11 +231,34 @@ class BillActionTimeline:
         }
         hearings = [a for a in self.actions if a.action_type in hearing_types]
         if committee_id:
-            hearings = [
-                h
-                for h in hearings
+            owned = [
+                h for h in hearings
                 if h.extracted_data.get("committee_id") == committee_id
             ]
+            if owned:
+                return owned
+            # Fallback: claim unlabelled hearings only when no hearing belongs
+            # to a different committee AND the bill had at most one committee
+            # tenure (at most one REFERRED/DISCHARGED action), so we can be
+            # confident the unlabelled hearings aren't leftovers from a prior
+            # committee that was also missing its referral record.
+            other_owned = [
+                h for h in hearings
+                if h.extracted_data.get("committee_id") not in (None, committee_id)
+            ]
+            single_tenure = (
+                sum(
+                    1 for a in self.actions
+                    if a.action_type in {ActionType.REFERRED, ActionType.DISCHARGED}
+                )
+                <= 1
+            )
+            if not other_owned and single_tenure:
+                return [
+                    h for h in hearings
+                    if h.extracted_data.get("committee_id") is None
+                ]
+            return []
         return hearings
 
     def get_latest_hearing_date(

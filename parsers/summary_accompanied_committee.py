@@ -19,6 +19,10 @@ _ACCOMPANIED_PATTERNS = [
         re.I,
     ),
     re.compile(
+        r"Accompanied\s+a\s+new\s+draft[,\s]+see\s+(?P<bill>[HS]\d+)",
+        re.I,
+    ),
+    re.compile(
         r"Accompanied\s+(?:by\s+)?(?P<bill>[HS]\d+)",
         re.I,
     ),

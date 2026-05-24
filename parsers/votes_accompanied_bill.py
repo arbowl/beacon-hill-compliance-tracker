@@ -18,6 +18,10 @@ _ACCOMPANIED_PATTERNS = [
         re.I,
     ),
     re.compile(
+        r"Accompanied\s+a\s+new\s+draft[,\s]+see\s+(?P<bill>[HS]\d+)",
+        re.I,
+    ),
+    re.compile(
         r"Accompanied\s+(?:by\s+)?(?P<bill>[HS]\d+)",
         re.I,
     ),
@@ -74,51 +78,44 @@ class VotesAccompaniedBillParser(ParserInterface):
             if not related_url:
                 related_url = f"{base_url}/Bills/194/{related_bill_id}"
             vote_url = f"{related_url}/CommitteeVote"
-            # Fetch the related bill's vote page and check for vote content
+            # Fetch the related bill's vote page and check for vote content.
+            # Collect *all* matching candidates then pick the right committee,
+            # mirroring VotesBillEmbeddedParser.discover's approach so that
+            # when the accompanied bill has votes from multiple committees we
+            # return the one that matches bill.committee_id rather than
+            # whichever panel happens to appear first.
             vote_soup = cls.soup(vote_url, cache=cache, config=config)
-            # Reuse VotesBillEmbeddedParser's heuristic checks
-            panels = vote_soup.find_all(
-                "div", class_=lambda c: c and "committeeVote" in c
-            )
-            for panel in panels:
-                if VotesBillEmbeddedParser._looks_like_vote_table(panel):
-                    txt = " ".join(panel.get_text(" ", strip=True).split())
-                    preview = (txt[:180] + "...") if len(txt) > 180 else txt
-                    return ParserInterface.DiscoveryResult(
-                        f"Vote found on accompanied bill {related_bill_id} "
-                        f"(referenced from {bill.bill_id})\n\n{preview}",
-                        txt,
-                        vote_url,
-                        0.85,
+            candidates = [
+                p for p in vote_soup.find_all(
+                    "div", class_=lambda c: c and "committeeVote" in c
+                )
+                if VotesBillEmbeddedParser._looks_like_vote_table(p)
+            ]
+            if not candidates:
+                candidates = [
+                    s for s in vote_soup.find_all(
+                        "div", class_=lambda c: c and "committeeVoteSummary" in c
                     )
-            summaries = vote_soup.find_all(
-                "div", class_=lambda c: c and "committeeVoteSummary" in c
-            )
-            for summ in summaries:
-                if VotesBillEmbeddedParser._looks_like_vote_table(summ):
-                    txt = " ".join(summ.get_text(" ", strip=True).split())
-                    preview = (txt[:180] + "...") if len(txt) > 180 else txt
-                    return ParserInterface.DiscoveryResult(
-                        f"Vote summary found on accompanied bill "
-                        f"{related_bill_id} (referenced from "
-                        f"{bill.bill_id})\n\n{preview}",
-                        txt,
-                        vote_url,
-                        0.85,
-                    )
-            tables = vote_soup.find_all("table")
-            for tbl in tables:
-                if VotesBillEmbeddedParser._looks_like_vote_table(tbl):
-                    txt = " ".join(tbl.get_text(" ", strip=True).split())
-                    preview = (txt[:180] + "...") if len(txt) > 180 else txt
-                    return ParserInterface.DiscoveryResult(
-                        f"Vote table found on accompanied bill "
-                        f"{related_bill_id} (referenced from "
-                        f"{bill.bill_id})\n\n{preview}",
-                        txt,
-                        vote_url,
-                        0.85,
-                    )
+                    if VotesBillEmbeddedParser._looks_like_vote_table(s)
+                ]
+            if not candidates:
+                candidates = [
+                    t for t in vote_soup.find_all("table")
+                    if VotesBillEmbeddedParser._looks_like_vote_table(t)
+                ]
+            if candidates:
+                chosen = VotesBillEmbeddedParser._pick_for_committee(
+                    candidates, bill.committee_id
+                )
+                txt = " ".join(chosen.get_text(" ", strip=True).split())
+                preview = (txt[:180] + "...") if len(txt) > 180 else txt
+                return ParserInterface.DiscoveryResult(
+                    f"Vote found on accompanied bill {related_bill_id} "
+                    f"(referenced from {bill.bill_id})\n\n{preview}",
+                    txt,
+                    vote_url,
+                    0.85,
+                )
         return None
 
     @classmethod

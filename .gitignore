@@ -219,3 +219,4 @@ cache.json
 .vscode/
 CLAUDE.md
 nul
+*.wal
